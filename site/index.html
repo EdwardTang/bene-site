@@ -50,11 +50,16 @@ const { useState, useEffect } = React;
 // ─── Bilingual dictionary ───────────────────────────────────────────
 const dict = {
   en: {
-    nav: { landing: 'Landing', docs: 'Docs' },
+    nav: { landing: 'Landing', docs: 'Docs', github: 'GitHub' },
     hero: {
       title: 'BENE — Breeding-program · Evolutionary · Nexus · Engrams',
-      tagline: 'One SQLite file. Every agent isolated, auditable, restorable. A harness that breeds better harnesses.',
+      tagline: 'A Bene Gesserit harness for AI coding agents — they remember, evolve, and never start cold.',
       stats: ['v0.2.0', '699 passing tests', '37 MCP tools'],
+    },
+    demoCaption: 'A real terminal session, captured against bene-main HEAD. Every command above ran on this build.',
+    thesis: {
+      title: 'Why a harness',
+      body: 'A raw LLM is the gom jabbar test: its awareness cannot exceed what is in front of it; it reacts and destroys but does not build. BENE is the framework and logic — the deliberate scaffolding — that lets an AI coding agent build rather than merely react. Other Memory becomes searchable execution traces. Missionaria Protectiva becomes skills + memory + shared-log seeded ahead of need. The Breeding Program becomes evolutionary meta-harness search. The Litany Against Fear becomes checkpoint → diff → restore.',
     },
     litany: 'I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.',
     pillars: [
@@ -98,11 +103,16 @@ const dict = {
     },
   },
   zh: {
-    nav: { landing: '主页', docs: '文档' },
+    nav: { landing: '主页', docs: '文档', github: '源码' },
     hero: {
       title: 'BENE — 繁育计划 · 进化 · 枢纽 · 记忆印痕',
-      tagline: '一个 SQLite 文件。每个智能体隔离、可审计、可回滚。一个会繁育更优策略的执行框架。',
+      tagline: '为 AI 编程智能体打造的姐妹会式执行框架——它们记得、进化，绝不从零开始。',
       stats: ['v0.2.0', '699 项测试通过', '37 个 MCP 工具'],
+    },
+    demoCaption: '一段真实的终端会话，对当前 bene-main HEAD 实跑录制。上面每一条命令都在这个构建上真实执行。',
+    thesis: {
+      title: '为什么要有框架',
+      body: '一个原始的 LLM 就是戈姆刺测验下的兽：意识无法超越眼前所见，只会反应与毁灭，不会建造。BENE 就是那个框架，那一层有意识的思维支架——让 AI 编程智能体能够建造，而不仅仅是反应。「祖先记忆」化为可检索的执行追踪；「保护传教团」化为提前播种的技能、记忆与共享日志；「繁育计划」化为进化型 meta-harness 搜索；「抗惧祷文」化为 checkpoint → diff → restore 这一闭环。',
     },
     litany: '我需心无所惧。恐惧是思想的屠者，恐惧是渐噬的湮灭。我将直面心之所惧，任它穿略，内观所及。恐惧所经之处，一片虚无。唯我将立。',
     pillars: [
@@ -166,6 +176,12 @@ function Navbar({ view, setView, lang, setLang, t }) {
               className={'transition-colors ' + (view === 'landing' ? 'text-dune-gold' : 'text-dune-sand/60 hover:text-dune-sand')}>{t.nav.landing}</button>
             <button type="button" onClick={() => setView('docs')}
               className={'transition-colors ' + (view === 'docs' ? 'text-dune-gold' : 'text-dune-sand/60 hover:text-dune-sand')}>{t.nav.docs}</button>
+            <a href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer"
+              className="transition-colors text-dune-sand/60 hover:text-dune-gold flex items-center gap-1.5"
+              title="View source on GitHub">
+              <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.94c-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.51-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.26 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+              {t.nav.github}
+            </a>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -219,26 +235,25 @@ function Landing({ t }) {
       </section>
 
       <section className="border-y border-dune-border bg-[#120E24] py-24 px-6">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="font-serif text-2xl text-dune-sand mb-8">{t.demo.title}</h2>
-          <div className="bg-[#090710] border border-dune-border rounded-lg p-6 font-mono text-sm md:text-base overflow-x-auto shadow-2xl">
-            <div className="flex gap-2 mb-6 border-b border-dune-border/30 pb-4">
+        <div className="max-w-5xl mx-auto">
+          <h2 className="font-serif text-2xl text-dune-sand mb-2">{t.demo.title}</h2>
+          <p className="text-dune-sand/60 text-sm md:text-base mb-8">{t.demoCaption}</p>
+          <div className="bg-[#090710] border border-dune-border rounded-lg p-3 md:p-5 shadow-2xl">
+            <div className="flex gap-2 mb-3 px-2">
               <div className="w-3 h-3 rounded-full bg-dune-border" />
               <div className="w-3 h-3 rounded-full bg-dune-border" />
               <div className="w-3 h-3 rounded-full bg-dune-border" />
             </div>
-            <div className="space-y-4 text-dune-sand/80">
-              <div><span className="text-dune-accent mr-2">$</span><span className="text-dune-gold">uv run</span> bene init</div>
-              <div className="text-dune-sand/50">Initialized BENE database: bene.db</div>
-              <div className="pt-2"><span className="text-dune-accent mr-2">$</span><span className="text-dune-gold">uv run</span> bene checkpoint $AID --label before-refactor</div>
-              <div className="text-dune-sand/50">{'{"checkpoint_id": "01KTW51TQDPTHPW35FCXMS8PWE", "label": "before-refactor"}'}</div>
-              <div className="pt-2"><span className="text-dune-accent mr-2">$</span><span className="text-dune-gold">uv run</span> bene diff $AID --from $CP1 --to $CP2</div>
-              <div className="text-dune-sand/50">ADDED&nbsp;&nbsp;&nbsp;&nbsp;/src/refactor.py&nbsp;&nbsp;·&nbsp;&nbsp;MODIFIED&nbsp;&nbsp;/notes/plan.md</div>
-              <div className="pt-2"><span className="text-dune-accent mr-2">$</span><span className="text-dune-gold">uv run</span> bene demo --no-ui</div>
-              <div className="text-white font-medium">{t.demo.output}</div>
-            </div>
+            <img src="assets/bene-demo.gif" alt="BENE — real terminal session, captured against HEAD"
+              className="w-full h-auto rounded" loading="lazy" />
           </div>
+          <p className="text-dune-sand/40 text-xs mt-3 font-mono">$ uv run bene --version · init · checkpoint · diff · restore · demo --no-ui</p>
         </div>
+      </section>
+
+      <section className="max-w-5xl mx-auto px-6 py-24">
+        <h2 className="font-serif text-2xl text-dune-gold mb-6">{t.thesis.title}</h2>
+        <p className="text-dune-sand/80 text-base md:text-lg leading-relaxed">{t.thesis.body}</p>
       </section>
 
       <section className="max-w-5xl mx-auto px-6 py-24">
@@ -355,11 +370,18 @@ function Footer({ t }) {
     <footer className="border-t border-dune-border bg-dune-bg py-12 px-6">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="text-dune-sand/50 text-sm font-mono">{t.footer}</div>
-        <a href="https://www.superlinear.academy/ai-builders" target="_blank" rel="noopener noreferrer"
-          className="bg-dune-surface border border-dune-border hover:border-dune-gold px-4 py-2 rounded-full text-xs font-mono text-dune-sand/80 transition-colors flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-dune-accent" />
-          AI-Builders Space
-        </a>
+        <div className="flex items-center gap-3">
+          <a href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer"
+            className="bg-dune-surface border border-dune-border hover:border-dune-gold px-4 py-2 rounded-full text-xs font-mono text-dune-sand/80 transition-colors flex items-center gap-2">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.94c-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.51-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.26 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
+            EdwardTang/bene-site
+          </a>
+          <a href="https://www.superlinear.academy/ai-builders" target="_blank" rel="noopener noreferrer"
+            className="bg-dune-surface border border-dune-border hover:border-dune-gold px-4 py-2 rounded-full text-xs font-mono text-dune-sand/80 transition-colors flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-dune-accent" />
+            AI-Builders Space
+          </a>
+        </div>
       </div>
     </footer>
   );
