@@ -63,16 +63,16 @@ const dict = {
     },
     litany: 'I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.',
     pillars: [
-      { title: 'Other Memory', desc: 'Searchable execution traces (engrams, compression ladder tier 0-4). The next agent never starts cold.' },
+      { title: 'Other Memory', desc: 'Every run leaves a searchable trace, and higher tiers (0 raw → 4 strategic) compress what worked. Later agents inherit the path, not just the destination.' },
       { title: 'Missionaria Protectiva', desc: 'Skills + memory propagated across agents before they are needed.' },
       { title: 'The Breeding Program', desc: 'Evolutionary meta-harness search, kill-gated promotion (PromotionBlocked without an ACCEPT probe verdict).' },
       { title: 'The Litany Against Fear', desc: 'Checkpoint → diff → restore loop. Rollback is cheap and auditable, so agents act without fear.' },
-      { title: 'Beasts only destroy; humans need frameworks', desc: 'The harness thesis: trust through verifiability — autonomy ladder L0-L4 plus a computed trust ledger.' },
+      { title: 'Beasts only destroy; humans need frameworks', desc: "An agent that can't be checked won't get used. So the autonomy ladder (L0-L4) gates what each agent is allowed to touch, and the trust score is computed from its own logs — not declared by anyone." },
     ],
     demo: { title: 'Live Demo', output: 'story complete in 0.3s — 12 engrams, 4 experiment runs.' },
     honesty: {
       title: 'Every claim checkable',
-      desc: 'Pre-registered benchmarks with hash-locked gates. REJECT counted as success. A claims audit marks every feature implemented or planned — never in between.',
+      desc: "Every benchmark is registered before it runs and its spec is sha256-locked, so we can't quietly retune it after we've seen the result. REJECT counts as a win — that's the trick. The claims audit marks every feature 'implemented' or 'planned'. We don't allow a third category.",
     },
     footer: 'BENE 0.2.0 · local-first · SQLite · built in the open',
     docs: {
@@ -116,16 +116,16 @@ const dict = {
     },
     litany: '我需心无所惧。恐惧是思想的屠者，恐惧是渐噬的湮灭。我将直面心之所惧，任它穿略，内观所及。恐惧所经之处，一片虚无。唯我将立。',
     pillars: [
-      { title: '祖先记忆 (Other Memory)', desc: '可检索的执行追踪（engram，压缩阶梯 0-4 级）。下一个智能体永远不必从零开始。' },
+      { title: '祖先记忆 (Other Memory)', desc: '每次运行都留下可检索的 trace；更高的层级（0 级原始 → 4 级战略）把"哪些做法管用"压缩出来。后来者继承的是路径，不只是终点。' },
       { title: '保护传教团 (Missionaria Protectiva)', desc: '在需要之前，将技能与记忆在智能体间传播。' },
       { title: '繁育计划 (The Breeding Program)', desc: '进化型 meta-harness 搜索，kill-gate 门控晋升（无 ACCEPT 探针裁决则抛出 PromotionBlocked）。' },
       { title: '抗惧祷文 (The Litany Against Fear)', desc: 'Checkpoint → diff → restore 循环。回滚廉价且可审计，智能体因此无惧行动。' },
-      { title: '野兽只会破坏，人类需要框架', desc: '框架核心论点：以可验证性建立信任 —— 自治阶梯 L0-L4 加上计算型信任账本。' },
+      { title: '野兽只会破坏，人类需要框架', desc: '一个无法被核验的智能体，不会被人使用。所以自治阶梯（L0-L4）决定每个智能体能碰什么，信任分数由它自己的日志算出来 —— 不由任何人宣称。' },
     ],
     demo: { title: '实时演示', output: 'story complete in 0.3s — 12 engrams, 4 experiment runs.' },
     honesty: {
       title: '所有声明皆可验证',
-      desc: '哈希锁定 kill gate 的预注册基准测试，REJECT 亦计为成功。声明审计把每个特性标记为「已实现」或「计划中」—— 绝无中间地带。',
+      desc: '每个基准测试在跑之前就先注册、把 spec 用 sha256 锁定，免得我们看到结果之后再悄悄调阈值。REJECT 计为成功 —— 这是这套纪律的关键。声明审计把每个特性标记为「已实现」或「计划中」，我们不允许有第三种类别存在。',
     },
     footer: 'BENE 0.2.0 · 本地优先 · SQLite · 开放构建',
     docs: {
