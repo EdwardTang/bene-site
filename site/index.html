@@ -60,10 +60,10 @@ const dict = {
     demoCaption: 'A real terminal session, captured against bene-main HEAD. Every command above ran on this build.',
     tryIt: {
       title: 'Try it yourself — receipts today, framework soon',
-      lede: 'Half of this you can run right now. The other half is the framework — currently in private preview; the receipts above are public so you can read every claim before you ask for access.',
+      lede: 'Top block runs today against the public receipts repo. Bottom block is the framework — private preview; ask for access after you have read the docs above.',
       codeNow: '# Today (the receipts are public — read every decision yourself):\ngit clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md     # the 10 hard calls\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md # the locked-rule verdict\nless bene-site/docs/design/CLAIMS-AUDIT.md           # every claim, traced',
       codeSoon: '# Soon (framework — private preview, request access):\nuv run bene init && uv run bene demo --no-ui   # 0.2s 5-pillar story\nuv run bene experiments ls                      # see the kill-gate journal\nuv run bene senses --md                         # what an incoming agent reads first',
-      footnote: 'No API keys. No cloud. One SQLite file at $BENE_DB. Framework currently in private preview; receipts above are public.',
+      footnote: 'No API keys. No cloud. One SQLite file at $BENE_DB.',
     },
     thesis: {
       title: 'Why a harness',
@@ -83,7 +83,7 @@ const dict = {
       ],
       storyTitle: 'The hardest call: collapsing five stores into one engram substrate',
       story: "Both prior frameworks shipped five separate stores — memory, skills, experiments, evaluation, dream consolidation. The interesting signals lived at the joins (a skill's eval history, a memory's source trace) and the joins were expensive, so nobody computed them — measurably: in our own predecessor, probe verdicts never wrote back into the memory or skill stores (GAP-AUDIT KAOS-6). The argument against collapse was real: a universal store risks becoming an everything-table that does nothing well. We resolved it by keeping the substrate thin — (kind, tier, payload-ref, provenance, links) — letting each subsystem keep its own behavior while sharing storage and lineage. Full argument lives in DESIGN-RATIONALE D1.",
-      metaNote: "Meta: this site, the VHS demo capture, and the round-3 bench harnesses were built with a Claude Code agent. Round-3 straddled an API quota event and was finished inline by hand; the unversioned /tmp scripts noted in the bench report's threats-to-validity section are an artifact of that. Disclosing it where the receipts are, not in a footer.",
+      metaNote: "Meta: this site, the VHS demo capture, and the round-3 bench harnesses were built with a Claude Code agent. Round-3 straddled an API quota event and was finished inline by hand; the unversioned /tmp scripts noted in the bench report's threats-to-validity section are an artifact of that.",
     },
     litany: 'I must not fear. Fear is the mind-killer. Fear is the little-death that brings total obliteration. I will face my fear. I will permit it to pass over me and through me. And when it has gone past I will turn the inner eye to see its path. Where the fear has gone there will be nothing. Only I will remain.',
     pillars: [
@@ -107,7 +107,7 @@ const dict = {
     footer: 'BENE 0.2.0 · local-first · SQLite · built in the open',
     docs: {
       nav: { quickstart: 'Quickstart', core: 'Core Concepts', cli: 'CLI Tour', arch: 'Architecture', roadmap: 'Status & Roadmap' },
-      quickstart: { title: 'Quickstart', desc: 'Get started with BENE in seconds. Requires Python 3.10+ and uv.' },
+      quickstart: { title: 'Quickstart', desc: 'Get started with BENE in seconds. Requires Python 3.11+ and uv.' },
       core: {
         title: 'Core Concepts',
         items: [
@@ -144,10 +144,10 @@ const dict = {
     demoCaption: '一段真实的终端会话，对当前 bene-main HEAD 实跑录制。上面每一条命令都在这个构建上真实执行。',
     tryIt: {
       title: '自己跑一遍 —— 凭据今天就能读，框架很快开放',
-      lede: '下面一半现在就能跑。另一半是框架本身，目前还在私有预览；上面的凭据链已经全部公开，先看完每一条声明，再来要访问权限。',
+      lede: '上面那块今天就能跑（对着公开的凭据 repo），下面那块是框架本身——私有预览；读完上面的文档再来要权限。',
       codeNow: '# 今天就能跑（凭据已公开，每一条决策都可以自己读）：\ngit clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # 10 个最难的取舍\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md # 锁定规则下的判定\nless bene-site/docs/design/CLAIMS-AUDIT.md           # 每一条声明，都有出处',
       codeSoon: '# 很快开放（框架本体 —— 私有预览，可申请访问）：\nuv run bene init && uv run bene demo --no-ui   # 0.2 秒，五大支柱故事\nuv run bene experiments ls                      # 看 kill-gate 评测日志\nuv run bene senses --md                         # 新智能体最先读到的东西',
-      footnote: '不需要 API key。不上云。一个 SQLite 文件就在 $BENE_DB。框架目前私有预览；上面的凭据链已经全部公开。',
+      footnote: '不需要 API key。不上云。一个 SQLite 文件就在 $BENE_DB。',
     },
     thesis: {
       title: '为什么要有框架',
@@ -167,7 +167,7 @@ const dict = {
       ],
       storyTitle: '最难的一刀：把五个 store 合并成一个 engram 基底',
       story: '两个前框架都各自跑了五个独立 store —— 记忆、技能、实验、评测、梦境整合。真正有意思的信号长在交叉处（一项技能的评测历史、一段记忆的源 trace），而交叉处的查询很贵，于是没人去算 —— 这是可量化的：在我们自己的前任 KAOS 里，probe 裁决根本没回写到 MemoryStore/SkillStore（GAP-AUDIT KAOS-6）。反对合并的理由也是真的：一个通用 store 容易变成什么都装、什么都做不好的「万能表」。我们的解法是把基底削薄 —— 只剩 (kind, tier, payload-ref, provenance, links) —— 让每个子系统保留自己的行为，只共享存储与谱系层。完整论证在 DESIGN-RATIONALE D1。',
-      metaNote: '元说明：这个站点、它的 VHS 演示录像、以及第三轮的基准 harness 脚本，都是用 Claude Code 智能体搭出来的。第三轮工作横跨了一次 API 配额事件，最后是手工补完的；基准报告 threats-to-validity 一节里提到的那些未提交的 /tmp 脚本，就是那次工作流的副产品。把这件事写在凭据这一节里，而不是塞到 footer。',
+      metaNote: '元说明：这个站点、它的 VHS 演示录像、以及第三轮的基准 harness 脚本，都是用 Claude Code 智能体搭出来的。第三轮工作横跨了一次 API 配额事件，最后是手工补完的；基准报告 threats-to-validity 一节里提到的那些未提交的 /tmp 脚本，就是那次工作流的副产品。',
     },
     litany: '我需心无所惧。恐惧是思想的屠者，恐惧是渐噬的湮灭。我将直面心之所惧，任它穿略，内观所及。恐惧所经之处，一片虚无。唯我将立。',
     pillars: [
@@ -190,20 +190,67 @@ const dict = {
     },
     footer: 'BENE 0.2.0 · 本地优先 · SQLite · 开放构建',
     docs: {
-      nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', arch: '架构设计', roadmap: '状态与路线图' },
-      quickstart: { title: '快速开始', desc: '几秒钟内开始使用 BENE。需要 Python 3.10+ 和 uv。' },
+      nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', mcp: 'MCP 服务器', research: '研究底座', arch: '架构设计', roadmap: '状态与路线图' },
+      quickstart: {
+        title: '快速开始',
+        desc: '一分钟内跑起来。需要 Python 3.11+ 和 uv。',
+        steps: [
+          { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: '站点 repo 里就有完整可离线浏览的凭据链。' },
+          { run: 'uv sync', say: '装依赖（uv 几秒内 resolve + 缓存）。' },
+          { run: 'uv run bene init', say: '在当前目录建一份新的 bene.db。' },
+          { run: 'uv run bene demo --no-ui', say: '五大支柱故事一次跑完 —— 0.2 秒，零密钥。这正是首页那张 GIF 录的东西。' },
+          { run: 'uv run bene experiments ls && uv run bene senses --md', say: '看 kill-gate 评测日志，看新智能体最先读到的清单。' },
+        ],
+        gifNote: '同一条流水线，对当前 bene-main HEAD 实跑录制：',
+      },
       core: {
         title: '核心概念',
         items: [
-          { name: 'Engram 压缩阶梯', desc: '0 级原始追踪 → 情景 → 语义 → 程序 → 战略；每一级都有溯源链接。' },
-          { name: '可证伪评估探针', desc: 'ACCEPT / REJECT / VOID 裁决，哈希锁定 kill gate；被篡改的规约会拒绝执行。' },
-          { name: '信任账本', desc: '四个计算信号 —— 验证覆盖率、审计完整性、checkpoint 纪律、结果可靠性。信任是算出来的，不是声明出来的。' },
-          { name: '自治阶梯', desc: 'L0（手动）到 L4（仅限人类的能力）；每次拒绝都记录为 trust engram。' },
-          { name: 'ContextOS', desc: '带 manifest 的预算上限上下文组装，加上污染检测与 checkpoint 恢复。' },
+          { name: 'Engram 压缩阶梯', desc: '0 级原始追踪 → 情景 → 语义 → 程序 → 战略；每一级都有溯源链接。一个更高层级要"真"，必须能预测它压缩自的下一层 —— 这才是「整合是不是真发生了」的检验。' },
+          { name: '可证伪评估探针', desc: 'ACCEPT / REJECT / VOID 裁决，哈希锁定 kill gate；被篡改的规约会拒绝执行；连阈值都触发不了的 baseline 直接 inadmissible。Probe 本身也是 engram —— 写一次，整个种群复用。' },
+          { name: '信任账本', desc: '四个计算信号 —— 验证覆盖率、审计完整性、checkpoint 纪律、结果可靠性。输入是经过门控的验证产物（probe 裁决、e2e 事件、checkpoint 记录）。信任是算出来的，不是声明出来的。' },
+          { name: '自治阶梯', desc: 'L0（仅观察）→ L1（建议）→ L2（沙箱）→ L3（共享状态）→ L4（自动晋升合并，默认仅人类）。每个能力都标了所需级别；每次拒绝都记成 trust engram。' },
+          { name: 'ContextOS', desc: '带 manifest 的预算上限上下文组装（绝不超预算，随机化属性测试），加上污染检测与 checkpoint 恢复。' },
         ],
       },
-      cli: { title: 'CLI 导览', desc: '所有命令均支持 --json 标志以供程序化调用。' },
-      arch: { title: '架构设计', desc: '核心循环将 meta-harness 与 kernel 连接，并受信任账本约束。' },
+      cli: {
+        title: 'CLI 导览',
+        desc: '所有命令都支持 --json 输出（可 jq）。按能力分组，不按字母。',
+        gifNote: '真实会话，对当前 HEAD 实录。开个新 shell，按上面 Quickstart 贴一遍，下面这些命令都能跑：',
+        groups: [
+          { name: '安装 & 查看', cmds: ['init', 'ls', 'logs', 'query'] },
+          { name: '抗惧祷文循环（直面失败 / 回滚）', cmds: ['checkpoint', 'diff', 'restore'] },
+          { name: '比 agent 活得更久的知识', cmds: ['memory', 'skills', 'shared-log'] },
+          { name: '繁育计划', cmds: ['mh search', 'mh frontier', 'mh resume'] },
+          { name: '诚信表面', cmds: ['experiments ls', 'experiments show', 'senses --md', 'trust', 'demo --no-ui'] },
+        ],
+      },
+      mcp: {
+        title: 'MCP 服务器',
+        desc: '37 个工具暴露给 AI 编程工具（Claude Code、Cursor、Aider 等）—— 所有 CLI 表面都同时通过 MCP 可达。',
+        run: 'uv run bene-mcp',
+        note: '在你用的工具里指向本地 stdio MCP server 即可。详见 bene-site/docs/mcp-integration.md。',
+        href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md',
+      },
+      research: {
+        title: '16 篇论文垫底',
+        desc: '不是凭感觉。每根支柱都对应到具体论文 —— 完整的「论文 → 支柱」对照表在 SYNTHESIS.md。',
+        href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
+        cta: '读 SYNTHESIS.md（16 篇 AAOP 论文，48 处引用） →',
+        sample: [
+          { paper: 'Meta-Harness (Stanford IRIS)', pillar: '进化型 meta-harness（繁育计划）' },
+          { paper: 'SkillX、SkillClaw、Trace2Skill', pillar: '技能 + 记忆传播（保护传教团）' },
+          { paper: 'AEVO（verifier isolation）', pillar: 'kill-gate 门控晋升' },
+          { paper: 'AHE — Agentic Harness Engineering', pillar: 'harness 工程化 + 进化' },
+          { paper: 'Lost in Conversation、RF-Mem、MemGAS', pillar: '上下文 OS + 污染恢复' },
+        ],
+      },
+      arch: {
+        title: '架构设计',
+        desc: '内核坐底（一个 SQLite 文件、内容寻址的 blob、append-only 事件）。meta-harness 读它、在它上面进化。信任账本读"所有"验证产物，产出一个信号给自治阶梯在 capability-dispatch 边界查。',
+        href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/architecture.md',
+        cta: '读 architecture.md（内核内部 + DDL + 不变量） →',
+      },
       roadmap: {
         title: '状态与路线图',
         headers: ['功能特性', '当前状态'],
@@ -412,11 +459,21 @@ function Docs({ t }) {
         <section id="quickstart" className="space-y-6">
           <h2 className="text-3xl font-serif text-dune-gold border-b border-dune-border pb-4">{dt.quickstart.title}</h2>
           <p className="text-dune-sand/80">{dt.quickstart.desc}</p>
-          <div className="bg-[#090710] border border-dune-border rounded p-6 font-mono text-sm text-dune-sand/80">
-            <div className="text-dune-gold">uv sync</div>
-            <div className="text-dune-gold mt-2">uv run bene init</div>
-            <div className="mt-2">uv run bene ls</div>
-            <div className="mt-2">uv run bene dashboard</div>
+          <ol className="space-y-4">
+            {dt.quickstart.steps.map((step, i) => (
+              <li key={i} className="space-y-1">
+                <div className="flex gap-3 items-baseline">
+                  <span className="font-mono text-dune-accent text-xs shrink-0 w-6">{(i+1).toString().padStart(2,'0')}</span>
+                  <code className="font-mono text-sm md:text-base text-dune-gold bg-[#090710] border border-dune-border rounded px-3 py-2 flex-1 overflow-x-auto">{step.run}</code>
+                </div>
+                <p className="text-dune-sand/70 text-sm ml-9">{step.say}</p>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-6">
+            <p className="text-dune-sand/50 text-xs font-mono mb-2">{dt.quickstart.gifNote}</p>
+            <img src="assets/bene-demo.gif" alt="bene quickstart, real terminal session"
+              className="w-full h-auto rounded border border-dune-border shadow-2xl" loading="lazy" />
           </div>
         </section>
 
@@ -435,12 +492,46 @@ function Docs({ t }) {
         <section id="cli" className="space-y-6">
           <h2 className="text-3xl font-serif text-dune-gold border-b border-dune-border pb-4">{dt.cli.title}</h2>
           <p className="text-dune-sand/80">{dt.cli.desc}</p>
-          <div className="bg-[#090710] border border-dune-border rounded p-6 font-mono text-sm text-dune-sand/80 overflow-x-auto">
-            <div className="text-dune-accent mb-4"># Available Commands</div>
-            {['init', 'ls', 'checkpoint', 'diff', 'restore', 'memory', 'skills', 'mh', 'logs', 'query'].map((cmd) => (
-              <div key={cmd} className="mb-1"><span className="text-dune-gold">bene</span> {cmd} <span className="text-dune-sand/40">[--json]</span></div>
+          <div className="space-y-4">
+            {dt.cli.groups.map((g, i) => (
+              <div key={i} className="bg-[#090710] border border-dune-border rounded p-5 font-mono text-sm">
+                <div className="text-dune-accent mb-3 text-xs uppercase tracking-wider"># {g.name}</div>
+                {g.cmds.map((cmd) => (
+                  <div key={cmd} className="mb-1"><span className="text-dune-gold">bene</span> {cmd} <span className="text-dune-sand/40">[--json]</span></div>
+                ))}
+              </div>
             ))}
           </div>
+          <div className="mt-6">
+            <p className="text-dune-sand/50 text-xs font-mono mb-2">{dt.cli.gifNote}</p>
+            <img src="assets/bene-demo.gif" alt="bene CLI tour, real terminal session"
+              className="w-full h-auto rounded border border-dune-border shadow-2xl" loading="lazy" />
+          </div>
+        </section>
+
+        <section id="mcp" className="space-y-6">
+          <h2 className="text-3xl font-serif text-dune-gold border-b border-dune-border pb-4">{dt.mcp.title}</h2>
+          <p className="text-dune-sand/80">{dt.mcp.desc}</p>
+          <div className="bg-[#090710] border border-dune-border rounded p-5 font-mono text-sm">
+            <div className="text-dune-gold">$ {dt.mcp.run}</div>
+          </div>
+          <a href={dt.mcp.href} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-dune-gold hover:text-dune-accent text-sm font-mono underline decoration-dotted underline-offset-4">{dt.mcp.note}</a>
+        </section>
+
+        <section id="research" className="space-y-6">
+          <h2 className="text-3xl font-serif text-dune-gold border-b border-dune-border pb-4">{dt.research.title}</h2>
+          <p className="text-dune-sand/80">{dt.research.desc}</p>
+          <ul className="space-y-2">
+            {dt.research.sample.map((row, i) => (
+              <li key={i} className="flex flex-col md:flex-row md:gap-4 text-sm md:text-base">
+                <span className="font-mono text-dune-gold md:w-1/2">{row.paper}</span>
+                <span className="text-dune-sand/70">→ {row.pillar}</span>
+              </li>
+            ))}
+          </ul>
+          <a href={dt.research.href} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-dune-gold hover:text-dune-accent text-sm font-mono underline decoration-dotted underline-offset-4">{dt.research.cta}</a>
         </section>
 
         <section id="arch" className="space-y-6">
@@ -455,6 +546,8 @@ function Docs({ t }) {
                                            v
                               [ Engram Storage (SQLite) ]`}
           </div>
+          <a href={dt.arch.href} target="_blank" rel="noopener noreferrer"
+            className="inline-block text-dune-gold hover:text-dune-accent text-sm font-mono underline decoration-dotted underline-offset-4">{dt.arch.cta}</a>
         </section>
 
         <section id="roadmap" className="space-y-6">
