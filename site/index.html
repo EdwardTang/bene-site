@@ -68,19 +68,25 @@ const dict = {
   en: {
     nav: { landing: 'Landing', docs: 'Docs', github: 'GitHub' },
     hero: {
-      title: 'Run AI coding agents you can rewind, audit, and trust.',
-      tagline: 'One SQLite file. No API keys. No cloud. Every agent isolated; every turn checkpointed; every claim checkable.',
-      stats: ['keyless demo in 0.3s', '718 passing tests', '37 MCP tools'],
-      trustLine: 'No source code, prompts, or events leave your machine. The whole harness is one SQLite file you can cp or git diff.',
+      title: 'Run AI coding agents you can rewind, diff, and replay.',
+      forWho: 'For engineers tired of agents that silently break things they can’t undo.',
+      trustLine: 'The whole harness is one SQLite file you can cp or git diff. No API keys. No cloud.',
+      tagline: 'Every agent isolated, every turn checkpointed, and you can re-run every claim.',
+      stats: ['rewind a broken turn in one command', 'works with Claude Code, Cursor, Aider', '37 MCP tools'],
       ctaCode: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site\nuv sync && uv run bene init && uv run bene demo --no-ui   # 0.3s, zero keys',
     },
     sections: {
       watch: {
-        kicker: '01 · WATCH IT RUN',
-        title: 'A full agent harness, running on your laptop in 0.3 seconds.',
+        kicker: '01 · KEYLESS, IN 0.3 SECONDS',
+        title: 'Five pillars wire up and run a story in 0.3s, with no key.',
         body: 'One command, no keys, real terminal. The kernel does five jobs in one run: it compresses traces, evolves a strategy, kill-gates a probe, denies an over-permissioned action, and computes a trust score — all from the engrams it just wrote.',
         demo: 'assets/demos/demo-keyless.gif',
         caption: 'Recorded live against bene-main HEAD. No edits.',
+      },
+      builders: {
+        kicker: '01.5 · WHY THIS MATTERS FOR BUILDERS',
+        title: 'Context Engineering as a SQLite file.',
+        body: 'Every checkpointed turn is a scratchpad your next agent can read. Engrams are lessons-learned that compound across sessions. Skills propagate between agents before they are needed. This is the scratchpad + lessons-learned + persistent-memory triad — wired together, on disk, one file.',
       },
       rewind: {
         kicker: '02 · REWIND A BAD TURN',
@@ -91,10 +97,10 @@ const dict = {
       },
       receipts: {
         kicker: '03 · EVERY CLAIM HAS RECEIPTS',
-        title: 'Verdicts, not vibes. A skeptic can run every check.',
+        title: 'Your tech lead can rerun every check.',
         body: 'Probe specs are sha256-locked before any run. Every gate has an ACCEPT or REJECT verdict with the numbers it tripped. New agents read a manifest of what is already known instead of starting blind.',
         demo: 'assets/demos/demo-honesty.gif',
-        caption: 'experiments ls → experiments show → senses --md, all from the live db.',
+        caption: 'Wire a probe to your own agent in five lines — your agent now refuses to report DONE until G1/G2 pass.',
         links: [
           { label: 'PREREG.md (sha256-locked protocol)', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
           { label: 'CLAIMS-AUDIT.md (every claim, file + test)', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
@@ -106,14 +112,42 @@ const dict = {
         title: 'Claude Code. Cursor. Aider. Any MCP-compatible agent.',
         body: '37 tools over MCP, stdio transport, one line in your agent config. Every CLI surface is reachable the same way over --json (pipe to jq). No glue code; no N×M integration tax.',
         snippet: 'claude mcp add bene -- uv run bene serve --transport stdio',
+        capabilities: [
+          'checkpoint its own turns and restore on bad output, without you reaching for git.',
+          'search engrams from past sessions as RAG context — lessons-learned that compound.',
+          'gate its own claims behind falsifiable probes before reporting done.',
+        ],
+        capabilitiesLede: 'Your Claude Code (or Cursor / Aider) now can:',
+      },
+      build: {
+        kicker: '04.5 · BUILD YOUR FIRST AUDITABLE AGENT',
+        title: 'Three recipes you can adapt tonight.',
+        body: 'Each recipe is a real bene CLI sequence against a fresh bene.db. Adapt the variables to your task; the harness mechanics stay the same.',
+        recipes: [
+          {
+            title: 'Wrap a flaky shell script as a checkpointed agent',
+            getYou: 'git revert for runtime: every run is a checkpoint, every diff is offline, you roll back to the green build in one command.',
+            code: '$AID=$(bene spawn --name runbook)\nbene write $AID /run.sh "$(cat my_pipeline.sh)"\nbene checkpoint $AID --label green\n# ... let your agent edit /run.sh ...\nbene diff $AID --from green --to $(bene checkpoints $AID -1)\nbene restore $AID --checkpoint green   # back to green',
+          },
+          {
+            title: 'Run one prompt across 3 models, gated by an ACCEPT probe',
+            getYou: 'a kill-gated bake-off: only the variant that trips no gate gets promoted; the rest are rejected with a verdict you can re-read.',
+            code: 'bene probe create story-probe --spec ./probes/story.yaml   # sha256-locked\nfor m in opus sonnet haiku; do\n  bene run --name "story-$m" --model $m "draft the release notes"\ndone\nbene probe run story-probe --against story-*   # ACCEPT / REJECT / VOID per arm\nbene experiments ls                            # the journal\n# only ACCEPTed variants are eligible for promotion',
+          },
+          {
+            title: 'Give Claude Code a persistent scratchpad + lessons-learned via MCP',
+            getYou: 'compounding context: every session writes engrams; every new session reads the senses manifest first and inherits what worked.',
+            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# In your Claude Code session:\n#   memory.search "yesterday\'s schema migration" → past engrams\n#   senses.md → manifest the agent reads before its first action\n#   checkpoint → restore on a bad turn, no git stash needed',
+          },
+        ],
       },
       candor: {
-        kicker: '05 · TODAY VS SOON, SAID PLAINLY',
-        title: 'What you can run today.',
-        todayHead: 'Today (public — receipts and the three demos above):',
+        kicker: '05 · TODAY VS SOON',
+        title: 'Today vs Soon.',
+        todayHead: 'Today (public — receipts repo, the three demos above, and the recipes):',
         todayCode: 'git clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # the 10 hard calls\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md  # locked-rule verdict\nless bene-site/docs/design/CLAIMS-AUDIT.md            # every claim, traced',
-        soonHead: 'Soon (framework — private preview, request access after reading):',
-        soonCode: 'uv run bene init && uv run bene demo --no-ui  # 0.3s 5-pillar story\nuv run bene experiments ls                     # the kill-gate journal\nuv run bene senses --md                        # the briefing a new agent reads first',
+        soonHead: 'Soon (hosted evolutionary / meta-harness search — opt-in, private preview):',
+        soonCode: '# The local SQLite + MCP surface stays the contract.\n# Soon: a hosted service for breeding/evolutionary search across generations.\nuv run bene mh search   # local today; opt-in hosted soon',
       },
       origin: {
         kicker: 'WHY THE NAME (BENE GESSERIT)',
@@ -122,6 +156,8 @@ const dict = {
       },
     },
     footer: 'BENE 0.2.0 · local-first · SQLite · built in the open',
+    footerCommunity: 'Building something on bene? Open a Discussion on the repo — we read every one.',
+    footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
       nav: { quickstart: 'Quickstart', core: 'Core Concepts', cli: 'CLI Tour', mcp: 'MCP Server', research: 'Research', arch: 'Architecture', roadmap: 'Status & Roadmap' },
       quickstart: {
@@ -204,19 +240,25 @@ const dict = {
   zh: {
     nav: { landing: '主页', docs: '文档', github: '源码' },
     hero: {
-      title: '让你的 AI 编程智能体可以倒带、可以审计、可以信任。',
-      tagline: '一个 SQLite 文件。零密钥。不上云。每个智能体隔离，每一步可 checkpoint，每条声明可验证。',
-      stats: ['0.3 秒无密钥跑通', '718 项测试通过', '37 个 MCP 工具'],
-      trustLine: '源码、prompt、事件，统统不离开你的机器。整套 harness 就是一份 SQLite 文件，可以 cp，可以 git diff。',
+      title: '让你的 AI 编程智能体可以倒带、可以 diff、可以重跑。',
+      forWho: '献给那些受够了智能体悄悄搞坏、却又没办法 undo 的工程师。',
+      trustLine: '整套 harness 就是一份 SQLite 文件，可以 cp，可以 git diff。零密钥。不上云。',
+      tagline: '每个智能体隔离、每一步 checkpoint，每条声明都能重跑。',
+      stats: ['一条命令倒带一次坏 turn', '兼容 Claude Code / Cursor / Aider', '37 个 MCP 工具'],
       ctaCode: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site\nuv sync && uv run bene init && uv run bene demo --no-ui   # 0.3 秒，零密钥',
     },
     sections: {
       watch: {
-        kicker: '01 · 看它跑',
-        title: '完整的智能体 harness，0.3 秒在你笔记本上跑完。',
+        kicker: '01 · 0.3 秒，零密钥',
+        title: '五大支柱在 0.3 秒内串完一个故事，零密钥。',
         body: '一条命令、零密钥、真实终端。下面这段录像里，内核一次跑完五件事：压缩 trace、进化一轮策略、kill-gate 一道 probe、拒绝一次越权动作、把信任分数算出来 —— 全部基于它刚写下的 engram。',
         demo: 'assets/demos/demo-keyless.gif',
         caption: '对当前 bene-main HEAD 实跑录制，未做剪辑。',
+      },
+      builders: {
+        kicker: '01.5 · 这对 Builder 意味着什么',
+        title: '把 Context Engineering 落到一份 SQLite 文件里。',
+        body: '每一次 checkpoint 都是下一个智能体能读的 scratchpad。每一段 engram 都是跨 session 复利的 lessons-learned。Skill 在需要之前就在智能体之间传播。这就是 scratchpad + lessons-learned + 持久化记忆 三件套——拧在一起，落在硬盘上，一份文件。',
       },
       rewind: {
         kicker: '02 · 倒带一次失败的智能体动作',
@@ -227,10 +269,10 @@ const dict = {
       },
       receipts: {
         kicker: '03 · 所有声明都有凭据',
-        title: '要裁决，不要感觉。每个 check 任何人都能复跑。',
+        title: '你 tech lead 可以一条命令重跑每一个 check。',
         body: 'probe 规约在跑之前 sha256 锁定。每个 gate 都有 ACCEPT/REJECT 裁决，附触发它的数值。新来的智能体读到的是一份「已知什么」的清单，不是空白。',
         demo: 'assets/demos/demo-honesty.gif',
-        caption: 'experiments ls → experiments show → senses --md，全部对着 live db 跑。',
+        caption: '给你自己的智能体接一道 probe，五行代码——它在 G1/G2 都通过之前不准报 DONE。',
         links: [
           { label: 'PREREG.md （sha256 锁定的协议）', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
           { label: 'CLAIMS-AUDIT.md （每条声明对应文件+测试）', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
@@ -242,14 +284,42 @@ const dict = {
         title: 'Claude Code、Cursor、Aider、任何兼容 MCP 的智能体。',
         body: '37 个工具走 MCP / stdio，agent 配置里加一行就完事。每个 CLI 表面同样支持 --json（直接 jq）。零 glue code；N×M 的 IDE-agent 集成税收敛到 N+M。',
         snippet: 'claude mcp add bene -- uv run bene serve --transport stdio',
+        capabilities: [
+          '自己 checkpoint 自己的 turn，输出不好时 restore 一下，不必去碰 git。',
+          '把过往 session 的 engram 当成 RAG 上下文搜——lessons-learned 复利。',
+          '在报 done 之前，让自己的声明先过一道 falsifiable probe。',
+        ],
+        capabilitiesLede: '你的 Claude Code（或 Cursor / Aider）现在能：',
+      },
+      build: {
+        kicker: '04.5 · 造你的第一个可审计智能体',
+        title: '三份今晚就能改成你自己的 recipe。',
+        body: '每份 recipe 都是一段真实的 bene CLI 序列，对一个全新的 bene.db 跑。把变量换成你的任务即可——harness 机理不变。',
+        recipes: [
+          {
+            title: '把一段不稳的 shell 脚本包成 checkpointed agent',
+            getYou: '运行时的 git revert：每次跑都是一个 checkpoint，每次 diff 都在本地，一条命令滚回到 green。',
+            code: '$AID=$(bene spawn --name runbook)\nbene write $AID /run.sh "$(cat my_pipeline.sh)"\nbene checkpoint $AID --label green\n# ... 让 agent 改 /run.sh ...\nbene diff $AID --from green --to $(bene checkpoints $AID -1)\nbene restore $AID --checkpoint green   # 回到 green',
+          },
+          {
+            title: '同一个 prompt 跑 3 个模型，过一道 ACCEPT probe',
+            getYou: 'kill-gate 门控的 bake-off：只有不触 gate 的那一支被允许 promote，其它都拿到 REJECT 裁决，事后可重读。',
+            code: 'bene probe create story-probe --spec ./probes/story.yaml   # sha256 锁定\nfor m in opus sonnet haiku; do\n  bene run --name "story-$m" --model $m "draft the release notes"\ndone\nbene probe run story-probe --against story-*   # 逐 arm 出 ACCEPT/REJECT/VOID\nbene experiments ls                            # 评测日志\n# 只有 ACCEPT 的 arm 才有资格 promote',
+          },
+          {
+            title: '通过 MCP 给 Claude Code 接上持久 scratchpad + lessons-learned',
+            getYou: '复利的上下文：每次 session 写 engram；下一次 session 先读 senses manifest，继承所有「上次管用的东西」。',
+            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# 在你的 Claude Code 会话里：\n#   memory.search "昨天的 schema migration" → 历史 engrams\n#   senses.md → agent 第一动作前先读的清单\n#   checkpoint → 坏 turn 一键 restore，不必 git stash',
+          },
+        ],
       },
       candor: {
-        kicker: '05 · 今天 vs 即将 —— 说人话',
-        title: '今天能跑什么。',
-        todayHead: '今天就能跑（凭据公开，上面三个 demo 也在这里复跑）：',
+        kicker: '05 · 今天 vs 即将',
+        title: '今天 vs 即将。',
+        todayHead: '今天就能跑（凭据 repo、上面三个 demo、加 recipes）：',
         todayCode: 'git clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # 10 个最难的取舍\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md  # 锁定规则下的判定\nless bene-site/docs/design/CLAIMS-AUDIT.md            # 每一条声明，都有出处',
-        soonHead: '即将开放（框架本体 —— 私有预览，读完再来要权限）：',
-        soonCode: 'uv run bene init && uv run bene demo --no-ui  # 0.3 秒，五大支柱故事\nuv run bene experiments ls                     # kill-gate 评测日志\nuv run bene senses --md                        # 新智能体最先读到的清单',
+        soonHead: '即将开放（hosted 进化型 / meta-harness 搜索 —— 私有预览，opt-in）：',
+        soonCode: '# 本地 SQLite + MCP 这层 contract 不变。\n# 即将：跨代的进化型搜索作为 hosted 服务，opt-in。\nuv run bene mh search   # 今天本地能跑；即将 hosted 可选',
       },
       origin: {
         kicker: '关于这个名字（Bene Gesserit）',
@@ -258,6 +328,8 @@ const dict = {
       },
     },
     footer: 'BENE 0.2.0 · 本地优先 · SQLite · 开放构建',
+    footerCommunity: '正在用 bene 造东西？来 repo 开个 Discussion——每一条我们都会读。',
+    footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
       nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', mcp: 'MCP 服务器', research: '研究底座', arch: '架构设计', roadmap: '状态与路线图' },
       quickstart: {
@@ -397,7 +469,7 @@ function DemoSection({ kicker, title, body, src, alt, caption, dark, children })
     <section className={'px-6 py-24 ' + (dark ? 'border-y border-dune-border bg-dune-surface' : 'border-b border-dune-border/40')}>
       <div className="max-w-5xl mx-auto">
         <p className="font-mono text-xs text-dune-accent uppercase tracking-widest mb-3">{kicker}</p>
-        <h2 className="font-serif text-2xl md:text-3xl text-dune-mute mb-4 leading-tight">{title}</h2>
+        <h2 className="font-serif text-2xl md:text-3xl text-dune-ink mb-4 leading-tight">{title}</h2>
         <p className="text-dune-mute text-base md:text-lg leading-relaxed max-w-3xl mb-8">{body}</p>
         <TerminalFrame src={src} alt={alt} caption={caption} />
         {children}
@@ -411,33 +483,25 @@ function Landing({ t }) {
   const s = t.sections;
   return (
     <div className="transition-opacity duration-700">
-      {/* Hero — benefit-first, one-sentence value, trust line, single CTA */}
+      {/* Hero — benefit-first H1, who-it-is-for, trust line under H1, lean stats */}
       <header className="relative border-b border-dune-border overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-dune-surface via-dune-bg to-dune-bg z-0">
           <img src="assets/bene-banner.png" alt="" className="w-full h-full object-cover opacity-30 mix-blend-overlay"
             onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         </div>
         <div className="relative z-10 max-w-5xl mx-auto px-6 py-28 md:py-36">
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-dune-mute mb-6 tracking-tight leading-tight max-w-4xl">
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-serif font-bold text-dune-ink mb-5 tracking-tight leading-tight max-w-4xl">
             {t.hero.title}
           </h1>
-          <p className="text-lg md:text-xl text-dune-mute max-w-3xl leading-relaxed mb-8">{t.hero.tagline}</p>
-          <div className="flex flex-wrap gap-3 mb-10">
-            {t.hero.stats.map((stat, idx) => {
-              const isTests = /718|tests|测试/.test(stat);
-              const chip = (
-                <div className={'bg-dune-surface/50 border border-dune-border px-4 py-2 rounded-full text-xs md:text-sm font-mono text-dune-gold ' + (isTests ? 'hover:border-dune-accent' : '')}>{stat}</div>
-              );
-              return isTests ? (
-                <a key={idx} href="https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md"
-                  target="_blank" rel="noopener noreferrer" title="uv run python -m pytest tests/ -q">{chip}</a>
-              ) : (
-                <React.Fragment key={idx}>{chip}</React.Fragment>
-              );
-            })}
-          </div>
+          <p className="text-base md:text-lg text-dune-mute max-w-3xl leading-relaxed mb-6 italic">{t.hero.forWho}</p>
           <div className="border-l-2 border-dune-accent/60 pl-4 mb-8 max-w-3xl">
-            <p className="text-sm md:text-base text-dune-mute italic leading-relaxed">{t.hero.trustLine}</p>
+            <p className="text-base md:text-lg text-dune-ink leading-relaxed">{t.hero.trustLine}</p>
+          </div>
+          <p className="text-sm md:text-base text-dune-mute max-w-3xl leading-relaxed mb-8">{t.hero.tagline}</p>
+          <div className="flex flex-wrap gap-3 mb-10">
+            {t.hero.stats.map((stat, idx) => (
+              <div key={idx} className="bg-dune-surface/50 border border-dune-border px-4 py-2 rounded-full text-xs md:text-sm font-mono text-dune-gold">{stat}</div>
+            ))}
           </div>
           <div className="bg-term-bg border border-dune-border rounded-lg p-4 md:p-5 max-w-3xl shadow-2xl">
             <pre className="font-mono text-xs md:text-sm text-dune-gold whitespace-pre overflow-x-auto leading-relaxed">{t.hero.ctaCode}</pre>
@@ -445,9 +509,18 @@ function Landing({ t }) {
         </div>
       </header>
 
-      {/* 01 — Watch it run (demo 1) */}
+      {/* 01 — Keyless first value (demo 1) */}
       <DemoSection kicker={s.watch.kicker} title={s.watch.title} body={s.watch.body}
         src={s.watch.demo} alt="bene demo --no-ui — keyless 5-pillar story in 0.3s" caption={s.watch.caption} dark />
+
+      {/* 01.5 — Why this matters for Builders (Context Engineering frame) */}
+      <section className="border-b border-dune-border/40 px-6 py-20">
+        <div className="max-w-4xl mx-auto">
+          <p className="font-mono text-xs text-dune-accent uppercase tracking-widest mb-3">{s.builders.kicker}</p>
+          <h2 className="font-serif text-2xl md:text-3xl text-dune-ink mb-4 leading-tight">{s.builders.title}</h2>
+          <p className="text-dune-mute text-base md:text-lg leading-relaxed max-w-3xl">{s.builders.body}</p>
+        </div>
+      </section>
 
       {/* 02 — Rewind a bad turn (demo 2) */}
       <DemoSection kicker={s.rewind.kicker} title={s.rewind.title} body={s.rewind.body}
@@ -455,7 +528,7 @@ function Landing({ t }) {
 
       {/* 03 — Every claim has receipts (demo 3) */}
       <DemoSection kicker={s.receipts.kicker} title={s.receipts.title} body={s.receipts.body}
-        src={s.receipts.demo} alt="bene experiments / senses — verdicts, not vibes" caption={s.receipts.caption} dark>
+        src={s.receipts.demo} alt="bene experiments / senses — your tech lead can rerun every check" caption={s.receipts.caption} dark>
         <ul className="mt-8 space-y-2">
           {s.receipts.links.map((r, i) => (
             <li key={i}>
@@ -466,23 +539,52 @@ function Landing({ t }) {
         </ul>
       </DemoSection>
 
-      {/* 04 — Drop into tools you already use */}
+      {/* 04 — Drop into tools you already use + capability delta */}
       <section className="border-b border-dune-border/40 px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <p className="font-mono text-xs text-dune-accent uppercase tracking-widest mb-3">{s.interop.kicker}</p>
-          <h2 className="font-serif text-2xl md:text-3xl text-dune-mute mb-4 leading-tight">{s.interop.title}</h2>
+          <h2 className="font-serif text-2xl md:text-3xl text-dune-ink mb-4 leading-tight">{s.interop.title}</h2>
           <p className="text-dune-mute text-base md:text-lg leading-relaxed max-w-3xl mb-8">{s.interop.body}</p>
-          <div className="bg-term-bg border border-dune-border rounded-lg p-5 md:p-6 font-mono text-xs md:text-sm text-dune-gold overflow-x-auto shadow-2xl">
-            <span className="text-dune-mute/60">$ </span>{s.interop.snippet}
+          <div className="bg-term-bg border border-dune-border rounded-lg p-5 md:p-6 font-mono text-xs md:text-sm text-term-fg overflow-x-auto shadow-2xl mb-8">
+            <span className="text-term-dim">$ </span>{s.interop.snippet}
+          </div>
+          <p className="text-dune-ink font-medium mb-3">{s.interop.capabilitiesLede}</p>
+          <ul className="space-y-2 text-dune-mute text-sm md:text-base max-w-3xl">
+            {s.interop.capabilities.map((c, i) => (
+              <li key={i} className="flex gap-3"><span className="text-dune-accent font-mono shrink-0">→</span><span>{c}</span></li>
+            ))}
+          </ul>
+        </div>
+      </section>
+
+      {/* 04.5 — Build your first auditable agent (3 starter recipes) */}
+      <section className="bg-dune-surface border-b border-dune-border px-6 py-24">
+        <div className="max-w-5xl mx-auto">
+          <p className="font-mono text-xs text-dune-accent uppercase tracking-widest mb-3">{s.build.kicker}</p>
+          <h2 className="font-serif text-2xl md:text-3xl text-dune-ink mb-4 leading-tight">{s.build.title}</h2>
+          <p className="text-dune-mute text-base md:text-lg leading-relaxed max-w-3xl mb-10">{s.build.body}</p>
+          <div className="space-y-10">
+            {s.build.recipes.map((r, i) => (
+              <div key={i} className="space-y-3">
+                <h3 className="font-serif text-xl text-dune-ink">
+                  <span className="font-mono text-dune-accent text-sm mr-3">{(i+1).toString().padStart(2,'0')}</span>
+                  {r.title}
+                </h3>
+                <div className="bg-term-bg border border-dune-border rounded-lg p-5 font-mono text-xs md:text-sm text-term-fg overflow-x-auto shadow-2xl">
+                  <pre className="whitespace-pre leading-relaxed">{r.code}</pre>
+                </div>
+                <p className="text-dune-mute text-sm md:text-base leading-relaxed max-w-3xl"><span className="text-dune-accent font-mono text-xs uppercase tracking-wider mr-2">what you get:</span>{r.getYou}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* 05 — Today vs Soon, said plainly */}
+      {/* 05 — Today vs Soon */}
       <section className="border-b border-dune-border/40 px-6 py-24">
         <div className="max-w-5xl mx-auto">
           <p className="font-mono text-xs text-dune-accent uppercase tracking-widest mb-3">{s.candor.kicker}</p>
-          <h2 className="font-serif text-2xl md:text-3xl text-dune-mute mb-8 leading-tight">{s.candor.title}</h2>
+          <h2 className="font-serif text-2xl md:text-3xl text-dune-ink mb-8 leading-tight">{s.candor.title}</h2>
           <div className="space-y-6">
             <div>
               <p className="text-dune-mute text-sm font-mono mb-2">{s.candor.todayHead}</p>
@@ -665,6 +767,10 @@ function Docs({ t }) {
 function Footer({ t }) {
   return (
     <footer className="border-t border-dune-border bg-dune-bg py-12 px-6">
+      <div className="max-w-7xl mx-auto mb-6 text-center md:text-left">
+        <a href={t.footerCommunityHref} target="_blank" rel="noopener noreferrer"
+          className="text-dune-mute text-sm hover:text-dune-accent transition-colors">{t.footerCommunity}</a>
+      </div>
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="text-dune-mute/80 text-sm font-mono">{t.footer}</div>
         <div className="flex items-center gap-3">
