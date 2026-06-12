@@ -54,7 +54,7 @@ const dict = {
     hero: {
       title: 'BENE — Breeding-program · Evolutionary · Nexus · Engrams',
       tagline: 'A Bene Gesserit harness for AI coding agents — they remember, evolve, and never start cold.',
-      stats: ['v0.2.0', '699 passing tests', '37 MCP tools'],
+      stats: ['v0.2.0', '718 passing tests', '37 MCP tools'],
     },
     pillarLede: 'Read these as one cascade, not a feature list. Every trace is compressed up the ladder; the ladder feeds the breeding program; the breeding program ships nothing without a probe ACCEPT; every ACCEPT writes a trust signal; trust is what unlocks the next rung on the autonomy ladder. Pull one and the next stops moving.',
     demoCaption: 'A real terminal session, captured against bene-main HEAD. Every command above ran on this build.',
@@ -185,7 +185,7 @@ const dict = {
     hero: {
       title: 'BENE — 繁育计划 · 进化 · 枢纽 · 记忆印痕',
       tagline: '为 AI 编程智能体打造的姐妹会式执行框架——它们记得、进化，绝不从零开始。',
-      stats: ['v0.2.0', '699 项测试通过', '37 个 MCP 工具'],
+      stats: ['v0.2.0', '718 项测试通过', '37 个 MCP 工具'],
     },
     pillarLede: '把下面这五条读成一条因果链，不是一份功能列表。每一段 trace 沿阶梯被压缩；阶梯喂养繁育计划；繁育计划不经过 probe ACCEPT 就不发布任何东西；每一次 ACCEPT 都写进信任分数；信任决定下一级自治阶梯是否解锁。抽掉任何一环，下一环就不动了。',
     demoCaption: '一段真实的终端会话，对当前 bene-main HEAD 实跑录制。上面每一条命令都在这个构建上真实执行。',
@@ -367,7 +367,7 @@ function Landing({ t }) {
           <p className="text-lg md:text-xl text-dune-sand/70 max-w-3xl mx-auto leading-relaxed mb-12">{t.hero.tagline}</p>
           <div className="flex flex-wrap justify-center gap-4">
             {t.hero.stats.map((stat, idx) => {
-              const isTests = /699|tests|测试/.test(stat);
+              const isTests = /718|tests|测试/.test(stat);
               const chip = (
                 <div className={'bg-dune-surface/50 border border-dune-border px-4 py-2 rounded-full text-sm font-mono text-dune-gold ' + (isTests ? 'hover:border-dune-accent' : '')}>{stat}</div>
               );
