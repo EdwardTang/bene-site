@@ -5,6 +5,11 @@ reference) or **planned** (tracked, not shipped). Zero false "done" claims —
 this document is the trust pillar applied to ourselves. Suite at audit time:
 **614 tests passing (+3 skipped)** (`uv run python -m pytest tests/ -q`);
 re-measured after the Round-3 gap-closure work: **699 passing (+3 skipped)**.
+Current (2026-06-12, fully-synced env): **718 passing (+1 skipped, 0 failed)** —
+the +19 over 699 is the 22-test Temporal runtime suite
+(`tests/test_runtime_handle.py` + `tests/test_runtime_invariants.py`), which
+collects only when `temporalio` is installed; pass/skip counts drift per env,
+the invariant is **0 failed**.
 
 ## Pillar claims
 
