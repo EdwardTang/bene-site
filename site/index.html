@@ -66,7 +66,7 @@ const { useState, useEffect } = React;
 // ─── Bilingual dictionary ───────────────────────────────────────────
 const dict = {
   en: {
-    nav: { landing: 'Landing', docs: 'Docs', github: 'GitHub' },
+    nav: { landing: 'Landing', docs: 'Docs', reference: 'Reference', github: 'GitHub' },
     hero: {
       title: 'Run AI coding agents you can rewind, diff, and replay.',
       forWho: 'For engineers whose agents break things they can’t undo.',
@@ -240,7 +240,7 @@ const dict = {
     },
   },
   zh: {
-    nav: { landing: '主页', docs: '文档', github: '源码' },
+    nav: { landing: '主页', docs: '文档', reference: '文档库', github: '源码' },
     hero: {
       title: '让你的 AI 编程智能体可以倒带、可以 diff、可以重跑。',
       forWho: '献给智能体搞坏了东西、却没办法 undo 的工程师。',
@@ -434,6 +434,8 @@ function Navbar({ view, setView, lang, setLang, t }) {
               className={'transition-colors ' + (view === 'landing' ? 'text-dune-gold' : 'text-dune-mute hover:text-dune-mute')}>{t.nav.landing}</button>
             <button type="button" onClick={() => setView('docs')}
               className={'transition-colors ' + (view === 'docs' ? 'text-dune-gold' : 'text-dune-mute hover:text-dune-mute')}>{t.nav.docs}</button>
+            <a href="docs/index.html"
+              className="transition-colors text-dune-mute hover:text-dune-gold">{t.nav.reference}</a>
             <a href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer"
               className="transition-colors text-dune-mute hover:text-dune-gold flex items-center gap-1.5"
               title="View source on GitHub">
@@ -642,6 +644,8 @@ function Docs({ t }) {
       </aside>
 
       <div className="flex-grow max-w-3xl space-y-24 pb-32">
+        <a href="docs/index.html"
+          className="block border border-dune-border bg-dune-surface/60 rounded-lg px-5 py-4 font-mono text-sm text-dune-gold hover:border-dune-accent hover:text-dune-accent transition-colors">{dt.fullRef}</a>
         <section id="quickstart" className="space-y-6">
           <h2 className="text-3xl font-serif text-dune-gold border-b border-dune-border pb-4">{dt.quickstart.title}</h2>
           <p className="text-dune-ink">{dt.quickstart.desc}</p>
@@ -780,6 +784,11 @@ function Footer({ t }) {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="text-dune-mute/80 text-sm font-mono">{t.footer}</div>
         <div className="flex items-center gap-3">
+          <a href="docs/index.html"
+            className="bg-dune-surface border border-dune-border hover:border-dune-gold px-4 py-2 rounded-full text-xs font-mono text-dune-ink transition-colors flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-dune-gold" />
+            {t.nav.reference}
+          </a>
           <a href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer"
             className="bg-dune-surface border border-dune-border hover:border-dune-gold px-4 py-2 rounded-full text-xs font-mono text-dune-ink transition-colors flex items-center gap-2">
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5"><path d="M12 .5C5.65.5.5 5.65.5 12c0 5.08 3.29 9.39 7.86 10.91.57.1.78-.25.78-.55v-1.94c-3.2.7-3.88-1.54-3.88-1.54-.52-1.33-1.28-1.68-1.28-1.68-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.74.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.51-1.47.11-3.06 0 0 .97-.31 3.18 1.18a11.05 11.05 0 0 1 5.8 0c2.21-1.49 3.18-1.18 3.18-1.18.62 1.59.23 2.77.11 3.06.74.81 1.19 1.84 1.19 3.1 0 4.42-2.69 5.4-5.26 5.68.41.36.78 1.06.78 2.13v3.16c0 .31.21.66.79.55A11.51 11.51 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"/></svg>
