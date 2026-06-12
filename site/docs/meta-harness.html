@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Meta-Harness: Automated Harness Optimization on BENE — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Meta-Harness: Automated Harness Optimization on BENE" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+:root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 Inter,system-ui,sans-serif; }
+a { color:var(--gold); text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent); text-underline-offset:3px; }
+a:hover { color:var(--accent); }
+.top { position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
+.top-in { max-width:1200px; margin:0 auto; padding:0 24px; height:56px; display:flex; align-items:center; gap:24px; }
+.brand { font-family:"Playfair Display",serif; font-weight:700; letter-spacing:.12em; color:var(--ink); text-decoration:none; }
+.top a.nav { color:var(--mute); text-decoration:none; font-size:14px; }
+.top a.nav:hover { color:var(--accent); }
+.wrap { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:260px minmax(0,1fr); gap:40px; }
+@media (max-width: 860px) { .wrap { grid-template-columns:1fr; } aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-bottom:16px; } }
+aside.sb { position:sticky; top:80px; align-self:start; max-height:calc(100vh - 100px); overflow-y:auto; font-size:13.5px; border-left:1px solid var(--border); padding-left:16px; }
+.sb h4 { margin:18px 0 6px; font:600 11px/1 "JetBrains Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.sb a { display:block; padding:3px 0; color:var(--mute); text-decoration:none; }
+.sb a:hover { color:var(--accent); }
+.sb a.cur { color:var(--ink); font-weight:600; }
+main { min-width:0; max-width:760px; }
+main h1 { font-family:"Playfair Display",serif; font-size:2.1rem; line-height:1.2; margin:.2em 0 .5em; }
+main h2 { font-family:"Playfair Display",serif; font-size:1.45rem; margin-top:2em; border-bottom:1px solid var(--border); padding-bottom:.35em; }
+main h3 { font-size:1.12rem; margin-top:1.7em; }
+main img { max-width:100%; border:1px solid var(--border); border-radius:8px; }
+main table { border-collapse:collapse; width:100%; font-size:14.5px; display:block; overflow-x:auto; }
+main th, main td { border:1px solid var(--border); padding:8px 12px; text-align:left; vertical-align:top; }
+main th { background:var(--surface); font-weight:600; }
+main blockquote { margin:1em 0; padding:.2em 1.2em; border-left:3px solid var(--accent); color:var(--mute); background:var(--surface); border-radius:0 8px 8px 0; }
+main :not(pre) > code { background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.08em .35em; font:.86em "JetBrains Mono",monospace; }
+.codehilite, main pre { background:var(--term-bg); color:var(--term-fg); border-radius:10px; padding:16px 18px; overflow-x:auto; font:13.5px/1.55 "JetBrains Mono",monospace; box-shadow:0 12px 30px -18px rgba(31,26,20,.45); }
+.codehilite pre, pre code { background:none; padding:0; margin:0; border:none; }
+.demo-embed { margin:20px 0 28px; }
+.demo-embed .frame { background:var(--term-bg); border-radius:12px; padding:14px; box-shadow:0 18px 44px -20px rgba(31,26,20,.5); }
+.demo-embed .dots { display:flex; gap:6px; margin-bottom:10px; }
+.demo-embed .dots i { width:10px; height:10px; border-radius:50%; background:#3a3344; }
+.demo-embed img { border:none; border-radius:6px; display:block; width:100%; }
+.demo-embed p { font:12.5px "JetBrains Mono",monospace; color:var(--mute); margin:8px 2px 0; }
+.crumbs { font:12.5px "JetBrains Mono",monospace; color:var(--mute); margin-bottom:8px; }
+.crumbs a { color:var(--mute); }
+.src { font:12.5px "JetBrains Mono",monospace; margin-top:48px; padding-top:16px; border-top:1px solid var(--border); color:var(--mute); }
+footer.ft { border-top:1px solid var(--border); margin-top:40px; }
+footer.ft .in { max-width:1200px; margin:0 auto; padding:24px; font:13px "JetBrains Mono",monospace; color:var(--mute); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.idx-group h2 { font-family:"Playfair Display",serif; border:none; margin-top:1.6em; }
+.idx-group ul { list-style:none; padding:0; margin:.4em 0; }
+.idx-group li { padding:6px 0; border-bottom:1px dashed var(--border); }
+.idx-group .path { font:11.5px "JetBrains Mono",monospace; color:var(--mute); margin-left:8px; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.codehilite .hll { background-color: #49483e }
+.codehilite { background: #272822; color: #F8F8F2 }
+.codehilite .c { color: #959077 } /* Comment */
+.codehilite .err { color: #ED007E; background-color: #1E0010 } /* Error */
+.codehilite .esc { color: #F8F8F2 } /* Escape */
+.codehilite .g { color: #F8F8F2 } /* Generic */
+.codehilite .k { color: #66D9EF } /* Keyword */
+.codehilite .l { color: #AE81FF } /* Literal */
+.codehilite .n { color: #F8F8F2 } /* Name */
+.codehilite .o { color: #FF4689 } /* Operator */
+.codehilite .x { color: #F8F8F2 } /* Other */
+.codehilite .p { color: #F8F8F2 } /* Punctuation */
+.codehilite .ch { color: #959077 } /* Comment.Hashbang */
+.codehilite .cm { color: #959077 } /* Comment.Multiline */
+.codehilite .cp { color: #959077 } /* Comment.Preproc */
+.codehilite .cpf { color: #959077 } /* Comment.PreprocFile */
+.codehilite .c1 { color: #959077 } /* Comment.Single */
+.codehilite .cs { color: #959077 } /* Comment.Special */
+.codehilite .gd { color: #FF4689 } /* Generic.Deleted */
+.codehilite .ge { color: #F8F8F2; font-style: italic } /* Generic.Emph */
+.codehilite .ges { color: #F8F8F2; font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.codehilite .gr { color: #F8F8F2 } /* Generic.Error */
+.codehilite .gh { color: #F8F8F2 } /* Generic.Heading */
+.codehilite .gi { color: #A6E22E } /* Generic.Inserted */
+.codehilite .go { color: #66D9EF } /* Generic.Output */
+.codehilite .gp { color: #FF4689; font-weight: bold } /* Generic.Prompt */
+.codehilite .gs { color: #F8F8F2; font-weight: bold } /* Generic.Strong */
+.codehilite .gu { color: #959077 } /* Generic.Subheading */
+.codehilite .gt { color: #F8F8F2 } /* Generic.Traceback */
+.codehilite .kc { color: #66D9EF } /* Keyword.Constant */
+.codehilite .kd { color: #66D9EF } /* Keyword.Declaration */
+.codehilite .kn { color: #FF4689 } /* Keyword.Namespace */
+.codehilite .kp { color: #66D9EF } /* Keyword.Pseudo */
+.codehilite .kr { color: #66D9EF } /* Keyword.Reserved */
+.codehilite .kt { color: #66D9EF } /* Keyword.Type */
+.codehilite .ld { color: #E6DB74 } /* Literal.Date */
+.codehilite .m { color: #AE81FF } /* Literal.Number */
+.codehilite .s { color: #E6DB74 } /* Literal.String */
+.codehilite .na { color: #A6E22E } /* Name.Attribute */
+.codehilite .nb { color: #F8F8F2 } /* Name.Builtin */
+.codehilite .nc { color: #A6E22E } /* Name.Class */
+.codehilite .no { color: #66D9EF } /* Name.Constant */
+.codehilite .nd { color: #A6E22E } /* Name.Decorator */
+.codehilite .ni { color: #F8F8F2 } /* Name.Entity */
+.codehilite .ne { color: #A6E22E } /* Name.Exception */
+.codehilite .nf { color: #A6E22E } /* Name.Function */
+.codehilite .nl { color: #F8F8F2 } /* Name.Label */
+.codehilite .nn { color: #F8F8F2 } /* Name.Namespace */
+.codehilite .nx { color: #A6E22E } /* Name.Other */
+.codehilite .py { color: #F8F8F2 } /* Name.Property */
+.codehilite .nt { color: #FF4689 } /* Name.Tag */
+.codehilite .nv { color: #F8F8F2 } /* Name.Variable */
+.codehilite .ow { color: #FF4689 } /* Operator.Word */
+.codehilite .pm { color: #F8F8F2 } /* Punctuation.Marker */
+.codehilite .w { color: #F8F8F2 } /* Text.Whitespace */
+.codehilite .mb { color: #AE81FF } /* Literal.Number.Bin */
+.codehilite .mf { color: #AE81FF } /* Literal.Number.Float */
+.codehilite .mh { color: #AE81FF } /* Literal.Number.Hex */
+.codehilite .mi { color: #AE81FF } /* Literal.Number.Integer */
+.codehilite .mo { color: #AE81FF } /* Literal.Number.Oct */
+.codehilite .sa { color: #E6DB74 } /* Literal.String.Affix */
+.codehilite .sb { color: #E6DB74 } /* Literal.String.Backtick */
+.codehilite .sc { color: #E6DB74 } /* Literal.String.Char */
+.codehilite .dl { color: #E6DB74 } /* Literal.String.Delimiter */
+.codehilite .sd { color: #E6DB74 } /* Literal.String.Doc */
+.codehilite .s2 { color: #E6DB74 } /* Literal.String.Double */
+.codehilite .se { color: #AE81FF } /* Literal.String.Escape */
+.codehilite .sh { color: #E6DB74 } /* Literal.String.Heredoc */
+.codehilite .si { color: #E6DB74 } /* Literal.String.Interpol */
+.codehilite .sx { color: #E6DB74 } /* Literal.String.Other */
+.codehilite .sr { color: #E6DB74 } /* Literal.String.Regex */
+.codehilite .s1 { color: #E6DB74 } /* Literal.String.Single */
+.codehilite .ss { color: #E6DB74 } /* Literal.String.Symbol */
+.codehilite .bp { color: #F8F8F2 } /* Name.Builtin.Pseudo */
+.codehilite .fm { color: #A6E22E } /* Name.Function.Magic */
+.codehilite .vc { color: #F8F8F2 } /* Name.Variable.Class */
+.codehilite .vg { color: #F8F8F2 } /* Name.Variable.Global */
+.codehilite .vi { color: #F8F8F2 } /* Name.Variable.Instance */
+.codehilite .vm { color: #F8F8F2 } /* Name.Variable.Magic */
+.codehilite .il { color: #AE81FF } /* Literal.Number.Integer.Long */
+.codehilite { background: var(--term-bg) !important; }
+</style>
+
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <a class="brand" href="../index.html">BENE</a>
+  <a class="nav" href="../index.html">Landing</a>
+  <a class="nav" href="index.html">Docs index</a>
+  <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
+</div></div>
+<div class="wrap">
+<aside class="sb"><h4>Guides</h4>
+<a href="README.html">README</a>
+<a href="architecture.html">architecture</a>
+<a href="checkpoints.html">checkpoints</a>
+<a href="cli-reference.html">cli-reference</a>
+<a href="codegen.html">codegen</a>
+<a href="dashboard.html">dashboard</a>
+<a href="deployment.html">deployment</a>
+<a href="mcp-integration.html">mcp-integration</a>
+<a href="memory.html">memory</a>
+<a class="cur" href="meta-harness.html">meta-harness</a>
+<a href="philosophy.html">philosophy</a>
+<a href="primitive-review-cycle.html">primitive-review-cycle</a>
+<a href="schema.html">schema</a>
+<a href="shared-log.html">shared-log</a>
+<a href="skills.html">skills</a>
+<a href="use-cases.html">use-cases</a>
+<h4>Design</h4>
+<a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
+<a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
+<a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
+<a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
+<h4>Research</h4>
+<a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
+<a href="research/SYNTHESIS.html">SYNTHESIS</a>
+<h4>Benchmarks</h4>
+<a href="benchmarks/PREREG.html">PREREG</a>
+<a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
+<h4>Tutorials</h4>
+<a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
+<a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
+<a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
+<a href="tutorials/t03-security-swarm.html">t03-security-swarm</a>
+<a href="tutorials/t04-migration-rollback.html">t04-migration-rollback</a>
+<a href="tutorials/t05-incident-response.html">t05-incident-response</a>
+<a href="tutorials/t06-ml-research-lab.html">t06-ml-research-lab</a>
+<a href="tutorials/t07-regression-guard.html">t07-regression-guard</a>
+<a href="tutorials/t08-hundred-agents-scale.html">t08-hundred-agents-scale</a>
+<a href="tutorials/t10-ci-overnight-bene-swarm.html">t10-ci-overnight-bene-swarm</a>
+<a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
+<h4>Case studies</h4>
+<a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
+<h4>Infra</h4>
+<a href="infra/DNS.html">DNS</a></aside>
+<main>
+<div class="crumbs"><a href="index.html">docs</a> / meta-harness.md</div>
+<h1 id="meta-harness-automated-harness-optimization-on-bene">Meta-Harness: Automated Harness Optimization on BENE</h1>
+<blockquote>
+<p>Your LLM is only as good as the code wrapping it. Meta-Harness automatically searches for the best harness — the prompt template, retrieval strategy, and memory management — by letting an AI proposer learn from full execution traces.</p>
+</blockquote>
+<p>Based on <a href="https://yoonholee.com/meta-harness/">Meta-Harness (arXiv:2603.28052)</a> by Lee, Nair, Zhang, Lee, Khattab, and Finn (Stanford/KRAFTON/MIT). Original code: <a href="https://github.com/stanford-iris-lab/meta-harness-tbench2-artifact">stanford-iris-lab/meta-harness-tbench2-artifact</a>.</p>
+<p><img alt="Meta-Harness: classifier accuracy 45%→87% in 10 iterations" src="demos/bene_uc04_meta_harness_classifier.gif" /></p>
+<hr />
+<h2 id="what-problem-does-this-solve">What Problem Does This Solve?</h2>
+<p>You have an LLM doing a task — classifying tickets, solving math problems, writing code. The model is fixed. But the <strong>harness</strong> — the code that decides what to put in the prompt, which examples to retrieve, what context to include — makes a <strong>6x performance difference</strong> on the same model.</p>
+<p>Currently, you optimize harnesses by hand: try a prompt, check results, adjust, repeat. Meta-Harness automates this entire loop.</p>
+<h2 id="how-it-works-step-by-step">How It Works — Step by Step</h2>
+<p>Here's what actually happens when you run a Meta-Harness search, using a real example: optimizing a support ticket classifier.</p>
+<h3 id="step-1-you-define-your-task">Step 1: You Define Your Task</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Your data — labeled support tickets</span>
+<span class="n">tickets</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;I was charged twice this month&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;billing&quot;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;API returns 500 errors on POST&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;technical&quot;</span><span class="p">},</span>
+    <span class="p">{</span><span class="s2">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;How do I add team members?&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;account&quot;</span><span class="p">},</span>
+    <span class="o">...</span>
+<span class="p">]</span>
+</code></pre></div>
+
+<h3 id="step-2-you-provide-seed-harnesses">Step 2: You Provide Seed Harnesses</h3>
+<p>These are your starting points — different approaches to the same task. Meta-Harness needs at least one, but more gives a better starting signal.</p>
+<p><strong>Seed 1 — Zero-shot</strong> (simplest possible):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">problem</span><span class="p">):</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;Classify this ticket: </span><span class="si">{</span><span class="n">problem</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">Category:&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;context_tokens&quot;</span><span class="p">:</span> <span class="mi">20</span><span class="p">,</span>
+    <span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Seed 2 — Few-shot</strong> (include recent examples):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">problem</span><span class="p">):</span>
+    <span class="n">examples</span> <span class="o">=</span> <span class="n">problem</span><span class="p">[</span><span class="s2">&quot;labeled_examples&quot;</span><span class="p">][</span><span class="o">-</span><span class="mi">4</span><span class="p">:]</span>
+    <span class="n">example_block</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Ticket: </span><span class="si">{</span><span class="n">e</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">Category: </span><span class="si">{</span><span class="n">e</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">examples</span><span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;prompt&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">example_block</span><span class="si">}</span><span class="se">\n\n</span><span class="s2">Ticket: </span><span class="si">{</span><span class="n">problem</span><span class="p">[</span><span class="s1">&#39;text&#39;</span><span class="p">]</span><span class="si">}</span><span class="se">\n</span><span class="s2">Category:&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;context_tokens&quot;</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">example_block</span><span class="o">.</span><span class="n">split</span><span class="p">()),</span>
+    <span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Seed 3 — Retrieval</strong> (find similar tickets):</p>
+<div class="codehilite"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">problem</span><span class="p">):</span>
+    <span class="c1"># Score by word overlap, pick top 5 similar tickets</span>
+    <span class="n">query_words</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">problem</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">())</span>
+    <span class="n">scored</span> <span class="o">=</span> <span class="p">[(</span><span class="nb">len</span><span class="p">(</span><span class="n">query_words</span> <span class="o">&amp;</span> <span class="nb">set</span><span class="p">(</span><span class="n">e</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">())),</span> <span class="n">e</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">problem</span><span class="p">[</span><span class="s2">&quot;labeled_examples&quot;</span><span class="p">]]</span>
+    <span class="n">scored</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">reverse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">top</span> <span class="o">=</span> <span class="p">[</span><span class="n">e</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">scored</span><span class="p">[:</span><span class="mi">5</span><span class="p">]]</span>
+    <span class="o">...</span>
+</code></pre></div>
+
+<h3 id="step-3-bene-runs-the-search-loop">Step 3: BENE Runs the Search Loop</h3>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>support_tickets<span class="w"> </span>-n<span class="w"> </span><span class="m">10</span><span class="w"> </span>-k<span class="w"> </span><span class="m">2</span>
+</code></pre></div>
+
+<p>Here's what happens inside:</p>
+<h4 id="iteration-0-evaluate-seeds">Iteration 0 — Evaluate Seeds</h4>
+<p>BENE spawns 3 agents (one per seed), each in its own isolated VFS:</p>
+<div class="codehilite"><pre><span></span><code>Agent: harness-01HXY1A...    (zero-shot seed)
+  /harness.py                  ← the harness source code
+  /evaluation/scores.json      ← {&quot;accuracy&quot;: 0.45, &quot;context_cost&quot;: 20}
+  /evaluation/per_problem.jsonl ← per-ticket results
+
+Agent: harness-01HXY1B...    (few-shot seed)
+  /harness.py
+  /evaluation/scores.json      ← {&quot;accuracy&quot;: 0.63, &quot;context_cost&quot;: 85}
+  /evaluation/per_problem.jsonl
+
+Agent: harness-01HXY1C...    (retrieval seed)
+  /harness.py
+  /evaluation/scores.json      ← {&quot;accuracy&quot;: 0.70, &quot;context_cost&quot;: 120}
+  /evaluation/per_problem.jsonl
+</code></pre></div>
+
+<p>All results are stored in the <strong>search archive</strong> — a dedicated BENE agent's VFS:</p>
+<div class="codehilite"><pre><span></span><code>Search Agent VFS:
+  /config.json
+  /seeds/seed_0.py, seed_1.py, seed_2.py
+  /harnesses/
+    01HXY1A.../source.py, scores.json, trace.jsonl, per_problem.jsonl, metadata.json
+    01HXY1B.../source.py, scores.json, trace.jsonl, per_problem.jsonl, metadata.json
+    01HXY1C.../source.py, scores.json, trace.jsonl, per_problem.jsonl, metadata.json
+  /pareto/frontier.json     ← retrieval seed is best so far
+</code></pre></div>
+
+<p>Each harness directory contains:</p>
+<ul>
+<li><strong>source.py</strong> — the harness source code</li>
+<li><strong>scores.json</strong> — aggregate scores (accuracy, context_cost, etc.)</li>
+<li><strong>trace.jsonl</strong> — the full execution trace with richer fields: input preview, expected answer, prompt preview, prediction, correct boolean, and context token count per problem</li>
+<li><strong>per_problem.jsonl</strong> — per-problem results stored separately for detailed analysis</li>
+<li><strong>metadata.json</strong> — iteration, parent harness, rationale</li>
+</ul>
+<p>The <strong>trace.jsonl</strong> files are the critical ingredient: the paper's ablation shows that giving the proposer access to raw traces (vs. just scores or summaries) improves accuracy by 15+ points.</p>
+<h4 id="iteration-1-proposer-studies-the-archive">Iteration 1 — Proposer Studies the Archive</h4>
+<p>BENE spawns a <strong>proposer agent</strong> — an LLM that can read the entire search archive through tools:</p>
+<ul>
+<li><code>mh_ls_archive("/harnesses")</code> → lists all 3 harness directories</li>
+<li><code>mh_read_archive("/pareto/frontier.json")</code> → sees retrieval is winning</li>
+<li><code>mh_read_archive("/harnesses/01HXY1C.../trace.jsonl")</code> → reads every problem attempt</li>
+<li><code>mh_read_archive("/harnesses/01HXY1A.../trace.jsonl")</code> → reads zero-shot failures</li>
+<li><code>mh_grep_archive("word overlap")</code> → searches across ALL files in the archive for a pattern</li>
+</ul>
+<p>The proposer notices: <em>"The retrieval harness gets 70% accuracy but fails on tickets where the wording is unusual — 'mysterious charge on my statement' doesn't match 'charged twice' by word overlap. The few-shot harness fails when recent examples don't include the right category."</em></p>
+<p>It proposes 2 new harnesses:</p>
+<p><strong>Candidate 1</strong> — Semantic grouping: cluster examples by label, include one from each.
+<strong>Candidate 2</strong> — Two-stage: make a draft classification, then retrieve examples for the draft label to verify.</p>
+<p>Both are submitted via <code>mh_submit_harness(source_code, rationale)</code> and go through <strong>two-stage validation</strong> before evaluation:</p>
+<ol>
+<li><strong>AST check</strong> — verifies the harness has a top-level <code>run()</code> function (class-method harnesses are rejected; the function must be a module-level <code>def run(problem)</code>)</li>
+<li><strong>Smoke test</strong> — imports the module and calls <code>run()</code> with a sample problem to catch runtime errors early</li>
+</ol>
+<p>Only harnesses that pass both stages proceed to full evaluation.</p>
+<div class="codehilite"><pre><span></span><code>Search Archive after iteration 1:
+  /harnesses/
+    01HXY1A.../  ← zero-shot seed    (acc=0.45)
+    01HXY1B.../  ← few-shot seed     (acc=0.63)
+    01HXY1C.../  ← retrieval seed    (acc=0.70)
+    01HXY1D.../  ← semantic grouping (acc=0.73)  ← new
+    01HXY1E.../  ← two-stage verify  (acc=0.80)  ← new, best!
+  /pareto/frontier.json  ← updated with new best
+</code></pre></div>
+
+<h4 id="iteration-2-learning-from-success-and-failure">Iteration 2 — Learning From Success AND Failure</h4>
+<p>The proposer reads the traces for the two-stage verifier (the new best) and notices it fails on <strong>ambiguous tickets</strong> — "I want to downgrade my plan" could be account or billing. It also reads the semantic grouping traces and sees that including a contrastive example (two similar tickets with different labels) helps.</p>
+<p>It proposes:</p>
+<p><strong>Candidate 3</strong> — Two-stage + contrastive examples: verify with similar tickets from DIFFERENT categories.
+<strong>Candidate 4</strong> — Adds a label primer: lists all categories with one-line descriptions before classifying.</p>
+<div class="codehilite"><pre><span></span><code>After iteration 2:
+  Candidate 3: acc=0.83, cost=150  ← new best accuracy
+  Candidate 4: acc=0.77, cost=45   ← lower accuracy but 3x cheaper!
+  Pareto frontier: [Candidate 3 (best acc), Candidate 4 (best cost)]
+</code></pre></div>
+
+<h4 id="iterations-3-10-refinement">Iterations 3-10 — Refinement</h4>
+<p>Each iteration, the proposer has access to ALL prior harnesses and traces. It can:</p>
+<ul>
+<li>Read the source code of the top-3 harnesses to understand what works</li>
+<li>Read traces of failures to understand what doesn't</li>
+<li>Combine ideas from different successful harnesses</li>
+<li>Make targeted fixes for specific failure modes (not rewrites)</li>
+</ul>
+<p>The proposer prompt is paper-aligned with key strategies:</p>
+<ul>
+<li><strong>Additive changes after regressions</strong> — after consecutive regressions, the proposer switches to purely additive changes (add new capability without modifying existing code), which is less risky</li>
+<li><strong>Isolate variables</strong> — each proposed harness changes one thing at a time so the proposer can attribute improvements correctly</li>
+<li><strong>Cross-reference iterations</strong> — the proposer explicitly compares results across iterations to identify which changes helped and which hurt</li>
+</ul>
+<p>The default <code>candidates_per_iteration</code> is <strong>2</strong> (not 3), matching the paper's finding that fewer, more focused candidates per iteration produce better results than many unfocused ones.</p>
+<h3 id="step-4-you-get-the-results">Step 4: You Get the Results</h3>
+<div class="codehilite"><pre><span></span><code>Meta-Harness Search Complete
+  Search agent: 01HXY1234AB...
+  Iterations: 10
+  Harnesses evaluated: 23
+  Duration: 847.3s
+  Frontier size: 4
+  Best accuracy: 0.8700 (harness 01HXY1F...)
+  Best context_cost: 35.0000 (harness 01HXY1G...)
+</code></pre></div>
+
+<p>Inspect the winning harness:</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>inspect<span class="w"> </span>01HXY...<span class="w"> </span>01HXY1F...<span class="w"> </span>--db<span class="w"> </span>support-tickets.db
+</code></pre></div>
+
+<p>Query anything about the search:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Which harnesses improved over their parents?</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">metadata</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;$.rationale&#39;</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">strategy</span><span class="p">,</span>
+<span class="w">       </span><span class="n">h</span><span class="p">.</span><span class="n">scores</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;$.accuracy&#39;</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">accuracy</span>
+<span class="k">FROM</span><span class="w"> </span><span class="p">...</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">accuracy</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+
+<span class="c1">-- How much did the search cost in tokens?</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="k">SUM</span><span class="p">(</span><span class="n">token_count</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">tool_calls</span><span class="p">;</span>
+
+<span class="c1">-- What did the proposer focus on in iteration 5?</span>
+<span class="c1">-- (read the proposer conversation)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="how-bene-makes-this-better-than-vanilla-meta-harness">How BENE Makes This Better Than Vanilla Meta-Harness</h2>
+<p>The paper's reference implementation uses a flat filesystem. BENE provides:</p>
+<p><strong>Isolation</strong>: Each harness runs in its own VFS. A buggy harness can't corrupt the archive or other harnesses.</p>
+<p><strong>Checkpoints</strong>: The search is checkpointed before each iteration. If the proposer or an evaluation crashes, restore and resume.</p>
+<p><strong>Audit trail</strong>: Every file read, write, tool call, and state change is logged. You can reconstruct exactly what the proposer looked at and why.</p>
+<p><strong>SQL queries</strong>: Instead of grepping through files, query the entire search with SQL. "Which harnesses used retrieval?" "How many tokens per iteration?" "What was the accuracy trajectory?"</p>
+<p><strong>Portability</strong>: The entire search — every harness, every trace, every proposer conversation — is one <code>.db</code> file. Send it to a teammate.</p>
+<hr />
+<h2 id="proposer-tools">Proposer Tools</h2>
+<p>The proposer agent has access to four archive tools for reading the search history:</p>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mh_ls_archive(path)</code></td>
+<td>List files and directories in the search archive</td>
+</tr>
+<tr>
+<td><code>mh_read_archive(path)</code></td>
+<td>Read a specific file from the archive (source code, traces, scores)</td>
+</tr>
+<tr>
+<td><code>mh_grep_archive(pattern)</code></td>
+<td>Search across ALL files in the archive for a regex pattern — useful for finding which harnesses use a specific technique or which traces contain a failure mode</td>
+</tr>
+<tr>
+<td><code>mh_submit_harness(source, rationale)</code></td>
+<td>Submit a new harness candidate (goes through two-stage validation)</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>mh_grep_archive</code> tool is especially valuable in later iterations when the archive contains many harnesses. Instead of reading every trace file, the proposer can search for specific patterns (e.g., <code>"word overlap"</code>, <code>"KeyError"</code>, <code>"timeout"</code>) to quickly identify relevant failure modes across the entire search history.</p>
+<hr />
+<h2 id="running-the-benchmarks">Running the Benchmarks</h2>
+<p><img alt="Meta-Harness CLI — bene mh search, frontier progress, knowledge compounding" src="demos/bene_06_meta_harness.gif" /></p>
+<h3 id="text-classification">Text Classification</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># With synthetic data (testing)</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>text_classify<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span>
+
+<span class="c1"># With your own dataset (CSV with text,label columns)</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>text_classify<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dataset<span class="w"> </span>/path/to/tickets.csv
+</code></pre></div>
+
+<h3 id="math-reasoning">Math Reasoning</h3>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>math_rag<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dataset<span class="w"> </span>/path/to/problems.jsonl<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--corpus<span class="w"> </span>/path/to/corpus.jsonl
+</code></pre></div>
+
+<h3 id="agentic-coding">Agentic Coding</h3>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>agentic_coding<span class="w"> </span>-n<span class="w"> </span><span class="m">10</span><span class="w"> </span>-k<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dataset<span class="w"> </span>/path/to/tasks.jsonl
+</code></pre></div>
+
+<hr />
+<h2 id="resume-interrupted-searches">Resume Interrupted Searches</h2>
+<p>If a Meta-Harness search is interrupted (crash, timeout, manual stop), you can resume it from the last completed iteration. All prior harness evaluations, traces, and Pareto frontier state are preserved in the <code>.db</code> file.</p>
+<h3 id="cli">CLI</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Resume from last completed iteration</span>
+bene<span class="w"> </span>mh<span class="w"> </span>resume<span class="w"> </span>&lt;search-agent-id&gt;
+
+<span class="c1"># Check where it left off</span>
+bene<span class="w"> </span>mh<span class="w"> </span>status<span class="w"> </span>&lt;search-agent-id&gt;
+</code></pre></div>
+
+<h3 id="python-api">Python API</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">bene</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bene</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.metaharness.search</span><span class="w"> </span><span class="kn">import</span> <span class="n">MetaHarnessSearch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.router</span><span class="w"> </span><span class="kn">import</span> <span class="n">TierRouter</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">Bene</span><span class="p">(</span><span class="s2">&quot;search.db&quot;</span><span class="p">)</span>
+<span class="n">router</span> <span class="o">=</span> <span class="n">TierRouter</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="s2">&quot;bene.yaml&quot;</span><span class="p">)</span>
+
+<span class="n">search</span> <span class="o">=</span> <span class="n">MetaHarnessSearch</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">router</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">search</span><span class="o">.</span><span class="n">resume</span><span class="p">(</span><span class="n">agent_id</span><span class="o">=</span><span class="s2">&quot;01HXY...&quot;</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</code></pre></div>
+
+<h3 id="mcp-tool">MCP Tool</h3>
+<p>The <code>mh_resume</code> tool is available via the MCP server (18 tools total):</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;search_agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p>Resume reconstructs the search state from the archive stored in the search agent's VFS, determines the last completed iteration, and continues from there with the same configuration (benchmark, candidates per iteration, objectives).</p>
+<hr />
+<h2 id="paper-benchmarks">Paper Benchmarks</h2>
+<p>BENE includes loaders for three published research benchmarks used in the Meta-Harness paper. These download datasets from HuggingFace and cache them locally for offline use.</p>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Loader</th>
+<th>Task</th>
+<th>Source</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lawbench</code></td>
+<td><code>load_lawbench()</code></td>
+<td>Legal text classification</td>
+<td>HuggingFace</td>
+</tr>
+<tr>
+<td><code>symptom2disease</code></td>
+<td><code>load_symptom2disease()</code></td>
+<td>Medical symptom-to-disease mapping</td>
+<td>HuggingFace</td>
+</tr>
+<tr>
+<td><code>uspto_50k</code></td>
+<td><code>load_uspto50k()</code></td>
+<td>Chemical reaction classification</td>
+<td>HuggingFace</td>
+</tr>
+</tbody>
+</table>
+<h3 id="cli_1">CLI</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Run a search with a paper benchmark</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>lawbench<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>symptom2disease<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>uspto_50k<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>-k<span class="w"> </span><span class="m">3</span>
+</code></pre></div>
+
+<h3 id="python-api_1">Python API</h3>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">bene.metaharness.benchmarks.paper_datasets</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">load_lawbench</span><span class="p">,</span>
+    <span class="n">load_symptom2disease</span><span class="p">,</span>
+    <span class="n">load_uspto50k</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Each returns a benchmark object ready for MetaHarnessSearch</span>
+<span class="n">bench</span> <span class="o">=</span> <span class="n">load_lawbench</span><span class="p">()</span>
+<span class="c1"># or</span>
+<span class="n">bench</span> <span class="o">=</span> <span class="n">load_symptom2disease</span><span class="p">()</span>
+<span class="c1"># or</span>
+<span class="n">bench</span> <span class="o">=</span> <span class="n">load_uspto50k</span><span class="p">()</span>
+
+<span class="n">search</span> <span class="o">=</span> <span class="n">MetaHarnessSearch</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">router</span><span class="p">,</span> <span class="n">bench</span><span class="p">,</span> <span class="n">SearchConfig</span><span class="p">(</span>
+    <span class="n">benchmark</span><span class="o">=</span><span class="s2">&quot;lawbench&quot;</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">candidates_per_iteration</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="p">))</span>
+<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">search</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+
+<p>Datasets are downloaded on first use and cached in <code>~/.cache/bene/datasets/</code>. Subsequent runs use the local cache.</p>
+<hr />
+<h2 id="smart-context-compaction-v040">Smart Context Compaction (v0.4.0)</h2>
+<p>The proposer needs to read all prior harnesses, scores, and traces before proposing improvements. Without compaction, this means 5-10 tool calls per iteration — each replaying the full conversation via <code>claude --print</code>, causing timeouts.</p>
+<p>BENE pre-builds a structured <strong>archive digest</strong> using three strategies:</p>
+<table>
+<thead>
+<tr>
+<th>Data type</th>
+<th>Strategy</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Scores, metadata</td>
+<td>Lossless</td>
+<td>Kept as-is (small, 100% signal)</td>
+</tr>
+<tr>
+<td>Source code</td>
+<td>Lossless (levels 0-7), stripped (8-10)</td>
+<td>Proposer always sees the code</td>
+</tr>
+<tr>
+<td>Per-problem results</td>
+<td>Structured extraction</td>
+<td>Error patterns + N failure samples</td>
+</tr>
+<tr>
+<td>Traces</td>
+<td>Filtered</td>
+<td>Only errors/failures kept, correct problems dropped</td>
+</tr>
+<tr>
+<td>Proposer conversation</td>
+<td>Progressive summarization</td>
+<td>Old turns summarized, recent kept verbatim</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Quality evaluation results</strong> (tested with 6 diagnostic questions):</p>
+<div class="codehilite"><pre><span></span><code>Level  0 │ 5292 chars ( 22% saved) │ quality=100% │ 6/6 questions answerable
+Level  3 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable
+Level  5 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable  ← default
+Level  7 │ 3024 chars ( 56% saved) │ quality=100% │ 6/6 questions answerable
+Level 10 │ 2512 chars ( 63% saved) │ quality=100% │ 6/6 questions answerable
+</code></pre></div>
+
+<p>Zero quality loss at any level. Structured extraction surfaces patterns explicitly — it's actually <em>better</em> than raw data for the proposer.</p>
+<p>Configure in <code>bene.yaml</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">search</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">compaction_level</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">5</span><span class="w">  </span><span class="c1"># 0 (full data) to 10 (maximum compression)</span>
+</code></pre></div>
+
+<p>Or per-search:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">SearchConfig</span><span class="p">(</span><span class="n">benchmark</span><span class="o">=</span><span class="s2">&quot;text_classify&quot;</span><span class="p">,</span> <span class="n">compaction_level</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="knowledge-compounding-v040">Knowledge Compounding (v0.4.0)</h2>
+<p>Knowledge now compounds across searches instead of resetting. When a search completes, winning harnesses are filed to a persistent "bene-knowledge" agent. New searches automatically load prior discoveries as seeds.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>knowledge<span class="w">       </span><span class="c1"># view discoveries by benchmark</span>
+bene<span class="w"> </span>mh<span class="w"> </span>lint<span class="w"> </span>&lt;id&gt;<span class="w">       </span><span class="c1"># health-check a search archive</span>
+bene<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;TF-IDF&quot;</span><span class="w">    </span><span class="c1"># full-text search across all agents</span>
+bene<span class="w"> </span>index<span class="w"> </span>&lt;agent-id&gt;<span class="w">   </span><span class="c1"># build navigable /index.md</span>
+</code></pre></div>
+
+<hr />
+<h2 id="text-extraction-fallback-v041">Text Extraction Fallback (v0.4.1)</h2>
+<p>Some providers (like <code>claude --print</code>) don't support structured tool calling. The proposer can't invoke <code>mh_submit_harness</code> via tool-use — it just writes plain text.</p>
+<p>BENE handles this automatically: after the proposer runs, if no tool-call submissions were made, it scans the response for <code>``python blocks containing</code>def run()`. Valid blocks are extracted as harness candidates with full validation.</p>
+<p>This means the proposer works with any provider — text-only or tool-capable. No configuration needed.</p>
+<hr />
+<h2 id="multi-domain-compaction-results-v041">Multi-Domain Compaction Results (v0.4.1)</h2>
+<p>Compaction quality tested across 5 domains at the default level (5):</p>
+<ul>
+<li><strong>Classification</strong> — 52% context saved, 100% quality retained</li>
+<li><strong>Code Generation</strong> — 31% saved, 100% quality</li>
+<li><strong>Research / RAG</strong> — 28% saved, 100% quality</li>
+<li><strong>Tool Calling</strong> — 30% saved, 100% quality</li>
+<li><strong>ML Training</strong> — 28% saved, 100% quality</li>
+</ul>
+<p>At maximum compaction (level 10): code generation drops to 70% quality (specific error messages lost), research/RAG to 78%. Classification, tool calling, and ML hold at 100%.</p>
+<hr />
+<h2 id="cli-reference">CLI Reference</h2>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Start a search</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>BENCHMARK<span class="w"> </span>-n<span class="w"> </span>ITERATIONS<span class="w"> </span>-k<span class="w"> </span>CANDIDATES
+<span class="w">    </span>--proposer-model<span class="w"> </span>MODEL<span class="w">    </span><span class="c1"># Force model for proposer</span>
+<span class="w">    </span>--eval-model<span class="w"> </span>MODEL<span class="w">        </span><span class="c1"># Force model for evaluation</span>
+<span class="w">    </span>--max-parallel<span class="w"> </span>N<span class="w">          </span><span class="c1"># Parallel evaluations</span>
+<span class="w">    </span>--eval-subset<span class="w"> </span>N<span class="w">           </span><span class="c1"># Subsample problems for speed</span>
+<span class="w">    </span>--dry-run<span class="w">                 </span><span class="c1"># Evaluate seeds only, report baseline</span>
+<span class="w">    </span>--background<span class="w">              </span><span class="c1"># Run as detached worker process</span>
+
+<span class="c1"># Resume an interrupted search from last completed iteration</span>
+bene<span class="w"> </span>mh<span class="w"> </span>resume<span class="w"> </span>SEARCH_AGENT_ID
+
+<span class="c1"># Monitor a running search</span>
+bene<span class="w"> </span>mh<span class="w"> </span>status<span class="w"> </span>SEARCH_AGENT_ID
+
+<span class="c1"># View the Pareto frontier</span>
+bene<span class="w"> </span>mh<span class="w"> </span>frontier<span class="w"> </span>SEARCH_AGENT_ID
+
+<span class="c1"># Inspect a specific harness</span>
+bene<span class="w"> </span>mh<span class="w"> </span>inspect<span class="w"> </span>SEARCH_AGENT_ID<span class="w"> </span>HARNESS_ID
+
+<span class="c1"># Health-check a search archive</span>
+bene<span class="w"> </span>mh<span class="w"> </span>lint<span class="w"> </span>SEARCH_AGENT_ID
+
+<span class="c1"># View persistent knowledge base</span>
+bene<span class="w"> </span>mh<span class="w"> </span>knowledge
+</code></pre></div>
+
+<hr />
+<h2 id="python-api_2">Python API</h2>
+<div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">bene</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bene</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.metaharness</span><span class="w"> </span><span class="kn">import</span> <span class="n">SearchConfig</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.metaharness.search</span><span class="w"> </span><span class="kn">import</span> <span class="n">MetaHarnessSearch</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.metaharness.benchmarks</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_benchmark</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">bene.router</span><span class="w"> </span><span class="kn">import</span> <span class="n">TierRouter</span>
+
+<span class="n">db</span> <span class="o">=</span> <span class="n">Bene</span><span class="p">(</span><span class="s2">&quot;search.db&quot;</span><span class="p">)</span>
+<span class="n">router</span> <span class="o">=</span> <span class="n">TierRouter</span><span class="o">.</span><span class="n">from_config</span><span class="p">(</span><span class="s2">&quot;bene.yaml&quot;</span><span class="p">)</span>
+
+<span class="n">config</span> <span class="o">=</span> <span class="n">SearchConfig</span><span class="p">(</span>
+    <span class="n">benchmark</span><span class="o">=</span><span class="s2">&quot;text_classify&quot;</span><span class="p">,</span>
+    <span class="n">max_iterations</span><span class="o">=</span><span class="mi">20</span><span class="p">,</span>
+    <span class="n">candidates_per_iteration</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">objectives</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;+accuracy&quot;</span><span class="p">,</span> <span class="s2">&quot;-context_cost&quot;</span><span class="p">],</span>
+<span class="p">)</span>
+
+<span class="n">bench</span> <span class="o">=</span> <span class="n">get_benchmark</span><span class="p">(</span><span class="s2">&quot;text_classify&quot;</span><span class="p">,</span> <span class="n">dataset_path</span><span class="o">=</span><span class="s2">&quot;my_data.csv&quot;</span><span class="p">)</span>
+<span class="n">search</span> <span class="o">=</span> <span class="n">MetaHarnessSearch</span><span class="p">(</span><span class="n">db</span><span class="p">,</span> <span class="n">router</span><span class="p">,</span> <span class="n">bench</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">search</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+<span class="k">for</span> <span class="n">point</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">frontier</span><span class="o">.</span><span class="n">points</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  </span><span class="si">{</span><span class="n">point</span><span class="o">.</span><span class="n">harness_id</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">point</span><span class="o">.</span><span class="n">scores</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</code></pre></div>
+
+<hr />
+<h2 id="references">References</h2>
+<ul>
+<li><strong>Paper:</strong> <a href="https://yoonholee.com/meta-harness/">Meta-Harness: Optimal LLM Harness Design through Evolutionary Search</a> (arXiv:2603.28052)</li>
+<li><strong>Original code:</strong> <a href="https://github.com/stanford-iris-lab/meta-harness-tbench2-artifact">stanford-iris-lab/meta-harness-tbench2-artifact</a></li>
+<li><strong>Authors:</strong> Yoonho Lee, Roshen Nair, Qizheng Zhang, Kangwook Lee, Omar Khattab, Chelsea Finn (Stanford / KRAFTON / MIT)</li>
+</ul>
+<h3 id="examples">Examples</h3>
+<p><img alt="Building a custom benchmark — define data, seeds, and scorer; then bene mh search" src="demos/bene_08_custom_benchmark.gif" /></p>
+<p><strong>Technical:</strong></p>
+<ul>
+<li><a href="../examples/meta_harness_support_tickets.py">Support ticket classifier</a> — Full walkthrough with custom dataset and benchmark</li>
+<li><a href="../examples/meta_harness_math.py">Math retrieval optimization</a> — Find the best retrieval strategy for math problem solving</li>
+<li><a href="../examples/meta_harness_coding.py">Agentic coding optimization</a> — Optimize a coding agent harness</li>
+</ul>
+<p><strong>Business:</strong></p>
+<ul>
+<li><a href="../examples/meta_harness_clv_prediction.py">Customer Lifetime Value (CLV/LTV)</a> — Optimize CLV predictions with segment-aware prompting and churn-first reasoning</li>
+<li><a href="../examples/meta_harness_crm_campaigns.py">CRM Campaign Messages</a> — Find the best tone, CTA, and personalization strategy per customer segment</li>
+<li><a href="../examples/meta_harness_fraud_detection.py">Fraud Detection</a> — Improve fraud recall and precision with red-flag checklists and contrastive examples</li>
+</ul>
+<hr />
+<h2 id="coral-stagnation-detection-multi-agent-co-evolution-v060">CORAL: Stagnation Detection + Multi-Agent Co-Evolution (v0.6.0)</h2>
+<p><img alt="CORAL co-evolution — N independent search agents share Pareto frontiers and skills" src="demos/bene_07_coral_coevolution.gif" /></p>
+<p>The core weakness of iterative search: plateau stagnation. The proposer converges on local optima and keeps generating variations without exploring new directions.</p>
+<p>CORAL (<a href="https://arxiv.org/abs/2604.01658">arXiv:2604.01658</a>) addresses this with three integrated mechanisms.</p>
+<h3 id="tier-1-stagnation-detection-pivot-prompts">Tier 1 — Stagnation Detection + Pivot Prompts</h3>
+<p>After <code>stagnation_threshold</code> consecutive non-improving iterations (default 3), BENE injects a <code>PIVOT REQUIRED</code> block into the next digest:</p>
+<div class="codehilite"><pre><span></span><code>╔══════════════════════════════════════════════════════════════════╗
+║  PIVOT REQUIRED  —  stagnant=4  best=0.74                        ║
+║                                                                  ║
+║  Exhausted approaches:                                           ║
+║    • Role-playing (engineer/reviewer) — ceiling at 0.74          ║
+║    • Few-shot examples — 1-4 per class, diminishing returns       ║
+║    • CoT with contrast — matched best but did not improve         ║
+║                                                                  ║
+║  Required: propose an orthogonal direction.                      ║
+╚══════════════════════════════════════════════════════════════════╝
+</code></pre></div>
+
+<p>The proposer cannot submit another role-playing variant. It must change the fundamental approach.</p>
+<p>Configure in <code>bene.yaml</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">search</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">stagnation_threshold</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">4</span><span class="w">    </span><span class="c1"># default 3 — pivot fires after N non-improving iters</span>
+<span class="w">  </span><span class="nt">consolidation_every</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">6</span><span class="w">     </span><span class="c1"># default 5 — skills heartbeat every K iters</span>
+</code></pre></div>
+
+<p>Or in <code>SearchConfig</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">config</span> <span class="o">=</span> <span class="n">SearchConfig</span><span class="p">(</span>
+    <span class="n">benchmark</span><span class="o">=</span><span class="s2">&quot;code_review&quot;</span><span class="p">,</span>
+    <span class="n">stagnation_threshold</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">consolidation_interval</span><span class="o">=</span><span class="mi">6</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<h3 id="tier-2-three-tier-memory">Tier 2 — Three-Tier Memory</h3>
+<p>The search archive gains three structured directories:</p>
+<table>
+<thead>
+<tr>
+<th>Directory</th>
+<th>Contents</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/attempts/</code></td>
+<td><code>{id, scores, status}</code> per harness</td>
+<td>Fast proposer scanning without loading full source</td>
+</tr>
+<tr>
+<td><code>/notes/</code></td>
+<td>Per-iteration markdown observations</td>
+<td>Injected into next digest so proposer builds on its own reasoning</td>
+</tr>
+<tr>
+<td><code>/skills/</code></td>
+<td>Reusable patterns distilled from notes</td>
+<td>Persisted to knowledge agent — available as seeds for future searches</td>
+</tr>
+</tbody>
+</table>
+<p>Writing skills via MCP:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># From Claude Code during a search session</span>
+<span class="n">mh_write_skill</span><span class="p">(</span>
+    <span class="n">search_agent_id</span><span class="o">=</span><span class="n">search_id</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;two_step_decomposition&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Split classification: &#39;correctness problem?&#39; then severity routing&quot;</span><span class="p">,</span>
+    <span class="n">code_template</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">STEP 1 — Extract: correctness (yes/no), impact (high/medium/low)</span>
+<span class="s2">STEP 2 — Route: correctness=yes+high → BLOCKER, correctness=yes → IMPORTANT, etc.</span>
+<span class="s2">&quot;&quot;&quot;</span>
+<span class="p">)</span>
+</code></pre></div>
+
+<p>Skills written today compound into seeds for tomorrow's search. <code>bene mh knowledge &lt;benchmark&gt;</code> shows all accumulated skills.</p>
+<h3 id="tier-3-concurrent-multi-agent-co-evolution">Tier 3 — Concurrent Multi-Agent Co-Evolution</h3>
+<p>Multiple search agents explore the same benchmark from different starting points, sharing discoveries via a central hub:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Launch co-evolution (MCP tool or Python API)</span>
+mh_spawn_coevolution<span class="o">(</span><span class="nv">benchmark</span><span class="o">=</span><span class="s2">&quot;code_review&quot;</span>,<span class="w"> </span><span class="nv">n_agents</span><span class="o">=</span><span class="m">3</span><span class="o">)</span>
+</code></pre></div>
+
+<p>Each agent:</p>
+<ol>
+<li>Runs independently with its own proposer loop</li>
+<li>Auto-syncs with the hub every <code>hub_sync_interval</code> iterations (default 2)</li>
+<li>Pulls other agents' best harnesses + skills into its own archive</li>
+<li>Cross-agent harnesses appear in its Pareto frontier and next digest</li>
+</ol>
+<p>Hub structure:</p>
+<div class="codehilite"><pre><span></span><code>Hub VFS:
+  /best_per_agent/agent_0/   ← best from each agent
+  /best_per_agent/agent_1/
+  /best_per_agent/agent_2/
+  /shared_skills/            ← skills any agent has written
+  /shared_attempts/          ← compact summaries from all agents
+</code></pre></div>
+
+<p>CORAL paper results: <strong>3-10× higher improvement rates</strong> vs single-agent search. 36% of cross-agent attempts build directly on another agent's work, at 17% improvement rate vs 9% overall.</p>
+<h3 id="cli_2">CLI</h3>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Check stagnation state of a running search</span>
+bene<span class="w"> </span>mh<span class="w"> </span>status<span class="w"> </span>&lt;search-agent-id&gt;
+<span class="c1"># → stagnant_iterations: 3, last_pivot_at: iter 7</span>
+
+<span class="c1"># View accumulated skills for a benchmark</span>
+bene<span class="w"> </span>mh<span class="w"> </span>knowledge<span class="w"> </span>code_review
+
+<span class="c1"># Write a skill from CLI</span>
+bene<span class="w"> </span>mh<span class="w"> </span>write-skill<span class="w"> </span>&lt;search-agent-id&gt;<span class="w"> </span>--name<span class="w"> </span><span class="s2">&quot;two_step&quot;</span><span class="w"> </span>--description<span class="w"> </span><span class="s2">&quot;...&quot;</span>
+</code></pre></div>
+
+<h3 id="full-demo">Full Demo</h3>
+<p>The code review 48%→83% demo shows all three CORAL tiers in a single 15-iteration search:</p>
+<ul>
+<li>Iters 1-7: role-playing + few-shot approaches plateau at 0.74</li>
+<li>Iter 7: <code>stagnant_iters=4</code> → CORAL pivot injected</li>
+<li>Iter 8: two-step decomposition breaks plateau (+0.04)</li>
+<li>Iter 10: consolidation heartbeat → skills written to knowledge agent</li>
+<li>Iter 10: two_step_attr_merged → 0.83 final score</li>
+</ul>
+<p><strong>$0.14, 12 minutes, 35-point improvement.</strong></p>
+<div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/meta-harness.md" target="_blank" rel="noopener noreferrer">docs/meta-harness.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
+</main>
+</div>
+<footer class="ft"><div class="in"><span>BENE 0.2.0 · local-first · SQLite · built in the open</span>
+<a href="https://github.com/EdwardTang/bene-site/discussions" target="_blank" rel="noopener noreferrer">Building something on bene? Open a Discussion.</a></div></footer>
+</body>
+</html>

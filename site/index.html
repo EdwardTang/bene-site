@@ -159,6 +159,7 @@ const dict = {
     footerCommunity: 'Building something on bene? Open a Discussion on the repo — we read every one.',
     footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
+      fullRef: 'Full reference — all 37 docs \u2192',
       nav: { quickstart: 'Quickstart', core: 'Core Concepts', cli: 'CLI Tour', mcp: 'MCP Server', research: 'Research', arch: 'Architecture', roadmap: 'Status & Roadmap' },
       quickstart: {
         title: 'Quickstart — first value in under a minute',
@@ -332,6 +333,7 @@ const dict = {
     footerCommunity: '正在用 bene 造东西？来 repo 开个 Discussion——每一条我们都会读。',
     footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
+      fullRef: '完整文档库 —— 全部 37 篇 \u2192',
       nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', mcp: 'MCP 服务器', research: '研究底座', arch: '架构设计', roadmap: '状态与路线图' },
       quickstart: {
         title: '快速开始 —— 一分钟内拿到第一个结果',
@@ -634,6 +636,8 @@ function Docs({ t }) {
             <button key={key} type="button" onClick={() => scrollTo(key)}
               className="block w-full text-left py-2 text-dune-mute hover:text-dune-gold transition-colors">{label}</button>
           ))}
+          <a href="docs/index.html"
+            className="block w-full text-left py-2 mt-2 border-t border-dune-border/60 text-dune-gold hover:text-dune-accent transition-colors">{dt.fullRef}</a>
         </div>
       </aside>
 

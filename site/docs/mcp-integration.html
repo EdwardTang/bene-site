@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BENE MCP Server Integration — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — BENE MCP Server Integration" />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<style>
+:root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.65 Inter,system-ui,sans-serif; }
+a { color:var(--gold); text-decoration-color: color-mix(in srgb, var(--gold) 40%, transparent); text-underline-offset:3px; }
+a:hover { color:var(--accent); }
+.top { position:sticky; top:0; z-index:10; background:color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--border); }
+.top-in { max-width:1200px; margin:0 auto; padding:0 24px; height:56px; display:flex; align-items:center; gap:24px; }
+.brand { font-family:"Playfair Display",serif; font-weight:700; letter-spacing:.12em; color:var(--ink); text-decoration:none; }
+.top a.nav { color:var(--mute); text-decoration:none; font-size:14px; }
+.top a.nav:hover { color:var(--accent); }
+.wrap { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:260px minmax(0,1fr); gap:40px; }
+@media (max-width: 860px) { .wrap { grid-template-columns:1fr; } aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-bottom:16px; } }
+aside.sb { position:sticky; top:80px; align-self:start; max-height:calc(100vh - 100px); overflow-y:auto; font-size:13.5px; border-left:1px solid var(--border); padding-left:16px; }
+.sb h4 { margin:18px 0 6px; font:600 11px/1 "JetBrains Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
+.sb a { display:block; padding:3px 0; color:var(--mute); text-decoration:none; }
+.sb a:hover { color:var(--accent); }
+.sb a.cur { color:var(--ink); font-weight:600; }
+main { min-width:0; max-width:760px; }
+main h1 { font-family:"Playfair Display",serif; font-size:2.1rem; line-height:1.2; margin:.2em 0 .5em; }
+main h2 { font-family:"Playfair Display",serif; font-size:1.45rem; margin-top:2em; border-bottom:1px solid var(--border); padding-bottom:.35em; }
+main h3 { font-size:1.12rem; margin-top:1.7em; }
+main img { max-width:100%; border:1px solid var(--border); border-radius:8px; }
+main table { border-collapse:collapse; width:100%; font-size:14.5px; display:block; overflow-x:auto; }
+main th, main td { border:1px solid var(--border); padding:8px 12px; text-align:left; vertical-align:top; }
+main th { background:var(--surface); font-weight:600; }
+main blockquote { margin:1em 0; padding:.2em 1.2em; border-left:3px solid var(--accent); color:var(--mute); background:var(--surface); border-radius:0 8px 8px 0; }
+main :not(pre) > code { background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:.08em .35em; font:.86em "JetBrains Mono",monospace; }
+.codehilite, main pre { background:var(--term-bg); color:var(--term-fg); border-radius:10px; padding:16px 18px; overflow-x:auto; font:13.5px/1.55 "JetBrains Mono",monospace; box-shadow:0 12px 30px -18px rgba(31,26,20,.45); }
+.codehilite pre, pre code { background:none; padding:0; margin:0; border:none; }
+.demo-embed { margin:20px 0 28px; }
+.demo-embed .frame { background:var(--term-bg); border-radius:12px; padding:14px; box-shadow:0 18px 44px -20px rgba(31,26,20,.5); }
+.demo-embed .dots { display:flex; gap:6px; margin-bottom:10px; }
+.demo-embed .dots i { width:10px; height:10px; border-radius:50%; background:#3a3344; }
+.demo-embed img { border:none; border-radius:6px; display:block; width:100%; }
+.demo-embed p { font:12.5px "JetBrains Mono",monospace; color:var(--mute); margin:8px 2px 0; }
+.crumbs { font:12.5px "JetBrains Mono",monospace; color:var(--mute); margin-bottom:8px; }
+.crumbs a { color:var(--mute); }
+.src { font:12.5px "JetBrains Mono",monospace; margin-top:48px; padding-top:16px; border-top:1px solid var(--border); color:var(--mute); }
+footer.ft { border-top:1px solid var(--border); margin-top:40px; }
+footer.ft .in { max-width:1200px; margin:0 auto; padding:24px; font:13px "JetBrains Mono",monospace; color:var(--mute); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.idx-group h2 { font-family:"Playfair Display",serif; border:none; margin-top:1.6em; }
+.idx-group ul { list-style:none; padding:0; margin:.4em 0; }
+.idx-group li { padding:6px 0; border-bottom:1px dashed var(--border); }
+.idx-group .path { font:11.5px "JetBrains Mono",monospace; color:var(--mute); margin-left:8px; }
+
+pre { line-height: 125%; }
+td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+span.linenos { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
+td.linenos .special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 5px; padding-right: 5px; }
+.codehilite .hll { background-color: #49483e }
+.codehilite { background: #272822; color: #F8F8F2 }
+.codehilite .c { color: #959077 } /* Comment */
+.codehilite .err { color: #ED007E; background-color: #1E0010 } /* Error */
+.codehilite .esc { color: #F8F8F2 } /* Escape */
+.codehilite .g { color: #F8F8F2 } /* Generic */
+.codehilite .k { color: #66D9EF } /* Keyword */
+.codehilite .l { color: #AE81FF } /* Literal */
+.codehilite .n { color: #F8F8F2 } /* Name */
+.codehilite .o { color: #FF4689 } /* Operator */
+.codehilite .x { color: #F8F8F2 } /* Other */
+.codehilite .p { color: #F8F8F2 } /* Punctuation */
+.codehilite .ch { color: #959077 } /* Comment.Hashbang */
+.codehilite .cm { color: #959077 } /* Comment.Multiline */
+.codehilite .cp { color: #959077 } /* Comment.Preproc */
+.codehilite .cpf { color: #959077 } /* Comment.PreprocFile */
+.codehilite .c1 { color: #959077 } /* Comment.Single */
+.codehilite .cs { color: #959077 } /* Comment.Special */
+.codehilite .gd { color: #FF4689 } /* Generic.Deleted */
+.codehilite .ge { color: #F8F8F2; font-style: italic } /* Generic.Emph */
+.codehilite .ges { color: #F8F8F2; font-weight: bold; font-style: italic } /* Generic.EmphStrong */
+.codehilite .gr { color: #F8F8F2 } /* Generic.Error */
+.codehilite .gh { color: #F8F8F2 } /* Generic.Heading */
+.codehilite .gi { color: #A6E22E } /* Generic.Inserted */
+.codehilite .go { color: #66D9EF } /* Generic.Output */
+.codehilite .gp { color: #FF4689; font-weight: bold } /* Generic.Prompt */
+.codehilite .gs { color: #F8F8F2; font-weight: bold } /* Generic.Strong */
+.codehilite .gu { color: #959077 } /* Generic.Subheading */
+.codehilite .gt { color: #F8F8F2 } /* Generic.Traceback */
+.codehilite .kc { color: #66D9EF } /* Keyword.Constant */
+.codehilite .kd { color: #66D9EF } /* Keyword.Declaration */
+.codehilite .kn { color: #FF4689 } /* Keyword.Namespace */
+.codehilite .kp { color: #66D9EF } /* Keyword.Pseudo */
+.codehilite .kr { color: #66D9EF } /* Keyword.Reserved */
+.codehilite .kt { color: #66D9EF } /* Keyword.Type */
+.codehilite .ld { color: #E6DB74 } /* Literal.Date */
+.codehilite .m { color: #AE81FF } /* Literal.Number */
+.codehilite .s { color: #E6DB74 } /* Literal.String */
+.codehilite .na { color: #A6E22E } /* Name.Attribute */
+.codehilite .nb { color: #F8F8F2 } /* Name.Builtin */
+.codehilite .nc { color: #A6E22E } /* Name.Class */
+.codehilite .no { color: #66D9EF } /* Name.Constant */
+.codehilite .nd { color: #A6E22E } /* Name.Decorator */
+.codehilite .ni { color: #F8F8F2 } /* Name.Entity */
+.codehilite .ne { color: #A6E22E } /* Name.Exception */
+.codehilite .nf { color: #A6E22E } /* Name.Function */
+.codehilite .nl { color: #F8F8F2 } /* Name.Label */
+.codehilite .nn { color: #F8F8F2 } /* Name.Namespace */
+.codehilite .nx { color: #A6E22E } /* Name.Other */
+.codehilite .py { color: #F8F8F2 } /* Name.Property */
+.codehilite .nt { color: #FF4689 } /* Name.Tag */
+.codehilite .nv { color: #F8F8F2 } /* Name.Variable */
+.codehilite .ow { color: #FF4689 } /* Operator.Word */
+.codehilite .pm { color: #F8F8F2 } /* Punctuation.Marker */
+.codehilite .w { color: #F8F8F2 } /* Text.Whitespace */
+.codehilite .mb { color: #AE81FF } /* Literal.Number.Bin */
+.codehilite .mf { color: #AE81FF } /* Literal.Number.Float */
+.codehilite .mh { color: #AE81FF } /* Literal.Number.Hex */
+.codehilite .mi { color: #AE81FF } /* Literal.Number.Integer */
+.codehilite .mo { color: #AE81FF } /* Literal.Number.Oct */
+.codehilite .sa { color: #E6DB74 } /* Literal.String.Affix */
+.codehilite .sb { color: #E6DB74 } /* Literal.String.Backtick */
+.codehilite .sc { color: #E6DB74 } /* Literal.String.Char */
+.codehilite .dl { color: #E6DB74 } /* Literal.String.Delimiter */
+.codehilite .sd { color: #E6DB74 } /* Literal.String.Doc */
+.codehilite .s2 { color: #E6DB74 } /* Literal.String.Double */
+.codehilite .se { color: #AE81FF } /* Literal.String.Escape */
+.codehilite .sh { color: #E6DB74 } /* Literal.String.Heredoc */
+.codehilite .si { color: #E6DB74 } /* Literal.String.Interpol */
+.codehilite .sx { color: #E6DB74 } /* Literal.String.Other */
+.codehilite .sr { color: #E6DB74 } /* Literal.String.Regex */
+.codehilite .s1 { color: #E6DB74 } /* Literal.String.Single */
+.codehilite .ss { color: #E6DB74 } /* Literal.String.Symbol */
+.codehilite .bp { color: #F8F8F2 } /* Name.Builtin.Pseudo */
+.codehilite .fm { color: #A6E22E } /* Name.Function.Magic */
+.codehilite .vc { color: #F8F8F2 } /* Name.Variable.Class */
+.codehilite .vg { color: #F8F8F2 } /* Name.Variable.Global */
+.codehilite .vi { color: #F8F8F2 } /* Name.Variable.Instance */
+.codehilite .vm { color: #F8F8F2 } /* Name.Variable.Magic */
+.codehilite .il { color: #AE81FF } /* Literal.Number.Integer.Long */
+.codehilite { background: var(--term-bg) !important; }
+</style>
+
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <a class="brand" href="../index.html">BENE</a>
+  <a class="nav" href="../index.html">Landing</a>
+  <a class="nav" href="index.html">Docs index</a>
+  <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
+</div></div>
+<div class="wrap">
+<aside class="sb"><h4>Guides</h4>
+<a href="README.html">README</a>
+<a href="architecture.html">architecture</a>
+<a href="checkpoints.html">checkpoints</a>
+<a href="cli-reference.html">cli-reference</a>
+<a href="codegen.html">codegen</a>
+<a href="dashboard.html">dashboard</a>
+<a href="deployment.html">deployment</a>
+<a class="cur" href="mcp-integration.html">mcp-integration</a>
+<a href="memory.html">memory</a>
+<a href="meta-harness.html">meta-harness</a>
+<a href="philosophy.html">philosophy</a>
+<a href="primitive-review-cycle.html">primitive-review-cycle</a>
+<a href="schema.html">schema</a>
+<a href="shared-log.html">shared-log</a>
+<a href="skills.html">skills</a>
+<a href="use-cases.html">use-cases</a>
+<h4>Design</h4>
+<a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
+<a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
+<a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
+<a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
+<h4>Research</h4>
+<a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
+<a href="research/SYNTHESIS.html">SYNTHESIS</a>
+<h4>Benchmarks</h4>
+<a href="benchmarks/PREREG.html">PREREG</a>
+<a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
+<h4>Tutorials</h4>
+<a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
+<a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
+<a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
+<a href="tutorials/t03-security-swarm.html">t03-security-swarm</a>
+<a href="tutorials/t04-migration-rollback.html">t04-migration-rollback</a>
+<a href="tutorials/t05-incident-response.html">t05-incident-response</a>
+<a href="tutorials/t06-ml-research-lab.html">t06-ml-research-lab</a>
+<a href="tutorials/t07-regression-guard.html">t07-regression-guard</a>
+<a href="tutorials/t08-hundred-agents-scale.html">t08-hundred-agents-scale</a>
+<a href="tutorials/t10-ci-overnight-bene-swarm.html">t10-ci-overnight-bene-swarm</a>
+<a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
+<h4>Case studies</h4>
+<a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
+<h4>Infra</h4>
+<a href="infra/DNS.html">DNS</a></aside>
+<main>
+<div class="crumbs"><a href="index.html">docs</a> / mcp-integration.md</div>
+<h1 id="bene-mcp-server-integration">BENE MCP Server Integration</h1><div class="demo-embed"><div class="frame"><div class="dots"><i></i><i></i><i></i></div><img src="../assets/demos/demo-honesty.gif" alt="Demo — what a connected agent inherits: experiments ls / show + senses --md." loading="lazy" onerror="this.closest('.demo-embed').style.display='none'"></div><p>Demo — what a connected agent inherits: experiments ls / show + senses --md.</p></div>
+<blockquote>
+<p>How to expose BENE as an MCP server for Claude Code and other MCP-compatible clients.</p>
+</blockquote>
+<p><img alt="MCP Server Integration — 18 tools, Claude Code, agent_spawn and mh_search" src="demos/bene_04_mcp_server.gif" /></p>
+<blockquote>
+<p><strong>v0.5.2 notes:</strong></p>
+<ul>
+<li><strong>CLI-first architecture</strong> — <code>--json</code> output on all commands. Agents can shell out to <code>bene --json ls</code> instead of using MCP (10-32x cheaper on tokens).</li>
+<li><strong>Large output handling</strong> — Agent results &gt;4KB are stored in VFS at <code>/result.txt</code>. MCP returns a preview + pointer to use <code>agent_read</code> for the full output.</li>
+<li><strong>stdout protection</strong> — MCP stdio transport redirects <code>sys.stdout</code> to <code>sys.stderr</code> at startup, preventing library logging from corrupting the JSON-RPC protocol.</li>
+<li><strong>Worker processes</strong> — <code>mh_search</code> and <code>mh_resume</code> spawn detached workers that survive MCP disconnection. Worker logs written to <code>bene-worker-*.log</code>.</li>
+<li><strong>New CLI commands</strong> — <code>bene read</code>, <code>bene logs</code>, <code>bene mh search --dry-run</code>.</li>
+</ul>
+</blockquote>
+<hr />
+<h2 id="table-of-contents">Table of Contents</h2>
+<ol>
+<li><a href="#overview">Overview</a></li>
+<li><a href="#cli-alternative">CLI Alternative (v0.5.2)</a></li>
+<li><a href="#starting-the-mcp-server">Starting the MCP Server</a></li>
+<li><a href="#claude-code-integration">Claude Code Integration</a></li>
+<li><a href="#available-tools">Available Tools</a></li>
+<li><a href="#example-conversation-flows">Example Conversation Flows</a></li>
+</ol>
+<hr />
+<h2 id="overview">Overview</h2>
+<p>BENE implements the <a href="https://modelcontextprotocol.io/">Model Context Protocol</a> (MCP), allowing Claude Code and other MCP clients to spawn agents, read/write files, create checkpoints, run SQL queries, and orchestrate parallel agent execution through natural language.</p>
+<p>The MCP server is implemented in <code>bene/mcp/server.py</code> using the <code>mcp</code> Python package. It wraps the <code>Bene</code> and <code>ClaudeCodeRunner</code> instances, exposing 18 tools across 6 categories: Lifecycle, VFS, Checkpoints, Query, Orchestration, and Meta-Harness.</p>
+<hr />
+<h2 id="cli-alternative">CLI Alternative</h2>
+<p>As of v0.5.2, every CLI command supports <code>--json</code> output, making BENE composable with any agent via shell commands:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Structured JSON output — any agent can parse this</span>
+bene<span class="w"> </span>--json<span class="w"> </span>ls
+bene<span class="w"> </span>--json<span class="w"> </span>status<span class="w"> </span>&lt;agent-id&gt;
+bene<span class="w"> </span>--json<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT * FROM agents WHERE status=&#39;running&#39;&quot;</span>
+bene<span class="w"> </span>--json<span class="w"> </span>mh<span class="w"> </span>status<span class="w"> </span>&lt;search-agent-id&gt;
+
+<span class="c1"># Background worker — survives parent exit</span>
+bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>text_classify<span class="w"> </span>-n<span class="w"> </span><span class="m">10</span><span class="w"> </span>--background
+</code></pre></div>
+
+<p>This is the recommended approach when:</p>
+<ul>
+<li>You want minimal token overhead (no MCP schema injection)</li>
+<li>You need the search to survive process restarts</li>
+<li>You're integrating with non-MCP agent frameworks</li>
+</ul>
+<p><strong>Transport modes:</strong></p>
+<ul>
+<li><strong>stdio</strong> -- Process-based transport for direct Claude Code integration. The MCP client spawns <code>bene serve</code> as a child process and communicates via stdin/stdout.</li>
+<li><strong>SSE</strong> -- HTTP-based transport using Server-Sent Events. Runs a Starlette/uvicorn HTTP server for network-accessible MCP integration.</li>
+</ul>
+<hr />
+<h2 id="starting-the-mcp-server">Starting the MCP Server</h2>
+<h3 id="stdio-mode-recommended-for-claude-code">stdio mode (recommended for Claude Code)</h3>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>stdio
+</code></pre></div>
+
+<p>This is the default transport. The server reads MCP messages from stdin and writes responses to stdout. Claude Code manages the process lifecycle.</p>
+<p><strong>Options:</strong></p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transport<span class="w"> </span>stdio<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--db<span class="w"> </span>./bene.db<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--config-file<span class="w"> </span>./bene.yaml
+</code></pre></div>
+
+<h3 id="sse-mode-network-access">SSE mode (network access)</h3>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>sse<span class="w"> </span>--host<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>--port<span class="w"> </span><span class="m">3100</span>
+</code></pre></div>
+
+<p>This starts an HTTP server with two endpoints:</p>
+<ul>
+<li><code>GET /sse</code> -- SSE connection endpoint for MCP clients.</li>
+<li><code>POST /messages</code> -- Message posting endpoint for MCP clients.</li>
+</ul>
+<p><strong>Options:</strong></p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>serve<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--transport<span class="w"> </span>sse<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--host<span class="w"> </span><span class="m">0</span>.0.0.0<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--port<span class="w"> </span><span class="m">3100</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--db<span class="w"> </span>./bene.db<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--config-file<span class="w"> </span>./bene.yaml
+</code></pre></div>
+
+<h3 id="environment-variables">Environment variables</h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>BENE_DB</code></td>
+<td><code>./bene.db</code></td>
+<td>Database file path (overridden by <code>--db</code>).</td>
+</tr>
+<tr>
+<td><code>BENE_CONFIG</code></td>
+<td><code>./bene.yaml</code></td>
+<td>Configuration file path (overridden by <code>--config-file</code>).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="without-a-config-file">Without a config file</h3>
+<p>If <code>bene.yaml</code> is not found, the server starts with a single default model endpoint at <code>http://localhost:8000/v1</code>. This allows using the MCP server for non-LLM operations (file management, checkpoints, queries) without any vLLM setup.</p>
+<hr />
+<h2 id="claude-code-integration">Claude Code Integration</h2>
+<h3 id="settingsjson-configuration">settings.json configuration</h3>
+<p>Add the BENE MCP server to your Claude Code settings file (<code>~/.claude/settings.json</code>):</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;bene&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bene&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--transport&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stdio&quot;</span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h3 id="with-custom-database-and-config-paths">With custom database and config paths</h3>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;bene&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bene&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;serve&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--transport&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stdio&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--db&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/path/to/project/bene.db&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--config-file&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/path/to/project/bene.yaml&quot;</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h3 id="using-uv-to-run-from-source">Using uv to run from source</h3>
+<p>If BENE is not installed globally, you can use <code>uv run</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;bene&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;uv&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;args&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;run&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;--project&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;/path/to/bene&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;bene&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;serve&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;--transport&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;stdio&quot;</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<h3 id="verifying-the-integration">Verifying the integration</h3>
+<p>After adding the configuration and restarting Claude Code, you should see the BENE tools available. You can verify by asking Claude Code:</p>
+<blockquote>
+<p>"What BENE tools are available?"</p>
+</blockquote>
+<p>Claude Code should list all 18 BENE tools.</p>
+<hr />
+<h2 id="available-tools">Available Tools</h2>
+<h3 id="agent_spawn">agent_spawn</h3>
+<p>Spawn a new agent with an isolated virtual filesystem and immediately run a task.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Name for the agent.</td>
+</tr>
+<tr>
+<td><code>task</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Task description for the agent to execute.</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>object</td>
+<td>no</td>
+<td>Agent configuration (model, temperature, etc.). Default: <code>{}</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON with <code>agent_id</code> and <code>result</code>.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test-writer&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;task&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Write unit tests for the authentication module&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;config&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;force_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek-r1-70b&quot;</span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;I&#39;ve written 12 unit tests covering...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_spawn_only">agent_spawn_only</h3>
+<p>Spawn a new agent without running it. Useful for pre-populating the VFS before execution.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Name for the agent.</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>object</td>
+<td>no</td>
+<td>Agent configuration. Default: <code>{}</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON with <code>agent_id</code> and <code>status</code>.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;code-analyzer&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;initialized&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_read">agent_read</h3>
+<p>Read a file from an agent's virtual filesystem.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>string</td>
+<td>yes</td>
+<td>File path to read.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> File content as UTF-8 text.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/auth.py&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_write">agent_write</h3>
+<p>Write a file to an agent's virtual filesystem.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>string</td>
+<td>yes</td>
+<td>File path.</td>
+</tr>
+<tr>
+<td><code>content</code></td>
+<td>string</td>
+<td>yes</td>
+<td>File content.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation with byte count.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/auth.py&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;def authenticate(user, password):\n    ...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code>Written 142 bytes to 01HXY...:/src/auth.py
+</code></pre></div>
+
+<hr />
+<h3 id="agent_ls">agent_ls</h3>
+<p>List files in an agent's virtual filesystem.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>string</td>
+<td>no</td>
+<td>Directory path. Default: <code>/</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON array of file entries with path, name, is_dir, size, modified_at, and version.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/auth.py&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;auth.py&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;is_dir&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1234</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;modified_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T10:00:00.000&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/utils&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;utils&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;is_dir&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;size&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;modified_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T09:55:00.000&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_status">agent_status</h3>
+<p>Get status of one agent or list all agents.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>no</td>
+<td>Agent ID. Omit to list all agents.</td>
+</tr>
+<tr>
+<td><code>status_filter</code></td>
+<td>string</td>
+<td>no</td>
+<td>Filter by status (<code>running</code>, <code>completed</code>, <code>failed</code>, etc.).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON object (single agent) or JSON array (all agents).</p>
+<p><strong>Example (single agent):</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test-writer&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;parent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T10:00:00.000&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;completed&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;config&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;force_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek-r1-70b&quot;</span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;metadata&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span>
+<span class="w">  </span><span class="nt">&quot;pid&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12345</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;last_heartbeat&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T10:05:00.000&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Example (list all running):</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;status_filter&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_checkpoint">agent_checkpoint</h3>
+<p>Create a snapshot of an agent's current state (files + KV store).</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>label</code></td>
+<td>string</td>
+<td>no</td>
+<td>Optional label for the checkpoint.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation with checkpoint ID.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pre-refactor&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code>Checkpoint 01HABC... created for agent 01HXY...
+</code></pre></div>
+
+<hr />
+<h3 id="agent_restore">agent_restore</h3>
+<p>Restore an agent to a previous checkpoint.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>checkpoint_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Checkpoint ID to restore.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;checkpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HABC...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code>Agent 01HXY... restored to checkpoint 01HABC...
+</code></pre></div>
+
+<hr />
+<h3 id="agent_diff">agent_diff</h3>
+<p>Compare two checkpoints of an agent, showing file and state differences.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+<tr>
+<td><code>from_checkpoint</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Source checkpoint ID.</td>
+</tr>
+<tr>
+<td><code>to_checkpoint</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Target checkpoint ID.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON object with file changes, state changes, and tool calls between checkpoints.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;from_checkpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HABC...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;to_checkpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HDEF...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;files&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;added&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/src/new_module.py&quot;</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;removed&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span>
+<span class="w">    </span><span class="nt">&quot;modified&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/src/auth.py&quot;</span><span class="p">]</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;state&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;added&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;new_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;value&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;removed&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span>
+<span class="w">    </span><span class="nt">&quot;modified&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;iteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;from&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">15</span><span class="p">}}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;tool_calls&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;call_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tool_name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fs_write&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;success&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;duration_ms&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;token_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">500</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_query">agent_query</h3>
+<p>Run a read-only SQL query against the BENE database.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sql</code></td>
+<td>string</td>
+<td>yes</td>
+<td>SQL SELECT query.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON array of result rows.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;sql&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SELECT name, status, created_at FROM agents ORDER BY created_at DESC LIMIT 5&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test-writer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;completed&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T10:00:00.000&quot;</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;refactorer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-30T09:55:00.000&quot;</span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+
+<p><strong>Note:</strong> Only SELECT queries are allowed. INSERT, UPDATE, DELETE, DROP, ALTER, and CREATE are rejected with a <code>PermissionError</code>.</p>
+<hr />
+<h3 id="agent_kill">agent_kill</h3>
+<p>Kill a running agent.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID to kill.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code>Agent 01HXY... killed
+</code></pre></div>
+
+<hr />
+<h3 id="agent_parallel">agent_parallel</h3>
+<p>Spawn and run multiple agents in parallel.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tasks</code></td>
+<td>array</td>
+<td>yes</td>
+<td>Array of task objects, each with <code>name</code> (string, required), <code>prompt</code> (string, required), and <code>config</code> (object, optional).</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON array of results with index.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;tasks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test-writer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Write unit tests for payments&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;doc-writer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Update payment API documentation&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;refactorer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Refactor payments to use Stripe v3&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;config&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;force_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek-r1-70b&quot;</span><span class="p">}}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;I&#39;ve written 8 test cases covering...&quot;</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Updated the API docs with...&quot;</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;result&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Refactored the payments module to...&quot;</span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+
+<hr />
+<h3 id="agent_pause">agent_pause</h3>
+<p>Pause a running agent. The agent can be resumed later with <code>agent_resume</code>.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID to pause.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation.</p>
+<hr />
+<h3 id="agent_resume">agent_resume</h3>
+<p>Resume a paused agent.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID to resume.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> Confirmation.</p>
+<hr />
+<h3 id="agent_checkpoints">agent_checkpoints</h3>
+<p>List all checkpoints for an agent.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Agent ID.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON array of checkpoints with <code>checkpoint_id</code>, <code>label</code>, <code>created_at</code>, and <code>event_id</code>.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;checkpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HABC...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;pre-refactor&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-31T10:00:00.000&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;event_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="nt">&quot;checkpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HDEF...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;post-refactor&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;created_at&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2026-03-31T10:15:00.000&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;event_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">87</span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+
+<hr />
+<h3 id="mh_search">mh_search</h3>
+<p>Run a Meta-Harness search to automatically optimize a harness for a benchmark. The search evaluates seed harnesses, then iteratively proposes and evaluates improvements using full execution traces.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>benchmark</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Benchmark name: <code>text_classify</code>, <code>math_rag</code>, <code>agentic_coding</code>, <code>lawbench</code>, <code>symptom2disease</code>, <code>uspto_50k</code>, or a custom registered benchmark.</td>
+</tr>
+<tr>
+<td><code>max_iterations</code></td>
+<td>integer</td>
+<td>no</td>
+<td>Number of search iterations. Default: 10.</td>
+</tr>
+<tr>
+<td><code>candidates_per_iteration</code></td>
+<td>integer</td>
+<td>no</td>
+<td>Candidates proposed per iteration. Default: 2.</td>
+</tr>
+<tr>
+<td><code>config</code></td>
+<td>object</td>
+<td>no</td>
+<td>Additional SearchConfig overrides.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON with <code>search_agent_id</code>, <code>summary</code>, <code>frontier</code>, <code>total_harnesses</code>, and <code>duration_seconds</code>.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;benchmark&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text_classify&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;candidates_per_iteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="mh_frontier">mh_frontier</h3>
+<p>Get the Pareto frontier of a completed Meta-Harness search.</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>search_agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Search agent ID returned by <code>mh_search</code>.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON with the Pareto frontier (harness IDs, scores, iterations).</p>
+<hr />
+<h3 id="mh_resume">mh_resume</h3>
+<p>Resume an interrupted Meta-Harness search from its last completed iteration. All prior harness evaluations, traces, and Pareto frontier state are preserved. The search continues with the same configuration (benchmark, candidates per iteration, objectives).</p>
+<p><strong>Parameters:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Required</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>search_agent_id</code></td>
+<td>string</td>
+<td>yes</td>
+<td>Search agent ID of the interrupted search.</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Returns:</strong> JSON with <code>search_agent_id</code>, <code>summary</code>, <code>frontier</code>, <code>total_harnesses</code>, <code>resumed_from_iteration</code>, and <code>duration_seconds</code>.</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;search_agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Response:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;search_agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;resumed_from_iteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;summary&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Resumed search from iteration 4, completed 10 total iterations&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;frontier&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="err">...</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;total_harnesses&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">23</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;duration_seconds&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">512.7</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h2 id="example-conversation-flows">Example Conversation Flows</h2>
+<h3 id="flow-1-spawn-an-agent-to-write-tests">Flow 1: Spawn an agent to write tests</h3>
+<p><strong>User:</strong> "Use BENE to spawn an agent that writes unit tests for my auth module."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_spawn</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;auth-tester&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;task&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Write comprehensive unit tests for the authentication module covering login, logout, token refresh, and edge cases.&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code receives result and responds:</strong>
+"I spawned agent <code>auth-tester</code> (ID: 01HXY...) which wrote 15 unit tests. Here's a summary of what it covered..."</p>
+<hr />
+<h3 id="flow-2-pre-populate-files-then-run">Flow 2: Pre-populate files, then run</h3>
+<p><strong>User:</strong> "Create an agent with some existing code, then have it refactor."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_spawn_only</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;refactorer&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_write</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/payments.py&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;def charge(amount): ...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_write</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/tests/test_payments.py&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;content&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;def test_charge(): ...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_checkpoint</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;before-refactor&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>User:</strong> "Now run the agent to refactor."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_spawn</code> (with a new task referencing the existing files).</p>
+<hr />
+<h3 id="flow-3-investigate-what-an-agent-did">Flow 3: Investigate what an agent did</h3>
+<p><strong>User:</strong> "What did the refactorer agent do? Show me its file changes."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_query</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;sql&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SELECT event_type, payload, timestamp FROM events WHERE agent_id = &#39;01HXY...&#39; ORDER BY event_id&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_ls</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_read</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;path&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;/src/payments.py&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code responds with a summary of the agent's actions and the final file contents.</strong></p>
+<hr />
+<h3 id="flow-4-parallel-code-review-swarm">Flow 4: Parallel code review swarm</h3>
+<p><strong>User:</strong> "Review this code from 4 angles: security, performance, style, and test coverage."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_parallel</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;tasks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;security-reviewer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Review this code for security vulnerabilities: ...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;config&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;force_model&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;deepseek-r1-70b&quot;</span><span class="p">}},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;performance-reviewer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Review this code for performance issues: ...&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;style-reviewer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Review this code for style and best practices: ...&quot;</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;test-reviewer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;prompt&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Suggest test cases needed for this code: ...&quot;</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code aggregates the 4 results and presents a unified review.</strong></p>
+<hr />
+<h3 id="flow-5-checkpoint-and-rollback">Flow 5: Checkpoint and rollback</h3>
+<p><strong>User:</strong> "The refactor broke things. Roll back to the checkpoint we made earlier."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_query</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;sql&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SELECT checkpoint_id, label, created_at FROM checkpoints WHERE agent_id = &#39;01HXY...&#39; ORDER BY created_at&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code identifies the checkpoint labeled "before-refactor".</strong></p>
+<p><strong>Claude Code calls:</strong> <code>agent_restore</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;checkpoint_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HABC...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_diff</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;from_checkpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HABC...&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to_checkpoint&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HDEF...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code responds:</strong> "Rolled back to the pre-refactor state. Here's what was undone: 3 files modified, 1 file added (now removed)."</p>
+<hr />
+<h3 id="flow-6-monitor-and-debug">Flow 6: Monitor and debug</h3>
+<p><strong>User:</strong> "Show me which agents are running and how many tokens they've used."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_status</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;status_filter&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;running&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code calls:</strong> <code>agent_query</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;sql&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;SELECT a.name, SUM(tc.token_count) as tokens, COUNT(tc.call_id) as calls FROM agents a LEFT JOIN tool_calls tc ON a.agent_id = tc.agent_id WHERE a.status = &#39;running&#39; GROUP BY a.agent_id&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code presents a summary table of running agents with their token consumption.</strong></p>
+<hr />
+<h3 id="flow-7-pause-and-resume-an-agent">Flow 7: Pause and resume an agent</h3>
+<p><strong>User:</strong> "Pause the refactorer agent, I want to review what it's done so far."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_pause</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>User:</strong> "OK, looks good. Resume it."</p>
+<p><strong>Claude Code calls:</strong> <code>agent_resume</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="flow-8-run-a-meta-harness-search">Flow 8: Run a Meta-Harness search</h3>
+<p><strong>User:</strong> "Use Meta-Harness to optimize my text classification harness."</p>
+<p><strong>Claude Code calls:</strong> <code>mh_search</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;benchmark&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;text_classify&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;max_iterations&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;candidates_per_iteration&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code receives the Pareto frontier and presents:</strong>
+"Meta-Harness evaluated 23 harnesses over 10 iterations. Best accuracy: 87% (harness 01HXY1F...). Best cost efficiency: 45 tokens/prediction (harness 01HXY1G...)."</p>
+<p><strong>User:</strong> "Show me the full frontier."</p>
+<p><strong>Claude Code calls:</strong> <code>mh_frontier</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;search_agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<hr />
+<h3 id="flow-9-resume-an-interrupted-meta-harness-search">Flow 9: Resume an interrupted Meta-Harness search</h3>
+<p><strong>User:</strong> "My Meta-Harness search crashed at iteration 4. Can you resume it?"</p>
+<p><strong>Claude Code calls:</strong> <code>mh_resume</code></p>
+<div class="codehilite"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;search_agent_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;01HXY...&quot;</span><span class="p">}</span>
+</code></pre></div>
+
+<p><strong>Claude Code receives the result and responds:</strong>
+"Resumed the search from iteration 4. It completed 10 total iterations and evaluated 23 harnesses. Best accuracy: 87% (harness 01HXY1F...). The full frontier has 4 Pareto-optimal harnesses."</p>
+<div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md" target="_blank" rel="noopener noreferrer">docs/mcp-integration.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
+</main>
+</div>
+<footer class="ft"><div class="in"><span>BENE 0.2.0 · local-first · SQLite · built in the open</span>
+<a href="https://github.com/EdwardTang/bene-site/discussions" target="_blank" rel="noopener noreferrer">Building something on bene? Open a Discussion.</a></div></footer>
+</body>
+</html>
