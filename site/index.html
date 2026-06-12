@@ -62,7 +62,7 @@ const dict = {
       title: 'Try it yourself — receipts today, framework soon',
       lede: 'Top block runs today against the public receipts repo. Bottom block is the framework — private preview; ask for access after you have read the docs above.',
       codeNow: '# Today (the receipts are public — read every decision yourself):\ngit clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md     # the 10 hard calls\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md # the locked-rule verdict\nless bene-site/docs/design/CLAIMS-AUDIT.md           # every claim, traced',
-      codeSoon: '# Soon (framework — private preview, request access):\nuv run bene init && uv run bene demo --no-ui   # 0.2s 5-pillar story\nuv run bene experiments ls                      # see the kill-gate journal\nuv run bene senses --md                         # what an incoming agent reads first',
+      codeSoon: '# Soon (framework — private preview, request access):\nuv run bene init && uv run bene demo --no-ui   # 0.3s 5-pillar story\nuv run bene experiments ls                      # see the kill-gate journal\nuv run bene senses --md                         # what an incoming agent reads first',
       footnote: 'No API keys. No cloud. One SQLite file at $BENE_DB.',
     },
     thesis: {
@@ -74,11 +74,11 @@ const dict = {
       subtitle: 'Every decision below has a doc that names which argument was made, against which evidence, against which prior framework. Clickable, in the order the project actually walked.',
       steps: [
         { doc: 'GAP-AUDIT.md', what: 'evidence-backed audit of two predecessor frameworks (our own). Every shortcoming cited later is something we did to ourselves first.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/GAP-AUDIT.md' },
-        { doc: 'SYNTHESIS.md', what: '48 paper citations across 16 AAOP papers — the research grounding for each pillar.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md' },
+        { doc: 'SYNTHESIS.md', what: '48 citation blocks covering 47 distinct papers — the research grounding for each pillar (the 16-paper AAOP table lives in the README).', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md' },
         { doc: 'DESIGN-RATIONALE.md', what: 'every D-decision argued three ways (Science / Compression / Engineering) before it shipped. The hard calls live here.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/DESIGN-RATIONALE.md' },
         { doc: 'KERNEL-SPEC.md', what: 'the buildable spec the kernel was implemented against.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/KERNEL-SPEC.md' },
         { doc: 'PREREG.md', what: 'benchmark protocol, sha256-locked before any run. REJECT is preregistered as success.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
-        { doc: 'RIVAL-BENCH-REPORT.md', what: 'round-3 results — 4 LOSS, 2 FAIL, 7 WIN/PASS. Supersession claim disallowed by the locked rule. We report it that way.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
+        { doc: 'RIVAL-BENCH-REPORT.md', what: 'round 1 — 4 LOSS, 2 FAIL, 7 WIN/PASS; supersession disallowed by the locked rule, and we reported it that way. Rounds 2-3 closed each gap as tracked commits and re-measured: round 3 makes supersession claimable for the first time (A1b exact tie, A6 ~7% margin — disclosed, not hidden).', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
         { doc: 'CLAIMS-AUDIT.md', what: 'every claim on this page mapped to a file + test, marked implemented or planned. No third category.', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
       ],
       storyTitle: 'The hardest call: collapsing five stores into one engram substrate',
@@ -97,10 +97,10 @@ const dict = {
     honesty: {
       title: 'Every claim checkable',
       desc: "Every benchmark is registered before it runs and its spec is sha256-locked, so we can't quietly retune it after we've seen the result. REJECT counts as a win — that's the trick. The claims audit marks every feature 'implemented' or 'planned'. We don't allow a third category.",
-      receiptHead: 'Receipts (the round-3 run, 2026-06-11):',
+      receiptHead: 'Receipts (rounds 1-3, 2026-06-11):',
       receipts: [
         { label: 'PREREG — sha256-locked before any run', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
-        { label: 'BENCH REPORT — 4 LOSS, 2 FAIL, 7 WIN/PASS, locked rule applied mechanically', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
+        { label: 'BENCH REPORT — round 1: 4 LOSS, 2 FAIL, 7 WIN/PASS under the locked rule; round 3: every row passes, supersession claimable for the first time (A1b exact tie and A6 ~7% margin disclosed)', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
         { label: 'CLAIMS AUDIT — every claim, file + test reference, planned vs implemented', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
       ],
     },
@@ -109,12 +109,12 @@ const dict = {
       nav: { quickstart: 'Quickstart', core: 'Core Concepts', cli: 'CLI Tour', mcp: 'MCP Server', research: 'Research', arch: 'Architecture', roadmap: 'Status & Roadmap' },
       quickstart: {
         title: 'Quickstart',
-        desc: 'Up and running in under a minute. Requires Python 3.11+ and uv.',
+        desc: 'Up and running in under a minute — inside a framework checkout (private preview). Step 1 works for everyone today: the public bene-site repo carries the receipts, not the package. Requires Python 3.11+ and uv.',
         steps: [
-          { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: 'The site repo carries the full receipts trail, readable offline.' },
+          { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: 'The site repo carries the full receipts trail, readable offline. It does not contain the framework package — steps 2-5 run inside a private-preview checkout.' },
           { run: 'uv sync', say: 'Install dependencies (uv resolves and caches in seconds).' },
           { run: 'uv run bene init', say: 'Create a fresh bene.db in the current directory.' },
-          { run: 'uv run bene demo --no-ui', say: 'The five-pillar story in one run — 0.2s, zero API keys. This is exactly what the GIF on the home page recorded.' },
+          { run: 'uv run bene demo --no-ui', say: 'The five-pillar story in one run — 0.3s, zero API keys. This is exactly what the GIF on the home page recorded.' },
           { run: 'uv run bene experiments ls && uv run bene senses --md', say: 'See the kill-gate experiment journal, and the briefing an incoming agent reads first.' },
         ],
         gifNote: 'The same pipeline, recorded live against bene-main HEAD:',
@@ -123,7 +123,7 @@ const dict = {
         title: 'Core Concepts',
         items: [
           { name: 'Engram Compression Ladder', desc: 'Tier 0 raw trace → episodic → semantic → procedural → strategic; every tier provenance-linked. A higher tier is only "true" if it predicts the tier it was compressed from — that is the test of whether consolidation actually happened.' },
-          { name: 'Falsifiable Eval Probes', desc: 'ACCEPT / REJECT / VOID verdicts behind hash-locked kill gates; tampered specs refuse to run; a baseline that cannot even trip the gate is inadmissible. Probes are engrams too — written once, reused by the whole population.' },
+          { name: 'Falsifiable Eval Probes', desc: 'ACCEPT / REJECT / VOID verdicts behind hash-locked kill gates; tampered specs refuse to run; and if a do-nothing baseline trips no kill gate, the probe itself is ruled inadmissible — a test that cannot fail proves nothing. Probes are engrams too — written once, reused by the whole population.' },
           { name: 'Trust Ledger', desc: 'Four computed signals — verification coverage, audit completeness, checkpoint discipline, outcome reliability. Inputs are gated verification artifacts (probe verdicts, e2e events, checkpoint records). Trust is computed, never declared.' },
           { name: 'Autonomy Ladder', desc: 'L0 (observe only) → L1 (suggest) → L2 (sandbox) → L3 (shared state) → L4 (auto-promote merges, human-only by default). Every capability is tagged with a required level; every denial is recorded as a trust engram.' },
           { name: 'ContextOS', desc: 'Budget-capped context assembly with a manifest (never exceeds budget, property-tested under randomization), plus pollution detection and checkpoint recovery.' },
@@ -132,11 +132,11 @@ const dict = {
       cli: {
         title: 'CLI Tour',
         desc: 'Every command supports --json output (pipe to jq). Grouped by capability, not alphabet.',
-        gifNote: 'Real session, recorded against current HEAD. Open a fresh shell, paste the Quickstart above, and every command below runs:',
+        gifNote: 'Real session, recorded against current HEAD. Open a fresh shell, paste the Quickstart above, and every command above runs:',
         groups: [
           { name: 'Setup & inspect', cmds: ['init', 'ls', 'logs', 'query'] },
           { name: 'Litany loop (face the failure / roll back)', cmds: ['checkpoint', 'diff', 'restore'] },
-          { name: 'Knowledge that outlives the agent', cmds: ['memory', 'skills', 'shared-log'] },
+          { name: 'Knowledge that outlives the agent', cmds: ['memory', 'skills', 'log'] },
           { name: 'Breeding program', cmds: ['mh search', 'mh frontier', 'mh resume'] },
           { name: 'Honesty surfaces', cmds: ['experiments ls', 'experiments show', 'senses --md', 'trust', 'demo --no-ui'] },
         ],
@@ -144,7 +144,7 @@ const dict = {
       mcp: {
         title: 'MCP Server',
         desc: '37 tools exposed to AI coding tools (Claude Code, Cursor, Aider, …) — every CLI surface is reachable over MCP as well.',
-        run: 'uv run bene-mcp',
+        run: 'uv run bene serve --transport stdio',
         note: 'Point your tool at the local stdio MCP server. Details in bene-site/docs/mcp-integration.md.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md',
       },
@@ -152,7 +152,7 @@ const dict = {
         title: 'Grounded in 16 papers',
         desc: 'Not vibes. Each pillar maps to specific papers — the full paper → pillar table lives in SYNTHESIS.md.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
-        cta: 'Read SYNTHESIS.md (16 AAOP papers, 48 citations) →',
+        cta: 'Read SYNTHESIS.md (48 citations, 47 distinct papers, mapped to the five pillars) →',
         sample: [
           { paper: 'Meta-Harness (Stanford IRIS)', pillar: 'Evolutionary meta-harness (the breeding program)' },
           { paper: 'SkillX, SkillClaw, Trace2Skill', pillar: 'Skill + memory propagation (Missionaria Protectiva)' },
@@ -193,7 +193,7 @@ const dict = {
       title: '自己跑一遍 —— 凭据今天就能读，框架很快开放',
       lede: '上面那块今天就能跑（对着公开的凭据 repo），下面那块是框架本身——私有预览；读完上面的文档再来要权限。',
       codeNow: '# 今天就能跑（凭据已公开，每一条决策都可以自己读）：\ngit clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # 10 个最难的取舍\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md # 锁定规则下的判定\nless bene-site/docs/design/CLAIMS-AUDIT.md           # 每一条声明，都有出处',
-      codeSoon: '# 很快开放（框架本体 —— 私有预览，可申请访问）：\nuv run bene init && uv run bene demo --no-ui   # 0.2 秒，五大支柱故事\nuv run bene experiments ls                      # 看 kill-gate 评测日志\nuv run bene senses --md                         # 新智能体最先读到的东西',
+      codeSoon: '# 很快开放（框架本体 —— 私有预览，可申请访问）：\nuv run bene init && uv run bene demo --no-ui   # 0.3 秒，五大支柱故事\nuv run bene experiments ls                      # 看 kill-gate 评测日志\nuv run bene senses --md                         # 新智能体最先读到的东西',
       footnote: '不需要 API key。不上云。一个 SQLite 文件就在 $BENE_DB。',
     },
     thesis: {
@@ -205,11 +205,11 @@ const dict = {
       subtitle: '下面每一个决策都有一份文档，记下了在什么证据面前、对着哪一个前框架、用什么论证做出来。可点击，按项目当时真实走过的顺序排列。',
       steps: [
         { doc: 'GAP-AUDIT.md', what: '对两个前任框架（都是我们自己之前写的）的证据化审计。后面每一条短处，都是我们先对自己做过的事。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/GAP-AUDIT.md' },
-        { doc: 'SYNTHESIS.md', what: '16 篇 AAOP 论文、48 处引用 —— 每一根支柱背后的研究底座。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md' },
+        { doc: 'SYNTHESIS.md', what: '48 处引用、覆盖 47 篇不同论文 —— 每一根支柱背后的研究底座；16 篇 AAOP 论文对照表在 README。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md' },
         { doc: 'DESIGN-RATIONALE.md', what: '每一条 D 决策都用三套论证（科学 / 压缩 / 工程）讨论过才允许进来。最难的取舍都在这里。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/DESIGN-RATIONALE.md' },
         { doc: 'KERNEL-SPEC.md', what: '内核照着实现的可构建规约。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/KERNEL-SPEC.md' },
         { doc: 'PREREG.md', what: '基准测试协议，跑之前 sha256 锁定。REJECT 是预先注册为成功的。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
-        { doc: 'RIVAL-BENCH-REPORT.md', what: '第三轮结果：4 LOSS / 2 FAIL / 7 WIN-PASS。锁定规则机械判定不允许声称 supersedes。报告就照实写。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
+        { doc: 'RIVAL-BENCH-REPORT.md', what: '第一轮：4 LOSS / 2 FAIL / 7 WIN-PASS，锁定规则不允许声称 supersedes，报告就照实写。第二、三轮把缺口当普通工程活逐一关掉（留 commit、重新测量）：第三轮起 supersedes 首次可声称 —— 附披露（A1b 恰好打平、A6 余量仅约 7%）。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
         { doc: 'CLAIMS-AUDIT.md', what: '这个页面上每一条声明，都对应到文件+测试，标注「已实现」或「计划中」。没有第三类。', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
       ],
       storyTitle: '最难的一刀：把五个 store 合并成一个 engram 基底',
@@ -228,10 +228,10 @@ const dict = {
     honesty: {
       title: '所有声明皆可验证',
       desc: '每个基准测试在跑之前就先注册、把 spec 用 sha256 锁定，免得我们看到结果之后再悄悄调阈值。REJECT 计为成功 —— 这是这套纪律的关键。声明审计把每个特性标记为「已实现」或「计划中」，我们不允许有第三种类别存在。',
-      receiptHead: '凭据链（2026-06-11 第三轮跑）：',
+      receiptHead: '凭据链（2026-06-11，第 1-3 轮）：',
       receipts: [
         { label: 'PREREG — 跑之前 sha256 锁定的协议', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
-        { label: 'BENCH REPORT — 4 LOSS / 2 FAIL / 7 WIN，锁定规则机械执行', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
+        { label: 'BENCH REPORT — 第一轮 4 LOSS / 2 FAIL / 7 WIN，锁定规则机械执行；第三轮全行通过，supersedes 首次可声称（披露：A1b 恰好打平、A6 余量仅约 7%）', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/RIVAL-BENCH-REPORT.md' },
         { label: 'CLAIMS AUDIT — 每条声明对应文件+测试，已实现/计划中', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
       ],
     },
@@ -240,12 +240,12 @@ const dict = {
       nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', mcp: 'MCP 服务器', research: '研究底座', arch: '架构设计', roadmap: '状态与路线图' },
       quickstart: {
         title: '快速开始',
-        desc: '一分钟内跑起来。需要 Python 3.11+ 和 uv。',
+        desc: '在框架 checkout 里一分钟内跑起来（私有预览）。第 1 步今天任何人都能跑：公开的 bene-site repo 只含凭据，不含框架包。需要 Python 3.11+ 和 uv。',
         steps: [
-          { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: '站点 repo 里就有完整可离线浏览的凭据链。' },
+          { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: '站点 repo 里就有完整可离线浏览的凭据链。它不含框架包本体 —— 第 2-5 步要在私有预览的 checkout 里跑。' },
           { run: 'uv sync', say: '装依赖（uv 几秒内 resolve + 缓存）。' },
           { run: 'uv run bene init', say: '在当前目录建一份新的 bene.db。' },
-          { run: 'uv run bene demo --no-ui', say: '五大支柱故事一次跑完 —— 0.2 秒，零密钥。这正是首页那张 GIF 录的东西。' },
+          { run: 'uv run bene demo --no-ui', say: '五大支柱故事一次跑完 —— 0.3 秒，零密钥。这正是首页那张 GIF 录的东西。' },
           { run: 'uv run bene experiments ls && uv run bene senses --md', say: '看 kill-gate 评测日志，看新智能体最先读到的清单。' },
         ],
         gifNote: '同一条流水线，对当前 bene-main HEAD 实跑录制：',
@@ -253,8 +253,8 @@ const dict = {
       core: {
         title: '核心概念',
         items: [
-          { name: 'Engram 压缩阶梯', desc: '0 级原始追踪 → 情景 → 语义 → 程序 → 战略；每一级都有溯源链接。一个更高层级要"真"，必须能预测它压缩自的下一层 —— 这才是「整合是不是真发生了」的检验。' },
-          { name: '可证伪评估探针', desc: 'ACCEPT / REJECT / VOID 裁决，哈希锁定 kill gate；被篡改的规约会拒绝执行；连阈值都触发不了的 baseline 直接 inadmissible。Probe 本身也是 engram —— 写一次，整个种群复用。' },
+          { name: 'Engram 压缩阶梯', desc: '0 级原始追踪 → 情景 → 语义 → 程序 → 战略；每一级都有溯源链接。一个更高层级要"真"，必须能预测它压缩自的那一层 —— 这才是「整合是不是真发生了」的检验。' },
+          { name: '可证伪评估探针', desc: 'ACCEPT / REJECT / VOID 裁决，哈希锁定 kill gate；被篡改的规约会拒绝执行；如果连「什么都不做」的 baseline 都触发不了任何 kill gate，这个 probe 本身就被判 inadmissible —— 不可能失败的测试什么也证明不了。Probe 本身也是 engram —— 写一次，整个种群复用。' },
           { name: '信任账本', desc: '四个计算信号 —— 验证覆盖率、审计完整性、checkpoint 纪律、结果可靠性。输入是经过门控的验证产物（probe 裁决、e2e 事件、checkpoint 记录）。信任是算出来的，不是声明出来的。' },
           { name: '自治阶梯', desc: 'L0（仅观察）→ L1（建议）→ L2（沙箱）→ L3（共享状态）→ L4（自动晋升合并，默认仅人类）。每个能力都标了所需级别；每次拒绝都记成 trust engram。' },
           { name: 'ContextOS', desc: '带 manifest 的预算上限上下文组装（绝不超预算，随机化属性测试），加上污染检测与 checkpoint 恢复。' },
@@ -263,11 +263,11 @@ const dict = {
       cli: {
         title: 'CLI 导览',
         desc: '所有命令都支持 --json 输出（可 jq）。按能力分组，不按字母。',
-        gifNote: '真实会话，对当前 HEAD 实录。开个新 shell，按上面 Quickstart 贴一遍，下面这些命令都能跑：',
+        gifNote: '真实会话，对当前 HEAD 实录。开个新 shell，按上面 Quickstart 贴一遍，上面这些命令都能跑：',
         groups: [
           { name: '安装 & 查看', cmds: ['init', 'ls', 'logs', 'query'] },
           { name: '抗惧祷文循环（直面失败 / 回滚）', cmds: ['checkpoint', 'diff', 'restore'] },
-          { name: '比 agent 活得更久的知识', cmds: ['memory', 'skills', 'shared-log'] },
+          { name: '比 agent 活得更久的知识', cmds: ['memory', 'skills', 'log'] },
           { name: '繁育计划', cmds: ['mh search', 'mh frontier', 'mh resume'] },
           { name: '诚信表面', cmds: ['experiments ls', 'experiments show', 'senses --md', 'trust', 'demo --no-ui'] },
         ],
@@ -275,7 +275,7 @@ const dict = {
       mcp: {
         title: 'MCP 服务器',
         desc: '37 个工具暴露给 AI 编程工具（Claude Code、Cursor、Aider 等）—— 所有 CLI 表面都同时通过 MCP 可达。',
-        run: 'uv run bene-mcp',
+        run: 'uv run bene serve --transport stdio',
         note: '在你用的工具里指向本地 stdio MCP server 即可。详见 bene-site/docs/mcp-integration.md。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md',
       },
@@ -283,7 +283,7 @@ const dict = {
         title: '16 篇论文垫底',
         desc: '不是凭感觉。每根支柱都对应到具体论文 —— 完整的「论文 → 支柱」对照表在 SYNTHESIS.md。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
-        cta: '读 SYNTHESIS.md（16 篇 AAOP 论文，48 处引用） →',
+        cta: '读 SYNTHESIS.md（48 处引用、47 篇论文，映射到五大支柱） →',
         sample: [
           { paper: 'Meta-Harness (Stanford IRIS)', pillar: '进化型 meta-harness（繁育计划）' },
           { paper: 'SkillX、SkillClaw、Trace2Skill', pillar: '技能 + 记忆传播（保护传教团）' },
@@ -544,7 +544,7 @@ function Docs({ t }) {
               <div key={i} className="bg-[#090710] border border-dune-border rounded p-5 font-mono text-sm">
                 <div className="text-dune-accent mb-3 text-xs uppercase tracking-wider"># {g.name}</div>
                 {g.cmds.map((cmd) => (
-                  <div key={cmd} className="mb-1"><span className="text-dune-gold">bene</span> {cmd} <span className="text-dune-sand/40">[--json]</span></div>
+                  <div key={cmd} className="mb-1"><span className="text-dune-gold">bene</span> <span className="text-dune-sand/40">[--json]</span> {cmd}</div>
                 ))}
               </div>
             ))}
