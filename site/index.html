@@ -69,16 +69,16 @@ const dict = {
     nav: { landing: 'Landing', docs: 'Docs', github: 'GitHub' },
     hero: {
       title: 'Run AI coding agents you can rewind, diff, and replay.',
-      forWho: 'For engineers tired of agents that silently break things they can’t undo.',
+      forWho: 'For engineers whose agents break things they can’t undo.',
       trustLine: 'The whole harness is one SQLite file you can cp or git diff. No API keys. No cloud.',
       tagline: 'Every agent isolated, every turn checkpointed, and you can re-run every claim.',
       stats: ['rewind a broken turn in one command', 'works with Claude Code, Cursor, Aider', '37 MCP tools'],
-      ctaCode: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site\nuv sync && uv run bene init && uv run bene demo --no-ui   # 0.3s, zero keys',
+      ctaCode: '# runs for everyone, today:\ngit clone https://github.com/EdwardTang/bene-site && cd bene-site\nless docs/design/CLAIMS-AUDIT.md            # the receipts, readable offline\n# framework checkout (private preview):\nuv run bene init && uv run bene demo --no-ui   # 0.3s, zero keys — the GIF below',
     },
     sections: {
       watch: {
         kicker: '01 · KEYLESS, IN 0.3 SECONDS',
-        title: 'Five pillars wire up and run a story in 0.3s, with no key.',
+        title: 'One command runs the whole kernel — trace to trust score — in 0.3 seconds.',
         body: 'One command, no keys, real terminal. The kernel does five jobs in one run: it compresses traces, evolves a strategy, kill-gates a probe, denies an over-permissioned action, and computes a trust score — all from the engrams it just wrote.',
         demo: 'assets/demos/demo-keyless.gif',
         caption: 'Recorded live against bene-main HEAD. No edits.',
@@ -100,7 +100,7 @@ const dict = {
         title: 'Your tech lead can rerun every check.',
         body: 'Probe specs are sha256-locked before any run. Every gate has an ACCEPT or REJECT verdict with the numbers it tripped. New agents read a manifest of what is already known instead of starting blind.',
         demo: 'assets/demos/demo-honesty.gif',
-        caption: 'Wire a probe to your own agent in five lines — your agent now refuses to report DONE until G1/G2 pass.',
+        caption: 'experiments ls → experiments show → senses --md: the audit trail and briefing a connected agent inherits.',
         links: [
           { label: 'PREREG.md (sha256-locked protocol)', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
           { label: 'CLAIMS-AUDIT.md (every claim, file + test)', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
@@ -121,30 +121,30 @@ const dict = {
       },
       build: {
         kicker: '04.5 · BUILD YOUR FIRST AUDITABLE AGENT',
-        title: 'Three recipes you can adapt tonight.',
-        body: 'Each recipe is a real bene CLI sequence against a fresh bene.db. Adapt the variables to your task; the harness mechanics stay the same.',
+        title: 'Three recipes, run before publishing.',
+        body: 'Each recipe runs inside a framework checkout (private preview) against a fresh bene.db. Agents are created via the Python API or the MCP tools (agent_spawn / agent_write); the rewind verbs are plain CLI. Adapt the variables to your task; the harness mechanics stay the same.',
         recipes: [
           {
             title: 'Wrap a flaky shell script as a checkpointed agent',
             getYou: 'git revert for runtime: every run is a checkpoint, every diff is offline, you roll back to the green build in one command.',
-            code: '$AID=$(bene spawn --name runbook)\nbene write $AID /run.sh "$(cat my_pipeline.sh)"\nbene checkpoint $AID --label green\n# ... let your agent edit /run.sh ...\nbene diff $AID --from green --to $(bene checkpoints $AID -1)\nbene restore $AID --checkpoint green   # back to green',
+            code: '# seed the agent (Python API — spawn/write are not CLI verbs):\nAID=$(uv run python -c "from bene import Bene; b=Bene(\'bene.db\'); a=b.spawn(\'runbook\'); b.write(a,\'/run.sh\',open(\'my_pipeline.sh\',\'rb\').read()); print(a)")\nuv run bene checkpoint $AID --label green\n# ... let your agent edit /run.sh ...\nuv run bene checkpoints $AID                       # find the two checkpoint ids\nuv run bene diff $AID --from <green-cp> --to <after-cp>\nuv run bene restore $AID --checkpoint <green-cp>   # back to green',
           },
           {
-            title: 'Run one prompt across 3 models, gated by an ACCEPT probe',
-            getYou: 'a kill-gated bake-off: only the variant that trips no gate gets promoted; the rest are rejected with a verdict you can re-read.',
-            code: 'bene probe create story-probe --spec ./probes/story.yaml   # sha256-locked\nfor m in opus sonnet haiku; do\n  bene run --name "story-$m" --model $m "draft the release notes"\ndone\nbene probe run story-probe --against story-*   # ACCEPT / REJECT / VOID per arm\nbene experiments ls                            # the journal\n# only ACCEPTed variants are eligible for promotion',
+            title: 'Read a kill-gated verdict end-to-end',
+            getYou: 'the full audit trail behind every ACCEPT: specs locked before the run, verdicts with the numbers they tripped, re-readable months later.',
+            code: 'uv run bene probe ls                  # registered probes (spec hash + status)\nuv run bene probe show <name>         # the locked kill gates, gate by gate\nuv run bene experiments ls            # probe / evolution / consolidation journal\nuv run bene experiments show <run-id> # one verdict: ACCEPT / REJECT / VOID + numbers\n# probe AUTHORING (create/run) lives in the framework — a probe-authoring CLI\n# is on the roadmap below; verdict reading works today as shown in Demo 3.',
           },
           {
             title: 'Give Claude Code a persistent scratchpad + lessons-learned via MCP',
-            getYou: 'compounding context: every session writes engrams; every new session reads the senses manifest first and inherits what worked.',
-            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# In your Claude Code session:\n#   memory.search "yesterday\'s schema migration" → past engrams\n#   senses.md → manifest the agent reads before its first action\n#   checkpoint → restore on a bad turn, no git stash needed',
+            getYou: 'compounding context: every session writes engrams; every new session searches them first and inherits what worked.',
+            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# Your agent now has (real tool names from the 37):\n#   agent_memory_search → past sessions\' engrams as RAG context\n#   agent_checkpoint / agent_restore → rewind a bad turn, no git stash\n#   agent_spawn / agent_write → isolated sub-agents with their own VFS',
           },
         ],
       },
       candor: {
         kicker: '05 · TODAY VS SOON',
-        title: 'Today vs Soon.',
-        todayHead: 'Today (public — receipts repo, the three demos above, and the recipes):',
+        title: 'The receipts run today. The breeding program is next.',
+        todayHead: 'Today (public — receipts repo and the three demos above):',
         todayCode: 'git clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # the 10 hard calls\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md  # locked-rule verdict\nless bene-site/docs/design/CLAIMS-AUDIT.md            # every claim, traced',
         soonHead: 'Soon (hosted evolutionary / meta-harness search — opt-in, private preview):',
         soonCode: '# The local SQLite + MCP surface stays the contract.\n# Soon: a hosted service for breeding/evolutionary search across generations.\nuv run bene mh search   # local today; opt-in hosted soon',
@@ -207,7 +207,7 @@ const dict = {
       },
       research: {
         title: 'Grounded in 16 papers',
-        desc: 'Not vibes. Each pillar maps to specific papers — the full paper → pillar table lives in SYNTHESIS.md.',
+        desc: 'Each pillar maps to specific papers — the full paper → pillar table lives in SYNTHESIS.md.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
         cta: 'Read SYNTHESIS.md (48 citations, 47 distinct papers, mapped to the five pillars) →',
         sample: [
@@ -231,6 +231,7 @@ const dict = {
           { feature: 'Kernel, probes, kill-gated promotion', status: 'Shipped', shipped: true },
           { feature: 'Trust ledger, ContextOS', status: 'Shipped', shipped: true },
           { feature: 'Outcome-weighted retrieval, critical-step localizer, continuous-quality signal', status: 'Shipped', shipped: true },
+          { feature: 'Probe-authoring CLI (probe create / probe run)', status: 'Planned', shipped: false },
           { feature: 'Nightly consolidation scheduler', status: 'Planned', shipped: false },
           { feature: 'Runner wiring, deterministic replay', status: 'Planned', shipped: false },
         ],
@@ -241,16 +242,16 @@ const dict = {
     nav: { landing: '主页', docs: '文档', github: '源码' },
     hero: {
       title: '让你的 AI 编程智能体可以倒带、可以 diff、可以重跑。',
-      forWho: '献给那些受够了智能体悄悄搞坏、却又没办法 undo 的工程师。',
+      forWho: '献给智能体搞坏了东西、却没办法 undo 的工程师。',
       trustLine: '整套 harness 就是一份 SQLite 文件，可以 cp，可以 git diff。零密钥。不上云。',
       tagline: '每个智能体隔离、每一步 checkpoint，每条声明都能重跑。',
       stats: ['一条命令倒带一次坏 turn', '兼容 Claude Code / Cursor / Aider', '37 个 MCP 工具'],
-      ctaCode: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site\nuv sync && uv run bene init && uv run bene demo --no-ui   # 0.3 秒，零密钥',
+      ctaCode: '# 任何人今天就能跑：\ngit clone https://github.com/EdwardTang/bene-site && cd bene-site\nless docs/design/CLAIMS-AUDIT.md            # 凭据链，可离线读\n# 框架 checkout（私有预览）里：\nuv run bene init && uv run bene demo --no-ui   # 0.3 秒，零密钥 —— 即下方 GIF',
     },
     sections: {
       watch: {
         kicker: '01 · 0.3 秒，零密钥',
-        title: '五大支柱在 0.3 秒内串完一个故事，零密钥。',
+        title: '一条命令跑完整个内核 —— 从 trace 到信任分数，0.3 秒。',
         body: '一条命令、零密钥、真实终端。下面这段录像里，内核一次跑完五件事：压缩 trace、进化一轮策略、kill-gate 一道 probe、拒绝一次越权动作、把信任分数算出来 —— 全部基于它刚写下的 engram。',
         demo: 'assets/demos/demo-keyless.gif',
         caption: '对当前 bene-main HEAD 实跑录制，未做剪辑。',
@@ -269,10 +270,10 @@ const dict = {
       },
       receipts: {
         kicker: '03 · 所有声明都有凭据',
-        title: '你 tech lead 可以一条命令重跑每一个 check。',
+        title: '你的 tech lead 可以一条命令重跑每一个 check。',
         body: 'probe 规约在跑之前 sha256 锁定。每个 gate 都有 ACCEPT/REJECT 裁决，附触发它的数值。新来的智能体读到的是一份「已知什么」的清单，不是空白。',
         demo: 'assets/demos/demo-honesty.gif',
-        caption: '给你自己的智能体接一道 probe，五行代码——它在 G1/G2 都通过之前不准报 DONE。',
+        caption: 'experiments ls → experiments show → senses --md：接进来的智能体继承到的审计链与简报。',
         links: [
           { label: 'PREREG.md （sha256 锁定的协议）', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/benchmarks/PREREG.md' },
           { label: 'CLAIMS-AUDIT.md （每条声明对应文件+测试）', href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/design/CLAIMS-AUDIT.md' },
@@ -293,30 +294,30 @@ const dict = {
       },
       build: {
         kicker: '04.5 · 造你的第一个可审计智能体',
-        title: '三份今晚就能改成你自己的 recipe。',
-        body: '每份 recipe 都是一段真实的 bene CLI 序列，对一个全新的 bene.db 跑。把变量换成你的任务即可——harness 机理不变。',
+        title: '三份 recipe，发布之前都真实跑过。',
+        body: '每份 recipe 都在框架 checkout（私有预览）里对一个全新的 bene.db 跑。创建智能体走 Python API 或 MCP 工具（agent_spawn / agent_write）；倒带动词是纯 CLI。把变量换成你的任务即可——harness 机理不变。',
         recipes: [
           {
             title: '把一段不稳的 shell 脚本包成 checkpointed agent',
             getYou: '运行时的 git revert：每次跑都是一个 checkpoint，每次 diff 都在本地，一条命令滚回到 green。',
-            code: '$AID=$(bene spawn --name runbook)\nbene write $AID /run.sh "$(cat my_pipeline.sh)"\nbene checkpoint $AID --label green\n# ... 让 agent 改 /run.sh ...\nbene diff $AID --from green --to $(bene checkpoints $AID -1)\nbene restore $AID --checkpoint green   # 回到 green',
+            code: '# 先种下 agent（Python API —— spawn/write 不是 CLI 动词）：\nAID=$(uv run python -c "from bene import Bene; b=Bene(\'bene.db\'); a=b.spawn(\'runbook\'); b.write(a,\'/run.sh\',open(\'my_pipeline.sh\',\'rb\').read()); print(a)")\nuv run bene checkpoint $AID --label green\n# ... 让 agent 改 /run.sh ...\nuv run bene checkpoints $AID                       # 找到两个 checkpoint id\nuv run bene diff $AID --from <green-cp> --to <after-cp>\nuv run bene restore $AID --checkpoint <green-cp>   # 回到 green',
           },
           {
-            title: '同一个 prompt 跑 3 个模型，过一道 ACCEPT probe',
-            getYou: 'kill-gate 门控的 bake-off：只有不触 gate 的那一支被允许 promote，其它都拿到 REJECT 裁决，事后可重读。',
-            code: 'bene probe create story-probe --spec ./probes/story.yaml   # sha256 锁定\nfor m in opus sonnet haiku; do\n  bene run --name "story-$m" --model $m "draft the release notes"\ndone\nbene probe run story-probe --against story-*   # 逐 arm 出 ACCEPT/REJECT/VOID\nbene experiments ls                            # 评测日志\n# 只有 ACCEPT 的 arm 才有资格 promote',
+            title: '把一个 kill-gate 裁决从头读到尾',
+            getYou: '每个 ACCEPT 背后完整的审计链：规约在跑之前锁定，裁决带着触发它的数值，几个月后照样可重读。',
+            code: 'uv run bene probe ls                  # 已注册的 probe（spec hash + 状态）\nuv run bene probe show <name>         # 锁定的 kill gate，一道一道看\nuv run bene experiments ls            # probe / 进化 / 整合 日志\nuv run bene experiments show <run-id> # 一份裁决：ACCEPT/REJECT/VOID + 数值\n# probe 的「编写」(create/run) 在框架本体里 —— probe-authoring CLI 在下方\n# 路线图上；裁决的「阅读」今天就能跑，正是 Demo 3 演示的。',
           },
           {
             title: '通过 MCP 给 Claude Code 接上持久 scratchpad + lessons-learned',
-            getYou: '复利的上下文：每次 session 写 engram；下一次 session 先读 senses manifest，继承所有「上次管用的东西」。',
-            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# 在你的 Claude Code 会话里：\n#   memory.search "昨天的 schema migration" → 历史 engrams\n#   senses.md → agent 第一动作前先读的清单\n#   checkpoint → 坏 turn 一键 restore，不必 git stash',
+            getYou: '复利的上下文：每次 session 写 engram；下一次 session 先搜一遍，继承所有「上次管用的东西」。',
+            code: 'claude mcp add bene -- uv run bene serve --transport stdio\n# 你的 agent 现在有了（37 个工具里的真实名字）：\n#   agent_memory_search → 把历史 session 的 engram 当 RAG 上下文搜\n#   agent_checkpoint / agent_restore → 坏 turn 一键倒带，不必 git stash\n#   agent_spawn / agent_write → 带独立 VFS 的隔离子智能体',
           },
         ],
       },
       candor: {
         kicker: '05 · 今天 vs 即将',
-        title: '今天 vs 即将。',
-        todayHead: '今天就能跑（凭据 repo、上面三个 demo、加 recipes）：',
+        title: '凭据今天就能跑。繁育计划是下一步。',
+        todayHead: '今天就能跑（凭据 repo + 上面三个 demo）：',
         todayCode: 'git clone https://github.com/EdwardTang/bene-site\nless bene-site/docs/design/DESIGN-RATIONALE.md       # 10 个最难的取舍\nless bene-site/docs/benchmarks/RIVAL-BENCH-REPORT.md  # 锁定规则下的判定\nless bene-site/docs/design/CLAIMS-AUDIT.md            # 每一条声明，都有出处',
         soonHead: '即将开放（hosted 进化型 / meta-harness 搜索 —— 私有预览，opt-in）：',
         soonCode: '# 本地 SQLite + MCP 这层 contract 不变。\n# 即将：跨代的进化型搜索作为 hosted 服务，opt-in。\nuv run bene mh search   # 今天本地能跑；即将 hosted 可选',
@@ -379,7 +380,7 @@ const dict = {
       },
       research: {
         title: '16 篇论文垫底',
-        desc: '不是凭感觉。每根支柱都对应到具体论文 —— 完整的「论文 → 支柱」对照表在 SYNTHESIS.md。',
+        desc: '每根支柱都对应到具体论文 —— 完整的「论文 → 支柱」对照表在 SYNTHESIS.md。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
         cta: '读 SYNTHESIS.md（48 处引用、47 篇论文，映射到五大支柱） →',
         sample: [
@@ -403,6 +404,7 @@ const dict = {
           { feature: 'Kernel、探针、kill-gate 门控晋升', status: '已发布', shipped: true },
           { feature: '信任账本、ContextOS', status: '已发布', shipped: true },
           { feature: '结果加权检索、关键步定位、连续质量信号', status: '已发布', shipped: true },
+          { feature: 'Probe 编写 CLI（probe create / probe run）', status: '计划中', shipped: false },
           { feature: '每夜整合调度器', status: '计划中', shipped: false },
           { feature: 'Runner 接线、确定性重放', status: '计划中', shipped: false },
         ],
