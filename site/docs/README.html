@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a class="cur" href="README.html">README</a>
 <a href="architecture.html">architecture</a>
 <a href="checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="shared-log.html">shared-log</a>
 <a href="skills.html">skills</a>
 <a href="use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="benchmarks/PREREG.html">PREREG</a>
 <a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,15 +191,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="index.html">docs</a> / README.md</div>
 <h1 id="bene-documentation">BENE Documentation</h1><div class="demo-embed"><div class="frame"><div class="dots"><i></i><i></i><i></i></div><img src="../assets/demos/demo-keyless.gif" alt="Demo — keyless first value: bene init &amp;&amp; bene demo --no-ui, 0.3s, recorded live against bene-main HEAD." loading="lazy" onerror="this.closest('.demo-embed').style.display='none'"></div><p>Demo — keyless first value: bene init &amp;&amp; bene demo --no-ui, 0.3s, recorded live against bene-main HEAD.</p></div>
-<p><strong>Breeding-program Evolutionary Nexus for Engrams</strong> — runtime infrastructure for multi-agent AI.</p>
-<p>Every agent gets an isolated filesystem, automatic checkpointing, a full audit trail, and a live dashboard — all in a single SQLite file.</p>
+<p>Run a swarm of AI agents on your own machine, watch every move, and roll back anything they break.</p>
+<blockquote>
+<p><strong>Every agent's files, every event, every checkpoint — one SQLite file you can <code>cp</code>. Nothing hides in a cloud.</strong></p>
+</blockquote>
+<p>BENE (Breeding-program Evolutionary Nexus for Engrams) gives each agent a private filesystem, automatic checkpoints, a live dashboard, and an audit trail you can query.</p>
 <hr />
-<h2 id="get-started">Get started</h2>
+<h2 id="from-clone-to-demo">From clone to demo</h2>
 <div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/good-night-oppie/bene.git<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>bene
 uv<span class="w"> </span>sync
 bene<span class="w"> </span>setup<span class="w">       </span><span class="c1"># configure models, init database, install MCP server</span>
@@ -207,101 +210,86 @@ bene<span class="w"> </span>demo<span class="w">        </span><span class="c1">
 </code></pre></div>
 
 <hr />
-<h2 id="philosophy">Philosophy</h2>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="philosophy.html">Design Philosophy</a></td>
-<td>Why BENE integrates research rather than inventing solutions, integration criteria, what's next</td>
-</tr>
-</tbody>
-</table>
+<h2 id="drive-it-from-your-editor">Drive it from your editor</h2>
+<p>After <code>bene setup</code>, Claude Code, Cursor, and other MCP clients can drive BENE in plain language:</p>
+<div class="codehilite"><pre><span></span><code>with bene, review my payments module — security agent and test-writing agent in parallel
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>with bene, refactor auth.py — implement, test, and document in parallel
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>with bene, show me all agents that failed in the last run and what errors they hit
+</code></pre></div>
+
+<p>Client setup and the full 25 MCP tools: <a href="mcp-integration.html">MCP Integration</a>.</p>
 <hr />
-<h2 id="guides">Guides</h2>
+<h2 id="how-it-works">How it works</h2>
+<p><strong>Virtual filesystem (VFS)</strong> — each agent works in a private filesystem stored inside the database. No agent can read another's files: isolation is a SQL predicate (<code>WHERE agent_id = ?</code>), not a convention.</p>
+<p><strong>Checkpoint</strong> — one agent's files plus KV state, frozen at a chosen moment. Restore in milliseconds; diffing two shows what changed. More in <a href="checkpoints.html">Checkpoints</a>.</p>
+<p><strong>Audit trail</strong> — reads, writes, tool calls, state changes, lifecycle events: each lands in the <code>events</code> table as one append-only row, queryable in SQL. Layout: <a href="schema.html">Schema</a>.</p>
+<p><strong>Tier router</strong> — the Difficulty-Aware Routing by Tier router matches each task to a model tier: trivial work runs on a local 7B, hard work on a 70B or Claude. Internals: <a href="architecture.html">Architecture</a>.</p>
+<p><strong>Single <code>.db</code> file</strong> — no server, no cloud account. One SQLite file to <code>cp</code> for backup, open in any SQLite tool, or hand to a teammate.</p>
+<hr />
+<h2 id="pick-a-guide-by-job">Pick a guide by job</h2>
 <table>
 <thead>
 <tr>
+<th>When you want to…</th>
 <th>Guide</th>
-<th>What it covers</th>
+<th>What you get</th>
 </tr>
 </thead>
 <tbody>
 <tr>
+<td>Watch live</td>
 <td><a href="dashboard.html">Dashboard</a></td>
-<td>Gantt timeline, agent inspector, live events, multi-project</td>
+<td>Gantt timeline of agent activity, per-agent inspector, live events, multi-project views</td>
 </tr>
 <tr>
-<td><a href="checkpoints.html">Checkpoints</a></td>
-<td>Snapshot, restore, diff, auto-checkpointing, storage</td>
-</tr>
-<tr>
-<td><a href="use-cases.html">Use Cases</a></td>
-<td>Code review swarm, parallel refactor, self-healing, post-mortem, incident response, ML research</td>
-</tr>
-<tr>
-<td><a href="mcp-integration.html">MCP Integration</a></td>
-<td>Claude Code / Cursor setup, all 25 MCP tools</td>
-</tr>
-<tr>
-<td><a href="meta-harness.html">Meta-Harness</a></td>
-<td>Automated prompt/strategy optimization search</td>
-</tr>
-<tr>
+<td>Script it</td>
 <td><a href="cli-reference.html">CLI Reference</a></td>
-<td>Every command, every flag</td>
+<td>Every command and every flag, documented</td>
 </tr>
 <tr>
+<td>Undo mistakes</td>
+<td><a href="checkpoints.html">Checkpoints</a></td>
+<td>Snapshot and restore, diff two checkpoints, auto-checkpointing, storage behavior</td>
+</tr>
+<tr>
+<td>Share memory</td>
 <td><a href="memory.html">Cross-Agent Memory</a></td>
-<td>FTS5 searchable memory across agents and sessions</td>
+<td>FTS5-searchable memory shared across agents and sessions</td>
 </tr>
 <tr>
+<td>Reuse skills</td>
 <td><a href="skills.html">Skill Library</a></td>
-<td>FTS5 cross-agent procedural skill templates with usage tracking</td>
+<td>Shared procedural skill templates, FTS5-searchable, usage-tracked</td>
 </tr>
 <tr>
+<td>Coordinate decisions</td>
 <td><a href="shared-log.html">Shared Log</a></td>
-<td>LogAct intent/vote/decide coordination protocol</td>
+<td>LogAct protocol: declare intent, vote, decide</td>
+</tr>
+<tr>
+<td>Tune the harness</td>
+<td><a href="meta-harness.html">Meta-Harness</a></td>
+<td>Automated search over prompts and strategies</td>
+</tr>
+<tr>
+<td>Borrow a pattern</td>
+<td><a href="use-cases.html">Use Cases</a></td>
+<td>Code-review swarms, parallel refactors, self-healing agents, post-mortems, incident response, ML research</td>
 </tr>
 </tbody>
 </table>
 <hr />
-<h2 id="reference">Reference</h2>
-<table>
-<thead>
-<tr>
-<th>Reference</th>
-<th>What it covers</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="schema.html">Schema</a></td>
-<td>All 10 SQLite tables, columns, indexes</td>
-</tr>
-<tr>
-<td><a href="architecture.html">Architecture</a></td>
-<td>Internal subsystems, data flow, design decisions</td>
-</tr>
-<tr>
-<td><a href="deployment.html">Deployment</a></td>
-<td>vLLM setup, production config, Docker</td>
-</tr>
-</tbody>
-</table>
-<hr />
-<h2 id="tutorials">Tutorials</h2>
-<p><strong>Component-deep tutorials</strong>:</p>
+<h2 id="proof-tutorials-and-case-studies">Proof: tutorials and case studies</h2>
+<p><strong>Component-deep</strong>:</p>
 <table>
 <thead>
 <tr>
 <th>Tutorial</th>
-<th>What it covers</th>
+<th>Focus</th>
 </tr>
 </thead>
 <tbody>
@@ -311,7 +299,7 @@ bene<span class="w"> </span>demo<span class="w">        </span><span class="c1">
 </tr>
 </tbody>
 </table>
-<p><strong>End-to-end walkthroughs</strong> (each is a complete operational scenario):</p>
+<p><strong>Full walkthroughs</strong> (complete operational stories):</p>
 <table>
 <thead>
 <tr>
@@ -382,36 +370,43 @@ bene<span class="w"> </span>demo<span class="w">        </span><span class="c1">
 </tbody>
 </table>
 <hr />
-<h2 id="use-with-ai-coding-tools">Use with AI coding tools</h2>
-<p>After <code>bene setup</code>, BENE is available as an MCP tool in Claude Code, Cursor, and other compatible clients. Just describe what you want:</p>
-<div class="codehilite"><pre><span></span><code>with bene, review my payments module — security agent and test-writing agent in parallel
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code>with bene, refactor auth.py — implement, test, and document in parallel
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code>with bene, show me all agents that failed in the last run and what errors they hit
-</code></pre></div>
-
-<p>See <a href="mcp-integration.html">MCP Integration</a> for setup details.</p>
-<hr />
-<h2 id="key-concepts">Key concepts</h2>
-<p><strong>Virtual filesystem (VFS)</strong> — each agent has its own isolated filesystem inside the SQLite database. Agents cannot access each other's files. Operations are enforced at the SQL level (<code>WHERE agent_id = ?</code>), not by convention.</p>
-<p><strong>Checkpoint</strong> — a snapshot of an agent's files and KV state at a point in time. Restore to any checkpoint in milliseconds. Diff two checkpoints to see exactly what changed. See <a href="checkpoints.html">Checkpoints</a>.</p>
-<p><strong>Audit trail</strong> — every file read, write, tool call, state change, and lifecycle event is recorded as an append-only row in the <code>events</code> table. Query with SQL. See <a href="schema.html">Schema</a>.</p>
-<p><strong>Tier router</strong> — the Difficulty-Aware Routing by Tier router classifies task complexity and routes to the right model tier. Trivial → local 7B. Complex → 70B or Claude. See <a href="architecture.html">Architecture</a>.</p>
-<p><strong>Single <code>.db</code> file</strong> — the entire runtime is one SQLite file. Copy it to back up. Open it in any SQLite client. Send it to a teammate. No cloud, no server.</p>
-<hr />
-<h2 id="examples">Examples</h2>
-<p>See <a href="../examples/"><code>examples/</code></a> in the repository root:</p>
+<h2 id="example-scripts">Example scripts</h2>
+<p>In <a href="../examples/"><code>examples/</code></a> at the repo root:</p>
 <ul>
-<li><code>library_basics.py</code> — VFS operations without LLMs</li>
-<li><code>code_review_swarm.py</code> — 4 parallel review agents</li>
-<li><code>parallel_refactor.py</code> — implement + test + document simultaneously</li>
-<li><code>self_healing_agent.py</code> — checkpoint + auto-restore on failure</li>
-<li><code>autonomous_research_lab.py</code> — N hypothesis agents with SQL result comparison</li>
-<li><code>meta_harness_*.py</code> — automated prompt/strategy optimization</li>
+<li><code>library_basics.py</code> — VFS operations, no LLMs involved</li>
+<li><code>code_review_swarm.py</code> — 4 review agents in parallel</li>
+<li><code>parallel_refactor.py</code> — implement, test, document simultaneously</li>
+<li><code>self_healing_agent.py</code> — checkpoint, auto-restore on a failed run</li>
+<li><code>autonomous_research_lab.py</code> — N hypothesis agents, results compared in SQL</li>
+<li><code>meta_harness_*.py</code> — prompt and strategy optimization, automated</li>
 </ul>
+<hr />
+<h2 id="look-it-up">Look it up</h2>
+<table>
+<thead>
+<tr>
+<th>Reference</th>
+<th>What you get</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="schema.html">Schema</a></td>
+<td>The 10 SQLite tables — every column, every index</td>
+</tr>
+<tr>
+<td><a href="architecture.html">Architecture</a></td>
+<td>Subsystems, data movement, design-decision reasoning</td>
+</tr>
+<tr>
+<td><a href="deployment.html">Deployment</a></td>
+<td>Setting up vLLM, production config, Docker</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="why-its-built-this-way">Why it's built this way</h2>
+<p><a href="philosophy.html">Design Philosophy</a> explains why BENE adopts published research instead of inventing its own, what qualifies a technique for integration, and what comes next.</p>
 <div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/README.md" target="_blank" rel="noopener noreferrer">docs/README.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
 </main>
 </div>

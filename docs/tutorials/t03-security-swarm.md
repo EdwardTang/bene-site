@@ -1,38 +1,20 @@
-# How BENE Runs 4 Specialized AI Security Agents in Parallel — and Aggregates Every Finding in SQL
+# Parallel security review: four agents, one query
 
 *Security*
 
-*SQL injection, secrets leakage, auth bypass, unsafe deserialization — each BENE AI agent owns one attack surface, runs in full isolation, and results aggregate across all four with a single SQL query.*
+Point four isolated agents at one pull request — injection, secrets, auth, deserialization — and read back a severity-ranked findings table from a single SQL query. The whole review takes 20 minutes of wall clock where four serial passes take 80.
 
----
-
-Security review is serialized by default. One person, one angle, one pass. They check for SQL injection. Then they switch context to look for secrets. Then auth. Then deserialization. Each context switch costs focus. Most reviewers only catch what they were last thinking about.
-
-BENE makes it parallel. One agent per attack surface, all at once, results aggregated via SQL when they're done.
-
----
+> **One scanner per attack surface, zero shared state, every finding in one table.**
 
 ![BENE security swarm demo — 4 parallel agents scanning PR-2847, SQL aggregation of findings](../demos/bene_uc_security.gif)
 
-*4 agents spawn simultaneously, each scans one attack surface, findings aggregate in SQL. 20 minutes total instead of 80.*
+*PR-2847 under review: the scanners launch together, and one query collects everything they found.*
 
----
+## Launch the swarm
 
-## The Problem With Sequential Security Reviews
+Reviewing serially costs you three ways: every switch between threat models drops the previous one on the floor, the fourth pass over the same 400 lines gets less of your attention than the first did, and the first bug you spot recruits you into hunting its lookalikes while orthogonal ones slip past.
 
-A single reviewer cannot hold all attack surfaces in mind simultaneously. The cognitive cost of context-switching is real — and it produces gaps.
-
-- **Context switching** between SQLi → auth → secrets → deserialization loses the mental model each time
-- **Anchoring bias** — once you find one issue, you tend to look for similar issues, missing orthogonal vulnerabilities
-- **Fatigue** — the fourth pass over 400 lines of code is less thorough than the first
-
-The BENE solution: one agent per attack surface, each with no knowledge of what the others found. No anchoring. No fatigue. Full focus on one threat model each.
-
----
-
-## Spawning 4 Specialized Agents
-
-Each agent gets its own isolated VFS copy of the PR code. They run simultaneously and cannot see each other's findings — full VFS isolation by design.
+Splitting the review removes all three taxes. One command starts four scanners, each specialized for a single threat model:
 
 ```bash
 bene parallel \
@@ -49,50 +31,11 @@ bene parallel \
 # 4 agents running in parallel
 ```
 
----
+Every scanner gets a private virtual filesystem (bene's per-agent VFS) holding its own copy of the PR. No agent can read what a sibling wrote — the no-anchoring property is enforced by the database, not by discipline.
 
-## Agent 1: SQL Injection Scan
+## Know when the scanners finish
 
-The SQL injection agent works through `api/users.py`, `api/search.py`, and the database layer. It finds the vulnerability in 4 minutes:
-
-```python
-# api/search.py — FINDING: SQL injection via f-string interpolation
-
-@app.route('/search')
-def search_users():
-    query = request.args.get('q', '')
-    # CRITICAL: direct string interpolation into SQL
-    sql = f"SELECT * FROM users WHERE name LIKE '%{query}%'"
-    results = db.execute(sql)
-    return jsonify(results)
-```
-
-Proposed fix — parameterized query:
-
-```python
-@app.route('/search')
-def search_users():
-    query = request.args.get('q', '')
-    sql = "SELECT * FROM users WHERE name LIKE ?"
-    results = db.execute(sql, (f'%{query}%',))
-    return jsonify(results)
-```
-
-Isolation matters here: this agent only sees the code. It doesn't know the secrets agent found a hardcoded key. No anchoring — it stays focused on injection patterns throughout.
-
----
-
-## Agent 2: Secrets & API Keys Scan
-
-The secrets agent finds two issues in 6 minutes: a hardcoded production API key in `config/settings.py` (CRITICAL — now in git history forever) and an SSRF risk in `api/webhooks.py` where an unvalidated user-supplied URL is passed directly to `requests.get()` (MEDIUM).
-
----
-
-## Agents 3 & 4: Auth + Deserialization
-
-The auth agent works through all authentication middleware, JWT handling, and session management — clean result after 18 minutes.
-
-The deserialization agent checks all `pickle.loads()`, `yaml.load()`, and `eval()` call sites — also clean.
+The agents complete on their own schedules — injection at the 4-minute mark, secrets at 6, auth at 18 — each reporting a finding count as it lands:
 
 ```json
 [
@@ -103,11 +46,9 @@ The deserialization agent checks all `pickle.loads()`, `yaml.load()`, and `eval(
 ]
 ```
 
----
+## Pull every finding with one query
 
-## Aggregating with SQL
-
-All four agents have written their findings to their individual VFS stores. Aggregate across all of them with a single query:
+Results sit in each agent's own VFS store, but the stores share one database — so a single SELECT, ordered by severity, assembles the entire review:
 
 ```sql
 SELECT agent_name, severity, finding_type, file_path, line_no, summary
@@ -132,13 +73,44 @@ auth-scanner     CLEAN     —                 —                   —     No 
 deser-scanner    CLEAN     —                 —                   —     No unsafe deserialization found
 ```
 
-2 CRITICAL, 1 MEDIUM, 2 clean passes. The full picture in one query.
+2 CRITICAL findings, 1 MEDIUM, and 2 surfaces confirmed clean — assembled without opening any agent's workspace.
 
----
+## What each scanner caught
 
-## Verifying Isolation
+**SQL injection — CRITICAL, 4 minutes.** Working across `api/users.py`, `api/search.py`, and the database layer, the injection scanner flagged a query built by f-string:
 
-The power of this approach depends on isolation being real. Verify it directly:
+```python
+# api/search.py — FINDING: SQL injection via f-string interpolation
+
+@app.route('/search')
+def search_users():
+    query = request.args.get('q', '')
+    # CRITICAL: direct string interpolation into SQL
+    sql = f"SELECT * FROM users WHERE name LIKE '%{query}%'"
+    results = db.execute(sql)
+    return jsonify(results)
+```
+
+The fix it proposed binds the value as a parameter instead:
+
+```python
+@app.route('/search')
+def search_users():
+    query = request.args.get('q', '')
+    sql = "SELECT * FROM users WHERE name LIKE ?"
+    results = db.execute(sql, (f'%{query}%',))
+    return jsonify(results)
+```
+
+This agent never learned that a leaked key existed elsewhere in the diff. It held the injection threat model from first file to last, because nothing else was visible to it.
+
+**Leaked key + SSRF — CRITICAL and MEDIUM, 6 minutes.** The secrets scanner surfaced a production API key committed in `config/settings.py` — CRITICAL, and recoverable from git history forever — then flagged `api/webhooks.py`, where a user-supplied URL reaches `requests.get()` without validation (MEDIUM, SSRF).
+
+**Two clean surfaces.** The auth scanner walked session management, JWT handling, and every piece of authentication middleware, coming back empty after 18 minutes. The deserialization scanner audited each `pickle.loads()`, `yaml.load()`, and `eval()` call site and likewise found nothing.
+
+## Verify that no agent saw another
+
+The zero-shared-state claim above is checkable, not rhetorical. The event journal records every read; ask it how many crossed an agent boundary:
 
 ```sql
 SELECT a.name, COUNT(e.id) as shared_events
@@ -151,13 +123,9 @@ GROUP BY a.name
 -- Result: 0 cross-agent reads for all 4 agents
 ```
 
-Zero cross-agent reads. Each agent worked in complete isolation. No anchoring is possible because no agent could observe what the others found.
+Zero, on all four scanners. That number is what turns "no anchoring" from a hope into a property: had the secrets agent watched the injection finding arrive, it could have drifted toward injection lookalikes and sailed straight past the key it was built to catch.
 
-**Why isolation matters for security reviews:** If Agent 2 could see that Agent 1 found a SQL injection issue, it might start looking for similar injection patterns — and miss the hardcoded key it was supposed to find. BENE makes it structurally impossible for agents to influence each other's findings.
-
----
-
-## The Speed Math
+## What it costs
 
 ```text
 Approach                   Time               Anchoring Risk
@@ -167,11 +135,9 @@ Sequential (4 reviewers)   20 min wall clock  Medium
 BENE parallel agents       20 min wall clock  None
 ```
 
-Same findings. 4× faster when parallelized against a single reviewer. Zero anchoring risk regardless.
+The findings come out identical either way. Parallelizing buys a 4× wall-clock win over a single reviewer; the isolation buys an anchoring column that reads "None" by construction rather than by effort.
 
----
-
-The SQL injection and the hardcoded key would have taken two separate human passes to find. The SSRF might have been missed entirely — it's an easy one to overlook when you're already mentally categorizing credentials. BENE found all three in 20 minutes, in parallel, with a full audit trail and zero cross-agent contamination.
+Note where the bugs sat: the injection and the key live in different mental categories — exactly where a serial reviewer pays the switching tax — and the SSRF is the kind most likely to vanish behind whichever category was loaded last. All three surfaced in 20 minutes, with an audit trail proving no finding shaped another.
 
 ## Related
 
@@ -183,6 +149,6 @@ The SQL injection and the hardcoded key would have taken two separate human pass
 
 ---
 
-*BENE is MIT-licensed and runs entirely locally. No data leaves your machine.*
+*bene is MIT-licensed and local-first: this whole review ran on one machine, and its complete state — agents, events, findings — is a single SQLite file you can copy.*
 
 *GitHub: [github.com/good-night-oppie/bene](https://github.com/good-night-oppie/bene)*

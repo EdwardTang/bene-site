@@ -159,11 +159,11 @@ const dict = {
     footerCommunity: 'Building something on bene? Open a Discussion on the repo — we read every one.',
     footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
-      fullRef: 'Full reference — all 37 docs \u2192',
-      nav: { quickstart: 'Quickstart', core: 'Core Concepts', cli: 'CLI Tour', mcp: 'MCP Server', research: 'Research', arch: 'Architecture', roadmap: 'Status & Roadmap' },
+      fullRef: 'Open the full docs library — all 37 pages \u2192',
+      nav: { quickstart: 'Start', core: 'Jobs', cli: 'Operate', mcp: 'Connect agents', research: 'Evidence', arch: 'Internals', roadmap: 'Status' },
       quickstart: {
-        title: 'Quickstart — first value in under a minute',
-        desc: 'No API keys. No cloud. One SQLite file. Step 1 works for everyone today; steps 2–5 run inside the framework checkout (private preview). Requires Python 3.11+ and uv.',
+        title: 'Start from a clean checkout',
+        desc: 'The first docs path is intentionally keyless: clone, sync, initialize one SQLite file, run the demo, then inspect the honesty surface. Requires Python 3.11+ and uv.',
         steps: [
           { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: 'The site repo carries the full receipts trail, readable offline. Demo 1 above ran in this exact directory.' },
           { run: 'uv sync', say: 'Install dependencies (uv resolves + caches in seconds).' },
@@ -175,18 +175,18 @@ const dict = {
         gifSrc: 'assets/demos/demo-keyless.gif',
       },
       core: {
-        title: 'Core Concepts',
+        title: 'What the docs help you do',
         items: [
-          { name: 'Searchable execution traces (engrams)', gloss: 'Other Memory', desc: 'Tier 0 raw → episodic → semantic → procedural → strategic; every tier provenance-linked. A higher tier is only "true" if it predicts the tier it was compressed from — the test of whether consolidation actually happened.' },
-          { name: 'Eval probes with kill gates', gloss: 'Falsifiable probes', desc: 'ACCEPT / REJECT / VOID verdicts behind hash-locked gates; tampered specs refuse to run; if a do-nothing baseline trips no gate, the probe itself is inadmissible — a test that cannot fail proves nothing.' },
-          { name: 'Trust ledger', gloss: 'computed, not declared', desc: 'Four signals — verification coverage, audit completeness, checkpoint discipline, outcome reliability — computed from gated artifacts (probe verdicts, e2e events, checkpoint records).' },
-          { name: 'Autonomy ladder', gloss: 'L0–L4 capability gating', desc: 'L0 observe → L1 suggest → L2 sandbox → L3 shared state → L4 auto-merge (human-only by default). Every capability tagged with a required level; every denial recorded as a trust engram.' },
-          { name: 'ContextOS', gloss: 'budget-capped context assembly', desc: 'Manifest-based assembly that never exceeds budget (property-tested under randomization), plus pollution detection and checkpoint recovery.' },
+          { name: 'Start local', gloss: 'README + deployment', desc: 'Install with uv, create bene.db, run the keyless demo, and know which commands prove the setup is alive.' },
+          { name: 'Rewind bad turns', gloss: 'checkpoints + CLI', desc: 'Create checkpoints before risky work, diff what changed, and restore one agent without touching sibling state.' },
+          { name: 'Keep durable knowledge', gloss: 'memory + shared log + skills', desc: 'Write memories, coordinate decisions through intent/vote/decide, and save reusable skills that outlive a single run.' },
+          { name: 'Connect existing agents', gloss: 'MCP + --json', desc: 'Expose the same local state through 37 MCP tools or scriptable JSON CLI output, with read-only SQL for inspection.' },
+          { name: 'Evolve and verify', gloss: 'meta-harness + probes', desc: 'Run searches, inspect frontiers, and promote only artifacts that pass falsifiable kill gates.' },
         ],
       },
       cli: {
-        title: 'CLI Tour',
-        desc: 'Every command supports --json (pipe to jq). Grouped by job-to-be-done, not alphabet.',
+        title: 'Operate from the terminal',
+        desc: 'Every command supports --json when piped. The full reference is grouped by the job you are doing, not by alphabet.',
         gifNote: 'Demo 2 — rewind a bad agent turn (the Litany loop, live):',
         gifSrc: 'assets/demos/demo-litany.gif',
         groups: [
@@ -198,19 +198,19 @@ const dict = {
         ],
       },
       mcp: {
-        title: 'MCP Server',
-        desc: '37 tools over MCP / stdio. Drop bene into the agent you already use — no glue code. The N×M IDE-agent integration tax collapses to N+M.',
+        title: 'Connect the agent you already use',
+        desc: '37 tools over MCP / stdio give Claude Code and other MCP clients the same local state: agents, VFS, checkpoints, SQL, memory, shared log, skills, and meta-harness search.',
         run: 'claude mcp add bene -- uv run bene serve --transport stdio',
-        note: 'One line for Claude Code; same idea for Cursor / Aider / any MCP-compatible agent. Details in bene-site/docs/mcp-integration.md.',
+        note: 'One line for Claude Code; same idea for Cursor / Aider / any MCP-compatible agent. Details in the rewritten MCP guide.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md',
         gifNote: 'Demo 3 — the honesty surface a connected agent inherits:',
         gifSrc: 'assets/demos/demo-honesty.gif',
       },
       research: {
-        title: 'Grounded in 16 papers',
-        desc: 'Each pillar maps to specific papers — the full paper → pillar table lives in SYNTHESIS.md.',
+        title: 'Read the receipts before the claims',
+        desc: 'The research and benchmark docs separate implemented behavior from planned work, with paper links, gates, and measured limits.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
-        cta: 'Read SYNTHESIS.md (48 citations, 47 distinct papers, mapped to the five pillars) →',
+        cta: 'Read SYNTHESIS.md (48 citations, 47 distinct papers) →',
         sample: [
           { paper: 'Meta-Harness (Stanford IRIS)', pillar: 'Evolutionary meta-harness (the breeding program)' },
           { paper: 'SkillX, SkillClaw, Trace2Skill', pillar: 'Skill + memory propagation (Missionaria Protectiva)' },
@@ -220,13 +220,13 @@ const dict = {
         ],
       },
       arch: {
-        title: 'Architecture',
-        desc: 'The kernel sits at the bottom (one SQLite file, content-addressed blobs, append-only events). The meta-harness reads it and evolves on top of it. The trust ledger reads every verification artifact and produces the one signal the autonomy ladder checks at the capability-dispatch boundary.',
+        title: 'How the runtime hangs together',
+        desc: 'Trace one request from MCP or CLI input through CCR, Tier routing, tool execution, events, checkpoints, and the SQLite schema that carries the whole runtime.',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/architecture.md',
-        cta: 'Read architecture.md (kernel internals + DDL + invariants) →',
+        cta: 'Read architecture.md (request flow, storage, isolation, and router internals) →',
       },
       roadmap: {
-        title: 'Status & Roadmap',
+        title: 'Shipped vs planned',
         headers: ['Feature', 'Status'],
         rows: [
           { feature: 'Kernel, probes, kill-gated promotion', status: 'Shipped', shipped: true },
@@ -333,11 +333,11 @@ const dict = {
     footerCommunity: '正在用 bene 造东西？来 repo 开个 Discussion——每一条我们都会读。',
     footerCommunityHref: 'https://github.com/EdwardTang/bene-site/discussions',
     docs: {
-      fullRef: '完整文档库 —— 全部 37 篇 \u2192',
-      nav: { quickstart: '快速开始', core: '核心概念', cli: 'CLI 导览', mcp: 'MCP 服务器', research: '研究底座', arch: '架构设计', roadmap: '状态与路线图' },
+      fullRef: '打开完整文档库 —— 全部 37 页 \u2192',
+      nav: { quickstart: '开始', core: '任务', cli: '操作', mcp: '接入 agent', research: '证据', arch: '内部结构', roadmap: '状态' },
       quickstart: {
-        title: '快速开始 —— 一分钟内拿到第一个结果',
-        desc: '不需要 API key。不上云。一个 SQLite 文件。第 1 步今天任何人都能跑；第 2–5 步在框架 checkout 里跑（私有预览）。需要 Python 3.11+ 和 uv。',
+        title: '从干净 checkout 开始',
+        desc: '第一条文档路径故意不需要 key：clone、sync、初始化一个 SQLite 文件、跑 demo，再检查 honesty surface。需要 Python 3.11+ 和 uv。',
         steps: [
           { run: 'git clone https://github.com/EdwardTang/bene-site && cd bene-site', say: '站点 repo 里有完整可离线浏览的凭据链。上面的 Demo 1 就在这个目录里跑出来的。' },
           { run: 'uv sync', say: '装依赖（uv 几秒内 resolve + 缓存）。' },
@@ -349,18 +349,18 @@ const dict = {
         gifSrc: 'assets/demos/demo-keyless.gif',
       },
       core: {
-        title: '核心概念',
+        title: '这些文档帮你完成什么',
         items: [
-          { name: '可检索的执行追踪（engrams）', gloss: '祖先记忆', desc: '0 级原始 → 情景 → 语义 → 程序 → 战略；每一级都有溯源链接。一个更高层级要"真"，必须能预测它那一层 —— 这是「整合是不是真发生了」的检验。' },
-          { name: '带 kill gate 的评测探针', gloss: '可证伪 probe', desc: 'ACCEPT / REJECT / VOID 裁决，hash 锁定 gate；被篡改的规约拒绝执行；如果连「什么都不做」的 baseline 都触发不了任何 gate，这个 probe 本身就被判 inadmissible —— 不可能失败的测试什么也证明不了。' },
-          { name: '信任账本', gloss: '算出来，不是声称', desc: '四个信号 —— 验证覆盖率、审计完整性、checkpoint 纪律、结果可靠性 —— 全部从经过门控的产物（probe 裁决、e2e 事件、checkpoint 记录）算出。' },
-          { name: '自治阶梯', gloss: 'L0–L4 能力门控', desc: 'L0 仅观察 → L1 建议 → L2 沙箱 → L3 共享状态 → L4 自动合并（默认仅人类）。每个能力都标了所需级别；每次拒绝都记成 trust engram。' },
-          { name: 'ContextOS', gloss: '预算上限的上下文组装', desc: '带 manifest 的预算组装，绝不超额（随机化属性测试），加上污染检测与 checkpoint 恢复。' },
+          { name: '本地启动', gloss: 'README + deployment', desc: '用 uv 安装，创建 bene.db，跑零密钥 demo，并知道哪些命令能证明环境活着。' },
+          { name: '倒带坏动作', gloss: 'checkpoints + CLI', desc: '在高风险动作前建 checkpoint，diff 出变化，只恢复一个 agent，不碰兄弟状态。' },
+          { name: '保存长期知识', gloss: 'memory + shared log + skills', desc: '写入 memory，用 intent/vote/decide 协调决策，并保存能跨 run 复用的 skill。' },
+          { name: '接入现有 agent', gloss: 'MCP + --json', desc: '通过 37 个 MCP 工具或可脚本化的 JSON CLI 输出暴露同一份本地状态，并用只读 SQL 检查。' },
+          { name: '进化并验证', gloss: 'meta-harness + probes', desc: '运行 search、查看 frontier，只晋升通过可证伪 kill gate 的产物。' },
         ],
       },
       cli: {
-        title: 'CLI 导览',
-        desc: '所有命令都支持 --json（可 jq）。按 job-to-be-done 分组，不按字母。',
+        title: '从终端操作',
+        desc: '命令在 pipe 时输出 JSON。完整参考按你正在做的任务分组，而不是按字母排序。',
         gifNote: 'Demo 2 —— 倒带一次失败的智能体动作（live）：',
         gifSrc: 'assets/demos/demo-litany.gif',
         groups: [
@@ -372,19 +372,19 @@ const dict = {
         ],
       },
       mcp: {
-        title: 'MCP 服务器',
-        desc: '37 个工具走 MCP / stdio。把 bene 接进你已经在用的 agent —— 零 glue code。N×M 的 IDE-agent 集成税收敛到 N+M。',
+        title: '接入你已经在用的 agent',
+        desc: '37 个 MCP / stdio 工具把同一份本地状态交给 Claude Code 和其他 MCP 客户端：agents、VFS、checkpoints、SQL、memory、shared log、skills、meta-harness search。',
         run: 'claude mcp add bene -- uv run bene serve --transport stdio',
-        note: 'Claude Code 一行搞定；Cursor / Aider / 任何兼容 MCP 的 agent 同理。详见 bene-site/docs/mcp-integration.md。',
+        note: 'Claude Code 一行搞定；Cursor / Aider / 任何兼容 MCP 的 agent 同理。详见改写后的 MCP 指南。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/mcp-integration.md',
         gifNote: 'Demo 3 —— 接进来的 agent 继承到的诚信表面：',
         gifSrc: 'assets/demos/demo-honesty.gif',
       },
       research: {
-        title: '16 篇论文垫底',
-        desc: '每根支柱都对应到具体论文 —— 完整的「论文 → 支柱」对照表在 SYNTHESIS.md。',
+        title: '先读证据，再看声明',
+        desc: '研究和 benchmark 文档把已实现行为、计划项、论文链接、gate 与实测限制分开写清楚。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/research/SYNTHESIS.md',
-        cta: '读 SYNTHESIS.md（48 处引用、47 篇论文，映射到五大支柱） →',
+        cta: '读 SYNTHESIS.md（48 处引用、47 篇论文） →',
         sample: [
           { paper: 'Meta-Harness (Stanford IRIS)', pillar: '进化型 meta-harness（繁育计划）' },
           { paper: 'SkillX、SkillClaw、Trace2Skill', pillar: '技能 + 记忆传播（保护传教团）' },
@@ -394,13 +394,13 @@ const dict = {
         ],
       },
       arch: {
-        title: '架构设计',
-        desc: '内核坐底（一个 SQLite 文件、内容寻址的 blob、append-only 事件）。meta-harness 读它、在它上面进化。信任账本读"所有"验证产物，产出一个信号给自治阶梯在 capability-dispatch 边界查。',
+        title: '运行时如何连起来',
+        desc: '从 MCP 或 CLI 输入追踪一次请求，穿过 CCR、Tier routing、tool execution、events、checkpoints，直到承载整个运行时的 SQLite schema。',
         href: 'https://github.com/EdwardTang/bene-site/blob/main/docs/architecture.md',
-        cta: '读 architecture.md（内核内部 + DDL + 不变量） →',
+        cta: '读 architecture.md（请求流、存储、隔离和 router 内部结构） →',
       },
       roadmap: {
-        title: '状态与路线图',
+        title: '已发布 vs 计划中',
         headers: ['功能特性', '当前状态'],
         rows: [
           { feature: 'Kernel、探针、kill-gate 门控晋升', status: '已发布', shipped: true },

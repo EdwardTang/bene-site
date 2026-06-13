@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BENE Deployment Guide — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — BENE Deployment Guide" />
+<title>Deploying BENE — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Deploying BENE" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="README.html">README</a>
 <a href="architecture.html">architecture</a>
 <a href="checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="shared-log.html">shared-log</a>
 <a href="skills.html">skills</a>
 <a href="use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="benchmarks/PREREG.html">PREREG</a>
 <a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,29 +191,27 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="index.html">docs</a> / deployment.md</div>
-<h1 id="bene-deployment-guide">BENE Deployment Guide</h1>
+<h1 id="deploying-bene">Deploying BENE</h1>
+<p>This page takes you from a bare machine to production: install BENE, stand up a model endpoint, run both as self-restarting services, and know what to check when something breaks.</p>
 <blockquote>
-<p>Prerequisites, installation, vLLM setup, configuration, and production deployment.</p>
+<p><strong>Everything BENE knows lives in one SQLite file — back it up with <code>cp</code>; nothing leaves your machine unless you point it at a remote endpoint.</strong></p>
 </blockquote>
+<p>Original anchor map: <a href="#prerequisites">Prerequisites</a>, <a href="#installation-from-source">Installation from Source</a>, <a href="#vllm-setup">vLLM Setup</a>, <a href="#configuration-walkthrough">Configuration Walkthrough</a>, <a href="#running-as-a-service-systemd">Running as a Service (systemd)</a>, <a href="#docker-deployment">Docker Deployment</a>, <a href="#performance-tuning">Performance Tuning</a>, <a href="#troubleshooting">Troubleshooting</a>.</p>
 <hr />
-<h2 id="table-of-contents">Table of Contents</h2>
-<ol>
-<li><a href="#prerequisites">Prerequisites</a></li>
-<li><a href="#installation-from-source">Installation from Source</a></li>
-<li><a href="#vllm-setup">vLLM Setup</a></li>
-<li><a href="#configuration-walkthrough">Configuration Walkthrough</a></li>
-<li><a href="#running-as-a-service-systemd">Running as a Service (systemd)</a></li>
-<li><a href="#docker-deployment">Docker Deployment</a></li>
-<li><a href="#performance-tuning">Performance Tuning</a></li>
-<li><a href="#troubleshooting">Troubleshooting</a></li>
-</ol>
-<hr />
-<h2 id="prerequisites">Prerequisites</h2>
-<h3 id="required">Required</h3>
+<p><a id="installation-from-source"></a></p>
+<h2 id="install-in-three-commands">Install in three commands</h2>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/good-night-oppie/bene.git
+<span class="nb">cd</span><span class="w"> </span>bene
+uv<span class="w"> </span>sync
+</code></pre></div>
+
+<p><code>uv sync</code> builds a local <code>.venv</code> with every dependency in place.</p>
+<p><a id="prerequisites"></a></p>
+<h3 id="what-the-machine-needs-first">What the machine needs first</h3>
 <table>
 <thead>
 <tr>
@@ -245,7 +243,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </tr>
 </tbody>
 </table>
-<h3 id="optional-for-llm-agent-execution">Optional (for LLM agent execution)</h3>
+<p>For local LLM agent execution, add:</p>
 <table>
 <thead>
 <tr>
@@ -276,7 +274,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </tr>
 </tbody>
 </table>
-<h3 id="install-uv">Install uv</h3>
+<p>Missing <code>uv</code>? One line fixes that:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># macOS / Linux</span>
 curl<span class="w"> </span>-LsSf<span class="w"> </span>https://astral.sh/uv/install.sh<span class="w"> </span><span class="p">|</span><span class="w"> </span>sh
 
@@ -287,26 +285,17 @@ powershell<span class="w"> </span>-ExecutionPolicy<span class="w"> </span>ByPass
 uv<span class="w"> </span>--version
 </code></pre></div>
 
-<hr />
-<h2 id="installation-from-source">Installation from Source</h2>
-<h3 id="clone-and-install">Clone and install</h3>
-<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/good-night-oppie/bene.git
-<span class="nb">cd</span><span class="w"> </span>bene
-uv<span class="w"> </span>sync
-</code></pre></div>
-
-<p>This creates a <code>.venv</code> virtual environment and installs all dependencies.</p>
-<h3 id="install-with-development-tools">Install with development tools</h3>
+<h3 id="optional-extras">Optional extras</h3>
+<p>The <code>dev</code> extra brings pytest, pytest-asyncio, pytest-cov, and ruff:</p>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>dev
 </code></pre></div>
 
-<p>This adds pytest, pytest-asyncio, pytest-cov, and ruff.</p>
-<h3 id="install-with-fuse-support-linux-only">Install with FUSE support (Linux only)</h3>
+<p>For Tier 2 FUSE isolation (Linux only), pull in <code>fusepy</code>:</p>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>sync<span class="w"> </span>--extra<span class="w"> </span>fuse
 </code></pre></div>
 
-<p>This adds the <code>fusepy</code> package for Tier 2 FUSE-based isolation.</p>
-<h3 id="verify-installation">Verify installation</h3>
+<h3 id="prove-it-works">Prove it works</h3>
+<p>Three checks: CLI, tests, and an in-memory round trip:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># CLI works</span>
 uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>--version
 
@@ -325,16 +314,26 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 <span class="s2">&quot;</span>
 </code></pre></div>
 
-<h3 id="install-as-a-global-tool">Install as a global tool</h3>
-<p>To make the <code>bene</code> command available system-wide:</p>
+<h3 id="skip-the-uv-run-prefix">Skip the <code>uv run</code> prefix</h3>
+<p>To put the bare <code>bene</code> command on your PATH, without <code>uv run</code>:</p>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>tool<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </code></pre></div>
 
-<p>After this, <code>bene</code> is available in your PATH without <code>uv run</code>.</p>
 <hr />
-<h2 id="vllm-setup">vLLM Setup</h2>
-<p>BENE uses local vLLM instances for LLM inference. Each model tier runs as a separate vLLM server process.</p>
-<h3 id="model-tier-recommendations">Model tier recommendations</h3>
+<p><a id="vllm-setup"></a></p>
+<h2 id="bring-up-a-model-endpoint">Bring up a model endpoint</h2>
+<p>Any OpenAI-compatible endpoint serves BENE. The reference setup is local vLLM — one server process per model tier — but a single GPU is a fine starting point.</p>
+<h3 id="start-with-one-model">Start with one model</h3>
+<p>One GPU, one model? Map every complexity level onto a single endpoint:</p>
+<div class="codehilite"><pre><span></span><code><span class="nt">models</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">my-model</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">vllm_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8000/v1</span>
+<span class="w">    </span><span class="nt">max_context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32768</span>
+<span class="w">    </span><span class="nt">use_for</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">trivial</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">complex</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">critical</span><span class="p p-Indicator">]</span>
+</code></pre></div>
+
+<h3 id="or-run-the-full-three-tier-stack">Or run the full three-tier stack</h3>
+<p>The tier router shines when cheap tasks land on cheap models:</p>
 <table>
 <thead>
 <tr>
@@ -369,8 +368,7 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 </tr>
 </tbody>
 </table>
-<h3 id="starting-vllm-instances">Starting vLLM instances</h3>
-<p><strong>Small model (7B) -- classification and trivial tasks:</strong></p>
+<p>7B — the routing and trivial-task tier:</p>
 <div class="codehilite"><pre><span></span><code>vllm<span class="w"> </span>serve<span class="w"> </span>Qwen/Qwen2.5-Coder-7B-Instruct<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--port<span class="w"> </span><span class="m">8000</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--max-model-len<span class="w"> </span><span class="m">32768</span><span class="w"> </span><span class="se">\</span>
@@ -378,7 +376,7 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 <span class="w">  </span>--tensor-parallel-size<span class="w"> </span><span class="m">1</span>
 </code></pre></div>
 
-<p><strong>Medium model (32B) -- moderate tasks:</strong></p>
+<p>32B — everyday coding work:</p>
 <div class="codehilite"><pre><span></span><code>vllm<span class="w"> </span>serve<span class="w"> </span>Qwen/Qwen2.5-Coder-32B-Instruct<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--port<span class="w"> </span><span class="m">8001</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--max-model-len<span class="w"> </span><span class="m">131072</span><span class="w"> </span><span class="se">\</span>
@@ -386,7 +384,7 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 <span class="w">  </span>--tensor-parallel-size<span class="w"> </span><span class="m">2</span>
 </code></pre></div>
 
-<p><strong>Large model (70B) -- complex and critical tasks:</strong></p>
+<p>70B — reasoning, architecture, and anything critical:</p>
 <div class="codehilite"><pre><span></span><code>vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1-70B<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--port<span class="w"> </span><span class="m">8002</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--max-model-len<span class="w"> </span><span class="m">131072</span><span class="w"> </span><span class="se">\</span>
@@ -394,7 +392,7 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 <span class="w">  </span>--tensor-parallel-size<span class="w"> </span><span class="m">4</span>
 </code></pre></div>
 
-<h3 id="gpu-memory-guidelines">GPU memory guidelines</h3>
+<h3 id="how-much-vram-each-tier-wants">How much VRAM each tier wants</h3>
 <table>
 <thead>
 <tr>
@@ -425,25 +423,16 @@ uv<span class="w"> </span>run<span class="w"> </span>python<span class="w"> </sp
 </tr>
 </tbody>
 </table>
-<h3 id="verify-vllm-is-running">Verify vLLM is running</h3>
+<h3 id="confirm-the-servers-answer">Confirm the servers answer</h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Check each endpoint</span>
 curl<span class="w"> </span>http://localhost:8000/v1/models
 curl<span class="w"> </span>http://localhost:8001/v1/models
 curl<span class="w"> </span>http://localhost:8002/v1/models
 </code></pre></div>
 
-<p>Each should return a JSON response listing the served model.</p>
-<h3 id="using-a-single-model">Using a single model</h3>
-<p>If you only have one GPU or one model, configure all tiers to point to the same endpoint:</p>
-<div class="codehilite"><pre><span></span><code><span class="nt">models</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">my-model</span><span class="p">:</span>
-<span class="w">    </span><span class="nt">vllm_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://localhost:8000/v1</span>
-<span class="w">    </span><span class="nt">max_context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">32768</span>
-<span class="w">    </span><span class="nt">use_for</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">trivial</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">moderate</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">complex</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">critical</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-
-<h3 id="using-remote-endpoints">Using remote endpoints</h3>
-<p>Any OpenAI-compatible endpoint works, including remote servers:</p>
+<p>A healthy server replies with JSON naming the model it serves.</p>
+<h3 id="no-local-gpu-point-at-a-remote-server">No local GPU? Point at a remote server</h3>
+<p>A remote endpoint drops in the same way — only the URL changes:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">models</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">remote-model</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">vllm_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">https://my-gpu-server.example.com/v1</span>
@@ -452,12 +441,13 @@ curl<span class="w"> </span>http://localhost:8002/v1/models
 </code></pre></div>
 
 <hr />
-<h2 id="configuration-walkthrough">Configuration Walkthrough</h2>
-<p>BENE is configured via <code>bene.yaml</code>. Start by copying the example:</p>
+<p><a id="configuration-walkthrough"></a></p>
+<h2 id="configure-beneyaml">Configure bene.yaml</h2>
+<p>Copy the shipped example and edit from there:</p>
 <div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>bene.yaml.example<span class="w"> </span>bene.yaml
 </code></pre></div>
 
-<h3 id="full-configuration-reference">Full configuration reference</h3>
+<h3 id="the-whole-file-annotated">The whole file, annotated</h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># ── Database Settings ────────────────────────────────────────</span>
 <span class="nt">database</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./bene.db</span><span class="w">              </span><span class="c1"># Path to the SQLite database file</span>
@@ -526,32 +516,21 @@ curl<span class="w"> </span>http://localhost:8002/v1/models
 <span class="w">  </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./bene.log</span><span class="w">             </span><span class="c1"># Log file path</span>
 </code></pre></div>
 
-<h3 id="key-configuration-decisions">Key configuration decisions</h3>
-<p><strong>Compression</strong> (<code>database.compression</code>):</p>
+<h3 id="four-decisions-that-matter">Four decisions that matter</h3>
+<p><strong><code>database.compression</code></strong> — <code>zstd</code> (the default) squeezes every blob at level 3: good ratio, minimal CPU cost. Switch to <code>none</code> only when the workload is write-heavy on a CPU-starved host.</p>
+<p><strong><code>isolation.mode</code></strong> — three levels, each a checkable boundary:</p>
 <ul>
-<li><code>zstd</code> (default): Compresses blobs at level 3. Good compression ratio with minimal CPU overhead. Recommended for most use cases.</li>
-<li><code>none</code>: Store blobs uncompressed. Use if your workload is write-heavy and CPU-constrained.</li>
+<li><code>logical</code> (the default) scopes every agent by SQL alone — costs nothing, runs everywhere.</li>
+<li><code>fuse</code> mounts a per-agent VFS; needs Linux plus fusepy. Pick it when agents launch arbitrary processes that expect real paths on disk.</li>
+<li><code>namespace</code> adds full Linux namespaces with optional cgroups; needs Linux plus root. Use it for workloads you do not trust.</li>
 </ul>
-<p><strong>Isolation mode</strong> (<code>isolation.mode</code>):</p>
-<ul>
-<li><code>logical</code> (default): SQL-scoped isolation. Zero overhead. Works on all platforms.</li>
-<li><code>fuse</code>: FUSE-mounted VFS per agent. Requires Linux + fusepy. Use when agents need to run arbitrary processes that expect a real filesystem.</li>
-<li><code>namespace</code>: Full Linux namespace isolation with optional cgroups. Requires Linux + root. Use for untrusted agent workloads.</li>
-</ul>
-<p><strong>Classifier model</strong> (<code>router.classifier_model</code>):</p>
-<ul>
-<li>Set this to your smallest/fastest model. Classification uses a short prompt with <code>max_tokens=10</code>, so even a 7B model is fast and accurate.</li>
-<li>If omitted, the heuristic classifier is used instead (no LLM call, pure regex scoring).</li>
-</ul>
-<p><strong>Context compression</strong> (<code>router.context_compression</code>):</p>
-<ul>
-<li>When enabled, long conversations are compressed before sending to the model by truncating tool outputs and dropping old messages. This prevents context overflow errors.</li>
-<li>Targets 85% of the model's <code>max_context</code> to leave room for the response.</li>
-</ul>
+<p><strong><code>router.classifier_model</code></strong> — point this at your smallest, fastest model. The classification prompt is short, capped at <code>max_tokens=10</code>, so even a 7B answers fast and accurately. Omit it and BENE uses the heuristic classifier instead: pure regex scoring, zero LLM calls.</p>
+<p><strong><code>router.context_compression</code></strong> — turn it on and BENE trims long conversations before each model call, truncating tool outputs and dropping the oldest messages, so context-overflow errors stop happening. Trimming aims at 85% of the model's <code>max_context</code>, keeping headroom for the reply.</p>
 <hr />
-<h2 id="running-as-a-service-systemd">Running as a Service (systemd)</h2>
-<h3 id="mcp-server-service">MCP server service</h3>
-<p>Create <code>/etc/systemd/system/bene-mcp.service</code>:</p>
+<p><a id="running-as-a-service-systemd"></a></p>
+<h2 id="keep-it-running-with-systemd">Keep it running with systemd</h2>
+<h3 id="the-bene-mcp-service">The BENE MCP service</h3>
+<p>Drop this unit at <code>/etc/systemd/system/bene-mcp.service</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[Unit]</span>
 <span class="na">Description</span><span class="o">=</span><span class="s">BENE MCP Server</span>
 <span class="na">After</span><span class="o">=</span><span class="s">network.target</span>
@@ -577,8 +556,9 @@ curl<span class="w"> </span>http://localhost:8002/v1/models
 <span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
 </code></pre></div>
 
-<h3 id="vllm-model-services">vLLM model services</h3>
-<p>Create a service for each model tier. Example for the 7B model (<code>/etc/systemd/system/vllm-7b.service</code>):</p>
+<p>The hardening block makes trust checkable: no privilege escalation, read-only OS, writes confined to <code>/var/lib/bene</code>.</p>
+<h3 id="one-unit-per-model-tier">One unit per model tier</h3>
+<p>Here is the 7B server as <code>/etc/systemd/system/vllm-7b.service</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">[Unit]</span>
 <span class="na">Description</span><span class="o">=</span><span class="s">vLLM 7B Model Server</span>
 <span class="na">After</span><span class="o">=</span><span class="s">network.target</span>
@@ -596,8 +576,8 @@ curl<span class="w"> </span>http://localhost:8002/v1/models
 <span class="na">WantedBy</span><span class="o">=</span><span class="s">multi-user.target</span>
 </code></pre></div>
 
-<p>Repeat for 32B (port 8001, <code>CUDA_VISIBLE_DEVICES=1,2</code>) and 70B (port 8002, <code>CUDA_VISIBLE_DEVICES=3,4,5,6</code>).</p>
-<h3 id="enable-and-start">Enable and start</h3>
+<p>Two more units complete the stack: the 32B on port 8001 with <code>CUDA_VISIBLE_DEVICES=1,2</code>, and the 70B on port 8002 with <code>CUDA_VISIBLE_DEVICES=3,4,5,6</code>.</p>
+<h3 id="bring-everything-up">Bring everything up</h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Create user and directories</span>
 sudo<span class="w"> </span>useradd<span class="w"> </span>-r<span class="w"> </span>-s<span class="w"> </span>/bin/false<span class="w"> </span>bene
 sudo<span class="w"> </span>mkdir<span class="w"> </span>-p<span class="w"> </span>/var/lib/bene<span class="w"> </span>/etc/bene
@@ -617,8 +597,10 @@ sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w">
 </code></pre></div>
 
 <hr />
-<h2 id="docker-deployment">Docker Deployment</h2>
-<h3 id="dockerfile">Dockerfile</h3>
+<p><a id="docker-deployment"></a></p>
+<h2 id="keep-it-running-with-docker">Keep it running with Docker</h2>
+<p>The image below serves MCP over SSE and persists the database to a volume.</p>
+<h3 id="the-image">The image</h3>
 <div class="codehilite"><pre><span></span><code><span class="k">FROM</span><span class="w"> </span><span class="s">python:3.12-slim</span>
 
 <span class="c"># Install uv</span>
@@ -644,7 +626,7 @@ sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w">
 <span class="k">VOLUME</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;/data&quot;</span><span class="p">]</span>
 </code></pre></div>
 
-<h3 id="docker-composeyml">docker-compose.yml</h3>
+<h3 id="compose-bene-plus-a-7b-model">Compose: BENE plus a 7B model</h3>
 <div class="codehilite"><pre><span></span><code><span class="nt">services</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">bene</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">build</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">.</span>
@@ -679,7 +661,7 @@ sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w">
 <span class="w">  </span><span class="nt">bene-data</span><span class="p">:</span>
 </code></pre></div>
 
-<h3 id="build-and-run">Build and run</h3>
+<h3 id="launch-and-poke-at-it">Launch and poke at it</h3>
 <div class="codehilite"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d
 
 <span class="c1"># Check logs</span>
@@ -689,8 +671,8 @@ docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"
 docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>bene<span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>ls<span class="w"> </span>--db<span class="w"> </span>/data/bene.db
 </code></pre></div>
 
-<h3 id="configuration-for-docker-networking">Configuration for Docker networking</h3>
-<p>Update <code>bene.yaml</code> model endpoints to use Docker service names:</p>
+<h3 id="one-networking-gotcha">One networking gotcha</h3>
+<p>Inside the compose network, <code>localhost</code> points at the wrong container. Address models by service name in <code>bene.yaml</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">models</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">qwen2.5-coder-7b</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">vllm_endpoint</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">http://vllm-7b:8000/v1</span>
@@ -699,28 +681,54 @@ docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">ex
 </code></pre></div>
 
 <hr />
-<h2 id="performance-tuning">Performance Tuning</h2>
-<h3 id="sqlite-tuning">SQLite tuning</h3>
-<p>The default SQLite PRAGMAs are set in <code>Bene.__init__()</code>:</p>
+<h2 id="verify-the-deployment-is-healthy">Verify the deployment is healthy</h2>
+<p>Because the entire state is one SQLite file, health checking is plain SQL — no dashboards required:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Schema version</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT * FROM schema_version&quot;</span>
+
+<span class="c1"># Database size breakdown</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">SELECT &#39;agents&#39; as tbl, COUNT(*) as rows FROM agents</span>
+<span class="s2">UNION ALL SELECT &#39;files&#39;, COUNT(*) FROM files</span>
+<span class="s2">UNION ALL SELECT &#39;blobs&#39;, COUNT(*) FROM blobs</span>
+<span class="s2">UNION ALL SELECT &#39;tool_calls&#39;, COUNT(*) FROM tool_calls</span>
+<span class="s2">UNION ALL SELECT &#39;state&#39;, COUNT(*) FROM state</span>
+<span class="s2">UNION ALL SELECT &#39;events&#39;, COUNT(*) FROM events</span>
+<span class="s2">UNION ALL SELECT &#39;checkpoints&#39;, COUNT(*) FROM checkpoints</span>
+<span class="s2">&quot;</span>
+
+<span class="c1"># WAL mode check</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;PRAGMA journal_mode&quot;</span>
+
+<span class="c1"># Integrity check</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;PRAGMA integrity_check&quot;</span>
+</code></pre></div>
+
+<p>The query interface is deliberately read-only, so a health check can never mutate state.</p>
+<hr />
+<p><a id="performance-tuning"></a></p>
+<h2 id="tune-for-throughput">Tune for throughput</h2>
+<h3 id="sqlite-pragmas">SQLite pragmas</h3>
+<p><code>Bene.__init__()</code> applies these on every connection:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;PRAGMA journal_mode=WAL&quot;</span><span class="p">)</span>     <span class="c1"># Concurrent reads</span>
 <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;PRAGMA foreign_keys=ON&quot;</span><span class="p">)</span>       <span class="c1"># Referential integrity</span>
 <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;PRAGMA busy_timeout=5000&quot;</span><span class="p">)</span>     <span class="c1"># 5s lock retry</span>
 </code></pre></div>
 
-<p>For high-concurrency workloads, consider adding to the connection setup (via a custom <code>Bene</code> subclass or configuration):</p>
+<p>Pushing serious concurrency? Layer these on top, via a custom <code>Bene</code> subclass or your connection setup:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">PRAGMA</span><span class="w"> </span><span class="n">synchronous</span><span class="o">=</span><span class="n">NORMAL</span><span class="p">;</span><span class="w">       </span><span class="c1">-- Faster writes (slight durability risk)</span>
 <span class="n">PRAGMA</span><span class="w"> </span><span class="n">cache_size</span><span class="o">=-</span><span class="mi">64000</span><span class="p">;</span><span class="w">        </span><span class="c1">-- 64MB page cache (default is 2MB)</span>
 <span class="n">PRAGMA</span><span class="w"> </span><span class="n">mmap_size</span><span class="o">=</span><span class="mi">268435456</span><span class="p">;</span><span class="w">      </span><span class="c1">-- 256MB memory-mapped I/O</span>
 <span class="n">PRAGMA</span><span class="w"> </span><span class="n">temp_store</span><span class="o">=</span><span class="n">MEMORY</span><span class="p">;</span><span class="w">        </span><span class="c1">-- In-memory temp tables</span>
 </code></pre></div>
 
-<h3 id="database-file-placement">Database file placement</h3>
+<h3 id="where-the-db-file-lives-matters">Where the <code>.db</code> file lives matters</h3>
 <ul>
-<li>Use a <strong>local SSD</strong> for the <code>.db</code> file. Network filesystems (NFS, SMB) do not support SQLite WAL mode correctly.</li>
-<li>Avoid placing the database on a tmpfs/ramfs unless you accept data loss on reboot.</li>
-<li>If using Docker, mount a named volume or bind-mount to a local SSD path.</li>
+<li>Put it on a <strong>local SSD</strong>. WAL mode breaks on network filesystems — NFS and SMB are out.</li>
+<li>A tmpfs/ramfs is fine only if losing everything on reboot is acceptable to you.</li>
+<li>Under Docker, use a named volume or a bind mount backed by local SSD.</li>
 </ul>
-<h3 id="blob-compression-trade-offs">Blob compression trade-offs</h3>
+<h3 id="compression-speed-vs-space">Compression: speed vs. space</h3>
 <table>
 <thead>
 <tr>
@@ -748,14 +756,14 @@ docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">ex
 </tr>
 </tbody>
 </table>
-<h3 id="concurrency-settings">Concurrency settings</h3>
+<h3 id="three-concurrency-dials">Three concurrency dials</h3>
 <ul>
-<li><code>ccr.max_parallel_agents</code>: Controls the asyncio semaphore. Set this based on available GPU memory and vLLM throughput. Each concurrent agent maintains its own conversation in memory.</li>
-<li><code>database.busy_timeout_ms</code>: Increase if you see <code>database is locked</code> errors under heavy write contention. Values of 10000-30000 are safe.</li>
-<li>vLLM <code>--max-num-seqs</code>: Controls how many requests vLLM processes concurrently. Align with <code>max_parallel_agents</code>.</li>
+<li><code>ccr.max_parallel_agents</code> sizes the asyncio semaphore. Budget it against GPU memory and vLLM throughput — every running agent keeps its full conversation in RAM.</li>
+<li><code>database.busy_timeout_ms</code> should grow when <code>database is locked</code> shows up under write pressure; anything from 10000 to 30000 is safe.</li>
+<li>vLLM's <code>--max-num-seqs</code> caps in-flight requests on the model side. Keep it aligned with <code>max_parallel_agents</code> so neither side queues on the other.</li>
 </ul>
-<h3 id="garbage-collection">Garbage collection</h3>
-<p>Orphaned blobs accumulate when files are overwritten or deleted. Run garbage collection periodically:</p>
+<h3 id="reclaim-space-from-dead-blobs">Reclaim space from dead blobs</h3>
+<p>Overwritten and deleted files leave orphaned blobs. Sweep them periodically:</p>
 <div class="codehilite"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">bene</span><span class="w"> </span><span class="kn">import</span> <span class="n">Bene</span>
 
 <span class="n">afs</span> <span class="o">=</span> <span class="n">Bene</span><span class="p">(</span><span class="s2">&quot;bene.db&quot;</span><span class="p">)</span>
@@ -764,91 +772,64 @@ docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">ex
 <span class="n">afs</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
 </code></pre></div>
 
-<p>Or via SQL:</p>
+<p>To see how much is waiting to be reclaimed:</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT COUNT(*) as orphaned FROM blobs WHERE ref_count &lt;= 0&quot;</span>
 </code></pre></div>
 
-<p>The <code>gc_interval_minutes</code> configuration controls automatic GC scheduling (planned for future implementation).</p>
+<p><code>gc_interval_minutes</code> is in the config today, but automatic GC scheduling is planned, not yet implemented — until it ships, you run GC yourself.</p>
 <hr />
-<h2 id="troubleshooting">Troubleshooting</h2>
-<h3 id="database-is-locked">"database is locked"</h3>
-<p><strong>Cause:</strong> Multiple writers competing for the write lock, and the busy timeout was exceeded.</p>
-<p><strong>Solutions:</strong></p>
-<ol>
-<li>Increase <code>busy_timeout_ms</code> in <code>bene.yaml</code> (e.g., 15000 or 30000).</li>
-<li>Verify WAL mode is active: <code>bene query "PRAGMA journal_mode"</code> should return <code>wal</code>.</li>
-<li>Ensure the <code>.db</code> file is on a local filesystem, not NFS/SMB.</li>
-<li>Reduce <code>max_parallel_agents</code> to lower write contention.</li>
-</ol>
-<h3 id="agent-not-found">"Agent not found: <id>"</h3>
-<p><strong>Cause:</strong> The agent ID does not exist in the database.</p>
-<p><strong>Solutions:</strong></p>
-<ol>
-<li>List available agents: <code>bene ls</code></li>
-<li>Check for typos -- agent IDs are ULIDs (26 characters).</li>
-<li>The agent may have been exported or the database file may have changed.</li>
-</ol>
+<p><a id="troubleshooting"></a></p>
+<h2 id="fix-the-common-failures">Fix the common failures</h2>
 <h3 id="vllm-connection-refused">vLLM connection refused</h3>
-<p><strong>Cause:</strong> The vLLM server is not running or not listening on the expected port.</p>
-<p><strong>Solutions:</strong></p>
+<p>No server is listening where BENE expects one.</p>
 <ol>
-<li>Verify vLLM is running: <code>curl http://localhost:8000/v1/models</code></li>
-<li>Check the port matches <code>bene.yaml</code> configuration.</li>
-<li>If using Docker, ensure service names resolve correctly (use <code>http://vllm-7b:8000/v1</code> not <code>localhost</code>).</li>
-<li>Check vLLM logs for GPU memory errors or model loading failures.</li>
+<li>Hit the endpoint directly: <code>curl http://localhost:8000/v1/models</code></li>
+<li>Confirm the port agrees with what <code>bene.yaml</code> says.</li>
+<li>Inside Docker, swap <code>localhost</code> for the compose service name — <code>http://vllm-7b:8000/v1</code>.</li>
+<li>Read the vLLM logs for GPU out-of-memory or model-load failures.</li>
 </ol>
-<h3 id="fuse-mount-fails">FUSE mount fails</h3>
-<p><strong>Cause:</strong> FUSE isolation requires Linux and the fusepy package.</p>
-<p><strong>Solutions:</strong></p>
+<h3 id="database-is-locked">"database is locked"</h3>
+<p>Too many writers fought over the write lock for longer than the busy timeout.</p>
 <ol>
-<li>Verify you are on Linux: <code>uname -s</code></li>
-<li>Install fusepy: <code>uv sync --extra fuse</code></li>
-<li>Ensure FUSE kernel module is loaded: <code>lsmod | grep fuse</code></li>
-<li>Check mount permissions -- may require <code>user_allow_other</code> in <code>/etc/fuse.conf</code>.</li>
-<li>On non-Linux platforms, use <code>isolation.mode: logical</code>.</li>
+<li>Raise <code>busy_timeout_ms</code> in <code>bene.yaml</code> — 15000 or 30000 are reasonable.</li>
+<li>Confirm WAL is on — <code>bene query "PRAGMA journal_mode"</code> must answer <code>wal</code>.</li>
+<li>Make sure the <code>.db</code> sits on local disk, never NFS/SMB.</li>
+<li>Drop <code>max_parallel_agents</code> to ease write contention.</li>
 </ol>
-<h3 id="only-select-queries-are-allowed-via-query">"Only SELECT queries are allowed via query()"</h3>
-<p><strong>Cause:</strong> The <code>query()</code> method and <code>agent_query</code> MCP tool only allow read-only SQL.</p>
-<p><strong>Solution:</strong> This is by design. Use the Python API directly for write operations. The query interface is for debugging, monitoring, and auditing.</p>
 <h3 id="out-of-context-window-errors">Out of context window errors</h3>
-<p><strong>Cause:</strong> The conversation history exceeds the model's context window.</p>
-<p><strong>Solutions:</strong></p>
+<p>A conversation outgrew the model it was talking to.</p>
 <ol>
-<li>Enable context compression: <code>router.context_compression: true</code></li>
-<li>Reduce <code>ccr.max_iterations</code> to prevent very long conversations.</li>
-<li>Increase <code>ccr.checkpoint_interval</code> to reduce auto-checkpoint overhead in the conversation.</li>
-<li>Use a model with a larger context window for complex tasks.</li>
+<li>Turn on trimming: <code>router.context_compression: true</code></li>
+<li>Lower <code>ccr.max_iterations</code> so conversations cannot run forever.</li>
+<li>Raise <code>ccr.checkpoint_interval</code> — fewer auto-checkpoints means less overhead inside the conversation.</li>
+<li>Route long, complex tasks to a larger-context model.</li>
 </ol>
 <h3 id="high-memory-usage">High memory usage</h3>
-<p><strong>Cause:</strong> Many concurrent agents or large blob store.</p>
-<p><strong>Solutions:</strong></p>
+<p>Too many live agents, or an unswept blob store.</p>
 <ol>
-<li>Reduce <code>ccr.max_parallel_agents</code>.</li>
-<li>Run blob garbage collection: <code>afs.blobs.gc()</code></li>
-<li>Export completed agents to separate databases: <code>bene export &lt;agent_id&gt; -o archive.db</code></li>
-<li>Increase SQLite page cache with <code>PRAGMA cache_size</code> for read performance, but this increases memory.</li>
+<li>Lower <code>ccr.max_parallel_agents</code>.</li>
+<li>Sweep orphaned blobs: <code>afs.blobs.gc()</code></li>
+<li>Move finished agents into archive databases: <code>bene export &lt;agent_id&gt; -o archive.db</code></li>
+<li>Be aware that a bigger <code>PRAGMA cache_size</code> buys read speed at the price of RAM.</li>
 </ol>
-<h3 id="checking-database-health">Checking database health</h3>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Schema version</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT * FROM schema_version&quot;</span>
-
-<span class="c1"># Database size breakdown</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;</span>
-<span class="s2">SELECT &#39;agents&#39; as tbl, COUNT(*) as rows FROM agents</span>
-<span class="s2">UNION ALL SELECT &#39;files&#39;, COUNT(*) FROM files</span>
-<span class="s2">UNION ALL SELECT &#39;blobs&#39;, COUNT(*) FROM blobs</span>
-<span class="s2">UNION ALL SELECT &#39;tool_calls&#39;, COUNT(*) FROM tool_calls</span>
-<span class="s2">UNION ALL SELECT &#39;state&#39;, COUNT(*) FROM state</span>
-<span class="s2">UNION ALL SELECT &#39;events&#39;, COUNT(*) FROM events</span>
-<span class="s2">UNION ALL SELECT &#39;checkpoints&#39;, COUNT(*) FROM checkpoints</span>
-<span class="s2">&quot;</span>
-
-<span class="c1"># WAL mode check</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;PRAGMA journal_mode&quot;</span>
-
-<span class="c1"># Integrity check</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;PRAGMA integrity_check&quot;</span>
-</code></pre></div>
+<h3 id="fuse-mount-fails">FUSE mount fails</h3>
+<p>Tier 2 isolation has hard requirements: Linux plus the fusepy package.</p>
+<ol>
+<li>Confirm the platform: <code>uname -s</code></li>
+<li>Add the extra: <code>uv sync --extra fuse</code></li>
+<li>Check the kernel module is present: <code>lsmod | grep fuse</code></li>
+<li>Mount permission errors may need <code>user_allow_other</code> in <code>/etc/fuse.conf</code>.</li>
+<li>Anywhere that is not Linux, fall back to <code>isolation.mode: logical</code>.</li>
+</ol>
+<h3 id="agent-not-found">"Agent not found: <id>"</h3>
+<p>The ID you passed has no row in this database.</p>
+<ol>
+<li>See what exists: <code>bene ls</code></li>
+<li>Agent IDs are 26-character ULIDs — typos are easy.</li>
+<li>Consider whether the agent was exported, or whether you opened a different <code>.db</code> file.</li>
+</ol>
+<h3 id="only-select-queries-are-allowed-via-query">"Only SELECT queries are allowed via query()"</h3>
+<p>Working as designed: <code>query()</code> and the <code>agent_query</code> MCP tool accept read-only SQL only. Writes go through the Python API; the query surface exists for debugging, monitoring, and auditing.</p>
 <div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/deployment.md" target="_blank" rel="noopener noreferrer">docs/deployment.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
 </main>
 </div>

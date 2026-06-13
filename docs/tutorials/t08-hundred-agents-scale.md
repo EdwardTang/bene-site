@@ -1,36 +1,53 @@
-# 847 BENE AI Agents. 847 Files. 8 Minutes. Zero Regressions
+# Hundreds of Agents, One Database, Zero Regressions
 
-*MLOps*
+This tutorial shows you how to fan bene out to hundreds of agents at once — one agent per file — and finish the run knowing, rather than hoping, that nothing broke. The worked example is real: 847 agents migrated an 847-file Python 2 codebase to Python 3.11 in 8 minutes 47 seconds, every failure rolled itself back, and the whole run left behind a single SQLite file you can interrogate with plain SQL.
 
-*How 847 isolated AI agents ran a full Python 2→3 migration in parallel — coordinated, self-healing, and 2.45M tokens leaner than they had to be.*
-
----
+> **One command spawns 847 isolated agents; 809 succeed, 31 restore themselves cleanly, 0 regressions ship — and the complete audit trail is a 214MB `bene.db` you can `cp`.**
 
 ![847 BENE AI agents — Python 2→3 migration at scale](../demos/bene_uc_scale.gif)
 
-*847 agents spawn in 17 batches. 809 complete. 31 roll back. 0 regressions shipped. 2.45M tokens saved.*
+*Seventeen batches, 847 agents: 809 succeed, 31 undo themselves, 7 go to humans, 0 regressions reach the codebase — and 2.45M tokens never get sent.*
 
 ---
 
-## The Scale Problem Nobody Talks About
+## The run at a glance
 
-At 10 agents, isolation is a nice property. At 847 agents, it's load-bearing infrastructure.
+Numbers first, story after. Here is how the 847 agents finished:
 
-Most people who think about multi-agent systems at scale focus on the obvious hard parts: orchestration, rate limits, error handling. Those are real problems. But the deeper problem is one nobody talks about until they hit it: **shared state explodes at scale**.
+```text
+Outcome      Count    %
+-----------  -----  -----
+succeeded    809    95.5%
+rolled_back  31      3.7%
+failed       7       0.8%
+total        847   100.0%
+```
 
-Every shared filesystem is a race condition waiting to happen. Agent 312 writes to `utils/compat.py` while agent 447 is reading it to determine whether to apply its own patch. The result isn't a merge conflict — it's a silent corruption. The kind you find three days later when tests start failing for reasons that look unrelated to anything you changed.
+And what the parallelism bought against the alternatives:
 
-Every shared context window is a token explosion. Naive multi-agent frameworks pool context across agents. At 100 agents, you're sending 100× the context tokens. The agents aren't smarter — they're just bloated.
+```text
+Approach                    Time      Notes
+--------------------------  --------  -------------------------
+BENE parallel (847 agents)  8m 47s    17 batches of 50
+Sequential AI (1 agent)     ~4.2h     no parallelism
+Human engineers (estimate)  ~18 days  1 file per 30min × 847
+```
 
-The boring truth: **isolation is not a feature at scale. It's a prerequisite.**
-
-This is the run where that came into focus. 847 Python 2→3 migrations, one file each, running in parallel. Here's exactly what happened.
+Zero regressions is not luck; it is two gates each doing their job. 31 agents saw their own tests fail and restored to the pre-migration checkpoint on the spot. Roughly 180 more failures never happened at all, because the hub broadcast the responsible failure patterns before similar files were touched. Candor about the remainder: 7 files contained Python 2 constructs with no safe automated translation, and those agents stopped and flagged their files for human review instead of guessing.
 
 ---
 
-## The Setup: 1 Agent Per File
+## Why isolation is the whole trick
 
-The task: migrate a 847-file Python 2 codebase to Python 3.11. One agent per file. Each agent gets its own isolated virtual filesystem, runs the migration, runs the test suite, and either commits or rolls back.
+At a handful of agents, per-agent isolation reads like a nicety. Past a few hundred, it is the only thing standing between you and silent corruption. The failure mode of shared state is specific: one agent writes `utils/compat.py` mid-run while another reads that same file to decide on its own patch — no merge conflict appears, just quietly wrong bytes that surface days later as test failures with no visible cause. Shared context is the same disease in token form: frameworks that pool one context window across N agents pay roughly N× the tokens and get no extra intelligence for it.
+
+bene's answer is structural. Each agent owns a private virtual filesystem (VFS) backed by SQLite — content-addressable, every write journaled, every checkpoint a cheap snapshot. Nothing is shared by accident; what agents do share (hub patterns, deduplicated blobs) is shared on purpose, through interfaces built for exactly that.
+
+---
+
+## Launch: one agent per file
+
+The entire fan-out is one CLI invocation reading a manifest of file paths. Each agent takes one file, applies the migration, runs the tests, and either checkpoints the result or restores. The command starts with `bene parallel spawn`.
 
 ```bash
 # Spawn 847 agents from a file manifest
@@ -49,7 +66,7 @@ bene parallel spawn \
 # [bene] Running...
 ```
 
-The `bene.yaml` config driving this run:
+Behind that command sits a short `bene.yaml`:
 
 ```yaml
 # bene.yaml
@@ -76,78 +93,15 @@ hub:
   broadcast_on_discover: true
 ```
 
-`aaak_level: 5` is the key setting here. It activates BENE ultra compression — 95% token reduction on each agent's context digest. We'll see what that means in tokens.
+Two settings carry most of the weight. `aaak_level: 5` turns on bene's most aggressive context compression — roughly 95% off each agent's digest, measured below in real tokens. `max_concurrent: 50` caps simultaneous writers at a level SQLite's WAL mode handles comfortably; the 17 batches in the spawn output fall straight out of that cap.
 
 ---
 
-## What "Isolated VFS" Means at 847 Agents
+## Recover: a failure costs exactly one agent
 
-Every BENE agent gets its own virtual filesystem. Not a directory — a SQLite-backed, content-addressable virtual filesystem where every write is recorded, every checkpoint is a snapshot, and every blob is deduplicated across the entire agent pool.
+31 of the 847 agents hit failing tests after applying their migration. On a shared filesystem you would now be untangling state — reverting one file risks disturbing agents mid-flight on neighboring files. Here, recovery is a point-in-time restore of one private VFS: no global lock, no pause for anyone else.
 
-Here's what that means for storage at scale:
-
-**Naive approach:** 847 agents × ~250KB average file size = ~212MB of raw file data per agent = ~179GB total. That's before any context, logs, or checkpoint history.
-
-**With BENE blob deduplication:** Identical files across agents share a single blob (SHA-256 + zstd compressed). On a Python 2→3 migration, most files share a large percentage of content — stdlib imports, utility functions, common patterns. Measured deduplication: 68%.
-
-```text
-847 agents × ~250KB avg = 212MB naive
-68% blob reuse         = 144MB deduplicated away
-Actual stored          =  68MB (+ 39MB checkpoints)
-                       = 107MB total vs 212MB naive
-```
-
-Checkpoint storage follows the same logic. BENE checkpoints store diffs, not full snapshots — and blob deduplication applies to checkpoint content too. The 31 agents that rolled back cost almost nothing in checkpoint storage because their "bad" state shared blobs with their "good" pre-rollback state.
-
-The final SQLite database with complete history for all 847 agents: **214MB**. Every agent's complete VFS history, every event, every blob — 214MB. That's the entire audit trail.
-
-<div class="callout" style="background:#12121a;border-left:3px solid #6c5ce7;padding:1rem 1.4rem;margin:1.5rem 0;border-radius:0 8px 8px 0">
-
-**The blob deduplication guarantee:** 847 agents don't mean 847× storage. Identical content across agents shares one blob. The deduplication ratio scales with content similarity — the more similar the files your agents work on, the better the ratio. For library migrations and refactoring tasks, 60-70% deduplication is typical.
-
-</div>
-
----
-
-## AAAK Compression: The Math
-
-![AAAK compaction flow — context digest → anchor extraction → K-compression → next turn](compaction-flow.png)
-
-AAAK (Adaptive Anchor-Aware K-compression) is BENE's implementation of the MemPalace compression scheme. It compresses each agent's context digest before it's passed back as system context on the next turn.
-
-At level 5 (ultra), it achieves ~95% token reduction on the digest. Here's what that looks like per-agent, and at 847 agents:
-
-**Single agent, single turn:**
-
-```text
-What             Uncompressed  Compressed (L5)  Saved
----------------  ------------  ---------------  ------------------
-Context digest   6,100 tokens  305 tokens       5,795 tokens (95%)
-```
-
-**Cumulative across 847 agents, avg 3.4 turns each:**
-
-```text
-Total agent-turns          2,880
-Tokens saved per turn      ~850 avg (varies by file)
-Total tokens eliminated    2,451,063
-```
-
-Without AAAK, the job would have consumed 8.58M tokens. With AAAK L5, it ran on 6.13M — 2.45M tokens that never needed to be sent. The agents produce identical migrations either way. The compression is purely a context digest optimization; it doesn't touch working state.
-
-![AAAK compression impact — token savings by level across 847 agents](compaction-chart.svg)
-
-Level 5 is aggressive. The compression loses some nuance in the digest — it's a lossy representation of state, not a lossless one. For a migration task where each file is independent, that's fine. For tasks where agents need rich cross-turn memory (e.g., complex refactoring decisions that reference earlier analysis), level 3 or 4 is usually the right tradeoff. The setting is one line in `bene.yaml`.
-
----
-
-## When Agents Fail: Rollback Without the Blast Radius
-
-31 agents found test failures during migration. In a traditional shared-filesystem setup, this creates a problem: you can't roll back one file's changes without potentially affecting the state of other in-progress migrations.
-
-In BENE, each agent's VFS is fully independent. A rollback is a point-in-time restore of one agent's SQLite-backed state. It does not touch any other agent's VFS. It does not acquire any global lock. Other agents keep running while the rollback executes.
-
-Here's what a rollback event looks like for `db/connections.py` — one of the 31 rollbacks:
+Watch agent 312 handle `db/connections.py`, one of the 31:
 
 ```text
 [agent-312] db/connections.py  migration applied
@@ -171,28 +125,23 @@ Here's what a rollback event looks like for `db/connections.py` — one of the 3
 }
 ```
 
-Two things to notice:
-
-1. `restore complete in 0.08s` — sub-100ms rollback. The agent's VFS is rewound to the pre-migration state in under a tenth of a second.
-2. `other_agents_affected: 0` — 846 other agents kept running without interruption. The rollback is scoped to one agent's VFS, nothing more.
-
-The failure pattern `timeout_kwarg_renamed` was logged to the hub — which we'll see in the next section.
+Two numbers in that log are the point. The `restore complete in 0.08s` line means the VFS is back at its checkpoint before a tenth of a second passes. And `other_agents_affected: 0` means the remaining 846 agents never noticed.
 
 <div class="callout" style="background:#12121a;border-left:3px solid #6c5ce7;padding:1rem 1.4rem;margin:1.5rem 0;border-radius:0 8px 8px 0">
 
-**The rollback guarantee:** one agent failing never affects any other agent. BENE restores operate at the VFS layer — per-agent SQLite state — not the filesystem layer. There are no global locks, no shared state to unwind. The blast radius of any single failure is exactly one agent.
+**Checkable guarantee:** a restore touches exactly one agent's per-agent SQLite state — never the host filesystem, never a global lock, never anyone else's VFS. By construction, one failing agent's blast radius is itself.
 
 </div>
 
+Notice the `failure_pattern` field in the logged event — `timeout_kwarg_renamed`. That string is what feeds the hub, next.
+
 ---
 
-## Hub Coordination: Agents Teaching Each Other
+## Coordinate: one rollback teaches twenty-three agents
 
-31 agents failed and rolled back. But the hub prevented roughly 180 additional failures.
+In bene a rollback is not just damage control — it is a publication. The pattern extracted from the failing tests goes to the CORAL hub, the shared coordination point, where agents that have not yet reached similar files pick it up and adjust before they start.
 
-When an agent rolls back, BENE logs the failure pattern to the CORAL hub — a central coordination point where agents can share discovered patterns. Other agents that haven't yet processed similar files can receive this pattern pre-emptively and adjust their approach.
-
-The most impactful pattern discovered during this run: `none_guard_before_has_key`.
+The highest-value pattern of this run was `none_guard_before_has_key`:
 
 ```text
 [hub] New pattern discovered from agent-312 rollback
@@ -212,28 +161,43 @@ The most impactful pattern discovered during this run: `none_guard_before_has_ke
 [hub] Pattern confirmed: 23/23 agents applied, 0 new failures on similar files
 ```
 
-The hub shared 12 distinct patterns total during this run. Estimated regressions prevented: ~180. The math: agents that received a hub pattern pre-emptively had a 3.8% failure rate on similar files; agents that didn't had a 22.1% failure rate. For the ~210 files that benefited from hub coordination, that difference is roughly 38 prevented failures — extrapolated across all pattern types.
+Across the run the hub circulated 12 distinct patterns. Files whose agents had received a relevant pattern failed at 3.8%; comparable files without one failed at 22.1%. Applied to the ~210 files the hub reached, that gap accounts for roughly 38 avoided failures, and extrapolating over every pattern type gives the ~180 estimate.
 
-The hub isn't magic. It's a structured shared memory: discovered patterns with confidence scores and trigger conditions. An agent receiving a hub pattern doesn't blindly apply it — it uses it to inform its approach, like a senior engineer whispering "watch out for the None guard here" before you start.
+```text
+Patterns discovered                12
+Agents notified                    147 total (across all patterns)
+Estimated regressions prevented    ~180
+Agent failure rate without hub     22.1%
+Agent failure rate with hub         3.8%
+```
+
+Nothing mystical is happening here. A hub pattern is structured shared memory: a trigger condition, a fix, a confidence score. A receiving agent treats it as a hint rather than an order — closer to a senior colleague's warning than to an automatic patch.
 
 ---
 
-## The Final Numbers
+## Spend less: compress the digest, not the work
 
-847 files. 8 minutes 47 seconds. 0 regressions shipped.
+![AAAK compaction flow — context digest → anchor extraction → K-compression → next turn](compaction-flow.png)
 
-**Outcome Summary:**
+AAAK (Adaptive Anchor-Aware K-compression, bene's take on the MemPalace scheme) shrinks the context digest each agent carries between turns. At level 5 the digest comes back roughly 95% smaller. Working state is untouched, so the migrations an agent produces are the same with compression on or off — only the bill changes.
+
+**Per agent, per turn:**
 
 ```text
-Outcome      Count    %
------------  -----  -----
-succeeded    809    95.5%
-rolled_back  31      3.7%
-failed       7       0.8%
-total        847   100.0%
+What             Uncompressed  Compressed (L5)  Saved
+---------------  ------------  ---------------  ------------------
+Context digest   6,100 tokens  305 tokens       5,795 tokens (95%)
 ```
 
-**AAAK Compression Impact:**
+**Whole run — 847 agents averaging 3.4 turns apiece:**
+
+```text
+Total agent-turns          2,880
+Tokens saved per turn      ~850 avg (varies by file)
+Total tokens eliminated    2,451,063
+```
+
+Run the totals: uncompressed, this job would have cost about 8.58M inference tokens; it ran on about 6.13M — 2.45M tokens that simply never needed sending.
 
 ```text
 Metric                      Without AAAK  With AAAK L5
@@ -244,33 +208,40 @@ Tokens eliminated           —             2,451,063
 Migration quality           —             100% — 0 regressions
 ```
 
-**Time Comparison:**
+![AAAK compression impact — token savings by level across 847 agents](compaction-chart.svg)
 
-```text
-Approach                    Time      Notes
---------------------------  --------  -------------------------
-BENE parallel (847 agents)  8m 47s    17 batches of 50
-Sequential AI (1 agent)     ~4.2h     no parallelism
-Human engineers (estimate)  ~18 days  1 file per 30min × 847
-```
-
-**Hub Coordination Impact:**
-
-```text
-Patterns discovered                12
-Agents notified                    147 total (across all patterns)
-Estimated regressions prevented    ~180
-Agent failure rate without hub     22.1%
-Agent failure rate with hub         3.8%
-```
-
-**0 test regressions shipped.** Every agent that would have shipped a regression either caught it and rolled back (31 agents), or received a hub pattern that prevented the failure pre-emptively (~180 cases). The 7 outright failures were unresolvable ambiguities — files with Python 2 constructs that had no safe automatic migration path and were flagged for human review.
+Be honest about the trade: level 5 is lossy, and digest nuance is lost. Independent single-file tasks like this migration tolerate that easily. If your agents must carry rich reasoning across turns — refactoring decisions that lean on earlier analysis, say — reach for level 3 or 4 instead. Either way it is one line in `bene.yaml`.
 
 ---
 
-## SQL Audit: The Complete Picture
+## Store less: 847 filesystems in 214MB
 
-Every event across all 847 agents is in one SQLite file. Query it directly:
+What does giving every agent its own filesystem cost in storage? Far less than the arithmetic suggests, because the blob store deduplicates content across the whole pool: blobs are addressed by SHA-256 and compressed with zstd, so a file held by two agents is stored once.
+
+Naively, hand each of 847 agents its own copy of a codebase averaging ~250KB per file and you are storing ~212MB of raw files for every agent — ~179GB across the pool, and that is before a single context token, log line, or checkpoint is counted. Migration inputs share heavily (stdlib imports, helper functions, common boilerplate), and this run measured 68% deduplication:
+
+```text
+847 agents × ~250KB avg = 212MB naive
+68% blob reuse         = 144MB deduplicated away
+Actual stored          =  68MB (+ 39MB checkpoints)
+                       = 107MB total vs 212MB naive
+```
+
+Checkpoints ride the same machinery. They record diffs, not full copies, and deduplication applies to their contents too — so the 31 rolled-back agents added almost nothing, their "bad" state sharing most blobs with the "good" state they restored to. End state: a single 214MB SQLite database holding complete history for all 847 agents — every write, every event, every blob.
+
+<div class="callout" style="background:#12121a;border-left:3px solid #6c5ce7;padding:1rem 1.4rem;margin:1.5rem 0;border-radius:0 8px 8px 0">
+
+**Checkable guarantee:** agent count does not multiply storage. Duplicate content collapses into one blob, and the reuse ratio improves the more your agents' files resemble each other — expect 60-70% deduplication on migrations and refactoring work.
+
+</div>
+
+---
+
+## Audit: ask the database what happened
+
+You do not have to take this tutorial's tables on faith. The run's entire record is ordinary SQLite, and each claim above is one query away.
+
+How did the agents finish?
 
 ```sql
 -- Outcome summary across all agents
@@ -289,6 +260,8 @@ succeeded    809     95.5
 rolled_back  31       3.7
 failed       7        0.8
 ```
+
+Which failure patterns caused rollbacks, and where?
 
 ```sql
 -- All rollback events with failure patterns, sorted by frequency
@@ -313,6 +286,8 @@ iteritems_generator_consumed   4            core/registry.py, core/handlers.py..
 ...
 ```
 
+What did compression actually save?
+
 ```sql
 -- Token savings: what AAAK eliminated across all agents
 SELECT
@@ -329,6 +304,8 @@ total_uncompressed  total_compressed  tokens_saved
 4,949,663           2,498,600         2,451,063
 ```
 
+Did the hub earn its keep?
+
 ```sql
 -- Hub pattern effectiveness: failure rate before vs after broadcast
 SELECT
@@ -342,36 +319,34 @@ WHERE run_id = 'py2to3-migration'
 ORDER BY estimated_regressions_prevented DESC;
 ```
 
-One query. Every agent's complete behavior. Every failure pattern. Every token sent and saved. The 214MB SQLite file is the complete audit trail — not a summary, not logs, but a structured, queryable record of everything that happened during the run.
+This is the difference between logs and a ledger. You are not grepping a summary; you are joining, grouping, and aggregating a structured record of everything that happened — 214MB, portable, and entirely yours.
 
 ---
 
-## What Scales, What Doesn't
+## Limits: where this design bends
 
-Honest assessment of where BENE handles scale well and where you'd need to think carefully.
+A fair account of the ceiling, so you can plan for it instead of discovering it.
 
-**What scales cleanly:**
+**What holds at any scale:**
 
-- **VFS isolation** scales linearly. 1 agent or 10,000 agents — each one's filesystem is independent. No contention, no coordination overhead.
-- **Blob deduplication** scales better than linearly. More agents with similar content means a higher deduplication ratio, so storage overhead grows sublinearly with agent count.
-- **AAAK compression** scales linearly per-agent and is entirely local computation. The savings accumulate directly with scale.
-- **Per-agent rollback** has constant time complexity. It doesn't matter how many other agents are running — one agent's restore takes the same 0.08s.
-- **Hub coordination** scales with pattern discovery rate, not agent count. 12 patterns across 847 agents; you don't get 847 patterns just because you have 847 agents.
+- **VFS isolation** — linear, indefinitely. Ten agents or ten thousand, no agent's filesystem ever waits on another's.
+- **Blob deduplication** — better than linear: a larger pool of similar files raises the reuse ratio, so storage grows sublinearly in agent count.
+- **AAAK compression** — purely local computation, linear per agent; savings stack directly as the pool grows.
+- **Rollback** — constant time. The 0.08s restore above happened with 846 peers running and would take just as long alone.
+- **Hub traffic** — tracks pattern discovery, not headcount. This run yielded 12 patterns from 847 agents, not 847 patterns.
 
-**What you'd need to think about above ~1000 concurrent agents:**
+**What needs thought above ~1000 concurrent agents:**
 
-- **SQLite WAL contention.** BENE uses WAL mode for concurrent writes, which handles ~50 concurrent writers well. Above 200-300 concurrent writes you'll start seeing lock contention. The current default max_concurrent of 50 is deliberately conservative — it keeps you in the safe zone. If you need higher concurrency, you'd want to shard the database by agent pool or use a distributed backend.
-- **Hub broadcast latency.** The hub is synchronous in the current implementation. At 847 agents broadcasting patterns to 23 recipients each, it's fast. At 5,000 agents, you'd want async hub broadcasts to avoid blocking agent coordination.
-- **Memory for in-flight VFS caches.** Each active agent's hot VFS state is cached in memory. At 50 concurrent agents × ~2MB hot cache = ~100MB. At 500 concurrent agents that becomes ~1GB. Plan accordingly.
-- **The manifest size.** `bene parallel spawn` with 847 agents took 17 seconds to initialize. 5,000 agents would take ~100 seconds. Not a dealbreaker but worth knowing.
+- **WAL write contention.** WAL mode is comfortable around 50 simultaneous writers and starts contending somewhere past 200-300. The shipped max_concurrent of 50 is conservative on purpose; if you genuinely need more, split the database into per-pool shards or move to a distributed backend.
+- **Synchronous hub broadcasts.** Fanning one pattern to 23 recipients is quick at this scale. At 5,000 agents you would want broadcasts made async so coordination never blocks agent progress.
+- **Hot-cache memory.** Each live agent keeps roughly 2MB of hot VFS state in memory: about 100MB at 50 concurrent, around 1GB at 500. Budget for it.
+- **Spawn time.** Initializing 847 agents took 17 seconds; 5,000 would land near 100 seconds. Annoying, not blocking.
 
-The architecture was designed for honest local-first operation. It runs on a MacBook Pro. For production scale beyond 1,000 concurrent agents, you'd want dedicated hardware and potentially a distributed event store. The design makes that migration tractable — the VFS abstraction, the event journal, the blob store are all clean interfaces that can be backed by a distributed system without changing agent behavior.
+Everything above ran local-first, on a MacBook Pro. Past roughly 1,000 concurrent agents you would want dedicated hardware and possibly a distributed event store — and the seams are already clean: VFS, event journal, and blob store each sit behind an interface you could re-back with a distributed system while agent behavior stays exactly the same.
 
 ---
 
-847 agents. 809 files migrated. 31 rolled back cleanly. 0 regressions shipped. 8 minutes 47 seconds. And 2.45M tokens they never had to send — the cherry on top.
-
-The audit trail lives in a 214MB SQLite file. Every agent's decision — every write, every rollback, every test failure, every hub pattern received — queryable forever.
+Worth restating plainly: 847 agents, 8 minutes 47 seconds, 809 files migrated, 31 clean self-restores, 7 escalated to humans, 0 regressions — plus 2.45M tokens that never needed sending. All of it survives in one 214MB SQLite file you can copy, query, and keep forever.
 
 ## Related
 
@@ -383,6 +358,6 @@ The audit trail lives in a 214MB SQLite file. Every agent's decision — every w
 
 ---
 
-*BENE is MIT-licensed and runs entirely locally. No data leaves your machine.*
+*bene is MIT-licensed and local-first: the run, the agents, and the audit trail all live in one SQLite file on your machine, and nothing is sent anywhere you didn't configure.*
 
 *GitHub: [github.com/good-night-oppie/bene](https://github.com/good-night-oppie/bene)*

@@ -1,26 +1,40 @@
-# BENE AI Agents Detected Data Corruption at Row 847K and Rolled Back the Migration in 0.3 Seconds
+# Roll Back a Bad Migration in 0.3 Seconds
 
-*Data Engineering*
+Run a risky migration with an undo button: when a 2-million-row backfill went bad mid-stream, one command erased the damage in 0.31 seconds, and no other agent noticed.
 
-*A 2M-row backfill hit 7.6% unexpected NULLs mid-stream. The BENE migration agent detected the anomaly, rolled back its own VFS in 0.3 seconds, and left every other agent running untouched.*
-
----
-
-The migration looked fine until row 847,412. Then 7.6% of rows came out NULL where they should have been NOT NULL. The `subscription_tier` column — the one that determines what every user can access — had silent data corruption at scale.
-
-Without BENE, you find this after the migration completes and a monitoring alert fires. With BENE, the anomaly detector catches it mid-stream, pauses the migration, and rolls back in 0.3 seconds — before any corruption reaches production.
-
----
+> **One checkpoint before the risky phase turns a 2-million-row mistake into a 0.31-second fix.**
 
 ![BENE migration rollback demo — 2M row backfill, anomaly at row 847K, 0.3s surgical rollback](../demos/bene_uc_migration.gif)
 
-*Phase 1 succeeds, checkpoint taken. Phase 2 backfill detects NULL anomaly at row 847,412. Rollback in 0.3s. Analytics agents unaffected.*
+*Checkpoint after phase 1; the phase-2 backfill pauses itself on a NULL anomaly at row 847,412; restore in 0.3s; analytics agents keep running.*
 
----
+## Start with the payoff: the restore
 
-## The Migration Plan
+The backfill had written 64,412 bad NULLs into `subscription_tier` before the agent paused itself. Recovery was one command against a labeled checkpoint:
 
-Adding a `subscription_tier` column to a 2-million-row `users` table. Three phases, checkpoints between each, analytics agents running alongside:
+```text
+bene restore migration-agent --label pre-backfill
+
+# Restoring migration-agent to checkpoint: pre-backfill
+#
+# Changes reverted:
+# --- migration/state.json
+# -  "phase": "backfill",
+# -  "rows_processed": 847412,
+# -  "null_count": 64412,
+# -  "status": "anomaly_paused"
+# +  "phase": "schema_complete",
+# +  "rows_processed": 0,
+# +  "status": "ready_for_backfill"
+#
+# Restore complete in 0.31s
+```
+
+0.31 seconds, and the agent's virtual filesystem (VFS) — the private workspace every bene agent runs in — is back at a known-good point; everything the failed phase wrote is gone. The rest of this page replays the run behind that one-liner.
+
+## The plan behind the run
+
+The job: add `subscription_tier` — the column deciding what each user can access — to a `users` table of 2 million rows. Three phases, a checkpoint boundary after each, an anomaly check armed on the dangerous one:
 
 ```python
 # migration/add_subscription_tier.py
@@ -51,11 +65,11 @@ PHASES = [
 ]
 ```
 
-Other analytics agents — `analytics-agent-1` and `analytics-agent-2` — are running queries against the same data throughout. The migration agent cannot interfere with them because each agent has its own isolated VFS.
+Two analytics agents, `analytics-agent-1` and `analytics-agent-2`, query this data throughout. Each owns a separate VFS, so interference is structurally impossible.
 
----
+## Checkpoint before you touch data
 
-## Phase 1 Succeeds — First Checkpoint
+Phase 1 is the cheap, reversible part — an `ALTER TABLE` that changes no rows. Run it, then pin the moment with a label:
 
 ```text
 bene run migration-agent "ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(20)"
@@ -70,13 +84,11 @@ bene checkpoint migration-agent --label pre-backfill
 # Timestamp: 2026-04-13T01:33:11Z
 ```
 
-This checkpoint is the safety line. If anything goes wrong in the 2-million-row backfill, `bene restore migration-agent --label pre-backfill` returns to exactly this state — schema applied, data untouched, ready to retry with a fix.
+That label is the whole insurance policy. The rollback actor is `migration-agent`; whatever the backfill does, `bene restore migration-agent --label pre-backfill` brings the agent back here: schema in place, zero rows changed, ready for another attempt.
 
----
+## The backfill stops itself
 
-## Phase 2 — The Backfill (and the Anomaly)
-
-The backfill starts in 10,000-row batches. The anomaly detector samples NULL counts every 50K rows:
+Phase 2 streams updates in 10,000-row batches while the anomaly check samples the NULL count every 50K rows. The log stays clean until row 847,412:
 
 ```text
 [backfill]  100,000 rows processed  NULL count: 0      (0.0%)  ✓
@@ -93,55 +105,11 @@ Got:      64,412 NULLs out of 847,412 rows processed
 Migration PAUSED. No further rows updated.
 ```
 
-The migration pauses automatically. 7.6% NULL rate with a NOT NULL target is not recoverable without a fix.
+No human watched for this. The agent froze the run on its own — a 7.6% NULL rate can never satisfy the NOT NULL constraint waiting in phase 3.
 
----
+## The diagnosis was already written
 
-## Surgical Rollback — 0.3 Seconds
-
-```text
-bene restore migration-agent --label pre-backfill
-
-# Restoring migration-agent to checkpoint: pre-backfill
-#
-# Changes reverted:
-# --- migration/state.json
-# -  "phase": "backfill",
-# -  "rows_processed": 847412,
-# -  "null_count": 64412,
-# -  "status": "anomaly_paused"
-# +  "phase": "schema_complete",
-# +  "rows_processed": 0,
-# +  "status": "ready_for_backfill"
-#
-# Restore complete in 0.31s
-```
-
-0.31 seconds. The full VFS state of the migration agent is rewound. The partial backfill state, the anomaly markers, the paused status — all gone. Back to a clean, known-good state.
-
----
-
-## While This Was Happening — Other Agents Kept Running
-
-```text
-bene ls
-
-# NAME                STATUS    UPTIME   EVENTS
-# migration-agent     restored  14m      847 (rollback applied)
-# analytics-agent-1   running   14m      1,204
-# analytics-agent-2   running   14m      983
-# dashboard-agent     running   14m      441
-```
-
-All three other agents kept running through the entire incident. Their VFS state was never touched. This is what isolated VFS means in practice.
-
-**The key guarantee:** A migration agent failing and rolling back has zero effect on any other agent. Their VFS is in a separate SQLite-backed filesystem. The migration's partial state exists only inside `migration-agent`'s VFS and is now gone after the restore.
-
----
-
-## Root Cause Analysis
-
-The migration agent wrote a detailed anomaly report to its VFS before pausing:
+Before pausing, the agent left a root-cause report in its own VFS. Reading it costs one command:
 
 ```text
 bene read migration-agent /logs/anomaly.md
@@ -164,11 +132,11 @@ Fix: Use COALESCE to default unmatched users to 'free':
 Estimated affected rows: ~156,000 legacy users (pre-2021-03-15)
 ```
 
-The fix is one word: `COALESCE`.
+Every NULL belongs to an account created before 2021-03-15 — older than the `subscriptions` table itself, so the JOIN finds nothing to match. The repair is a single `COALESCE`.
 
----
+## A clean second pass
 
-## Retry — 2 Million Rows, 0 NULLs
+Restore (shown above), apply the `COALESCE` default, rerun. Same plan, same batch size, different ending:
 
 ```text
 [backfill]  500,000 rows   NULL count: 0  (0.0%)  ✓
@@ -183,9 +151,27 @@ The fix is one word: `COALESCE`.
 Migration complete. Duration: 47m total (including rollback + retry).
 ```
 
----
+47 minutes wall-clock, failed attempt and rollback included.
 
-## The Audit Trail
+## Check the blast radius yourself
+
+Isolation is a claim you can verify, not a promise to trust. The fleet, immediately after the restore:
+
+```text
+bene ls
+
+# NAME                STATUS    UPTIME   EVENTS
+# migration-agent     restored  14m      847 (rollback applied)
+# analytics-agent-1   running   14m      1,204
+# analytics-agent-2   running   14m      983
+# dashboard-agent     running   14m      441
+```
+
+Three unrelated agents, zero interruptions. Each works in its own SQLite-backed filesystem, so the migration's half-finished state was never visible to them — and after the restore it exists nowhere.
+
+## Replay the whole incident
+
+The full run reads back as one timeline — spawn, checkpoints, anomaly, restore, fix, clean finish:
 
 ```text
 Time      Event       Phase               Rows       NULLs   Notes
@@ -202,20 +188,18 @@ Time      Event       Phase               Rows       NULLs   Notes
 02:21:17  checkpoint  complete            2,041,847  0       migration complete
 ```
 
----
+Without the mid-stream check, your first signal is a user bug report the next morning, after corrupt values ship. With it, the bad rows never left one agent's workspace, and erasing them took 0.3 seconds.
 
-2 million rows migrated safely. The anomaly was caught at row 847K — before any corruption reached production. Other operations never noticed. The rollback took 0.3 seconds. Without anomaly detection, you'd have found the NULL data from a user report, probably the next morning.
+## Keep reading
 
-## Related
-
-- [README](../README.md) — BENE overview and full doc index
-- [Use Cases](../use-cases.md) — more real-world patterns
 - [Component guide: Checkpoints](../checkpoints.md)
 - [Use case: DB Migration Rollback](../use-cases.md#db-migration-rollback)
+- [Use Cases](../use-cases.md) — more patterns like this one
 - [Architecture: VFS engine](../architecture.md)
+- [README](../README.md) — overview and full doc index
 
 ---
 
-*BENE is MIT-licensed and runs entirely locally. No data leaves your machine.*
+*bene is MIT-licensed and local-first: every command on this page ran on one machine, and no data left it.*
 
 *GitHub: [github.com/good-night-oppie/bene](https://github.com/good-night-oppie/bene)*

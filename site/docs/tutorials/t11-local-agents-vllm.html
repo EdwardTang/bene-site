@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="../README.html">README</a>
 <a href="../architecture.html">architecture</a>
 <a href="../checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../shared-log.html">shared-log</a>
 <a href="../skills.html">skills</a>
 <a href="../use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="../design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="../design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="../design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="../design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="../benchmarks/PREREG.html">PREREG</a>
 <a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="../tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,15 +191,17 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a class="cur" href="../tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="../case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="../infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="../index.html">docs</a> / tutorials/t11-local-agents-vllm.md</div>
 <h1 id="t11-local-agents-with-vllm-a-zero-cost-auditable-multi-agent-stack">t11 — Local Agents with vLLM: a Zero-Cost, Auditable Multi-Agent Stack</h1>
 <p><em>Tutorial · beginner · ~30 min</em></p>
 <hr />
-<p>You will bring up a fully local multi-agent system where Claude Code orchestrates autonomous BENE agents running on your own GPU. Per-agent virtual filesystems, append-only audit trail, checkpoint and rollback, SQL-queryable everything — and zero API cost.</p>
-<p>Each step is small. Sections 1–4 stand alone (you can drive BENE from the CLI without Claude Code). Sections 5–9 layer in the MCP integration with Claude Code on top.</p>
+<p>Put autonomous bene agents to work on a GPU you already own, steer them from Claude Code, and pay nothing per token. Thirty minutes from now you will have three agents building the same project side by side, a rollback you have personally exercised, and an audit trail you can interrogate with ordinary SQL.</p>
+<blockquote>
+<p><strong>The whole system's state is one SQLite file on your disk — <code>cp bene.db backup.db</code> is a complete backup, and nothing leaves your machine.</strong></p>
+</blockquote>
 <p><img alt="BENE getting started — spawn agents, write files, query VFS" src="../demos/bene_01_getting_started.gif" /></p>
 <blockquote>
 <p><strong>At the end of this tutorial, you will have:</strong></p>
@@ -213,7 +215,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li>A SQL audit trail you can query with <code>bene query</code> or any SQLite client.</li>
 </ul>
 </blockquote>
-<h2 id="prerequisites">Prerequisites</h2>
+<p>Claude Code is optional until Step 4 — everything before that is driveable from the bene CLI alone, so the first half of this page doubles as a pure-CLI quickstart.</p>
+<h2 id="before-you-start">Before you start</h2>
 <ul>
 <li>Linux or macOS workstation.</li>
 <li>One GPU with <strong>≥16 GB VRAM</strong> for a 7B model, or <strong>≥48 GB</strong> (multi-GPU OK) for a 70B model.</li>
@@ -222,75 +225,24 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li>Claude Code installed locally — only needed for sections 5 onward.</li>
 </ul>
 <blockquote>
-<p><strong>Tip.</strong> No local GPU? Sections 1, 3, 4 (cloud-only path) still work — point <code>endpoint:</code> at any OpenAI-compatible URL (Together, Anyscale, Fireworks, RunPod, llama.cpp/ollama on a different host). Skip the vLLM bits.</p>
+<p><strong>Tip.</strong> GPU-less? The setup, config, and audit material here still applies — set <code>endpoint:</code> to any OpenAI-compatible URL (Together, Anyscale, Fireworks, RunPod, llama.cpp/ollama on a different host) and ignore everything vLLM-specific.</p>
 </blockquote>
-<h2 id="the-architecture-in-one-diagram">The architecture in one diagram</h2>
-<div class="codehilite"><pre><span></span><code>┌──────────────────────────────┐
-│        Claude Code           │  ← you talk to this (sections 5+)
-│  (your terminal / IDE)       │
-└─────────┬────────────────────┘
-          │ MCP protocol (stdio)
-          ▼
-┌──────────────────────────────┐
-│       BENE MCP Server       │  ← 18 tools: spawn, read, write,
-│  agent_spawn, agent_parallel,│     checkpoint, query, pause,
-│  agent_checkpoint, mh_search │     resume, mh_search, …
-└─────────┬────────────────────┘
-          │
-          ▼
-┌──────────────────────────────┐
-│       BENE core + CCR       │  ← isolated VFS, event journal,
-│  SQLite, blob store, events  │     checkpoints, blob dedup
-└─────────┬────────────────────┘
-          │ Tier router (raw httpx)
-          ▼
-┌──────────────────────────────┐
-│           vLLM               │  ← your local GPU(s)
-│  Qwen, DeepSeek, Llama, …    │     or any /v1/chat/completions
-└──────────────────────────────┘
-</code></pre></div>
-
-<p>The flow: Claude Code calls BENE tools over MCP. BENE spawns agents into isolated VFSes. The Tier router classifies task complexity and picks the right model. Agents talk to vLLM. Everything is logged in SQLite. Nothing leaves your machine.</p>
-<blockquote>
-<p><strong>See also.</strong> <a href="t00-bene-e2e-walkthrough.html">tutorials/t00 — End-to-End Walkthrough</a> for a spawn → checkpoint → audit → restore round-trip that does <strong>not</strong> need vLLM. Good warm-up: it isolates audit-DB skills from LLM behavior.</p>
-</blockquote>
-<h2 id="step-1-install-bene-2-min">Step 1 — Install BENE (2 min)</h2>
-<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/good-night-oppie/bene.git
-<span class="nb">cd</span><span class="w"> </span>bene
-uv<span class="w"> </span>sync
-uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>--version
-<span class="c1"># bene, version 0.1.0</span>
-</code></pre></div>
-
-<p>Initialize the database (one of two ways):</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># Interactive wizard — picks a preset, generates bene.yaml, initializes the DB.</span>
-uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>setup
-
-<span class="c1"># Or manually — default config + empty DB.</span>
-uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>init
-<span class="c1"># Initialized BENE database: ./bene.db</span>
-</code></pre></div>
-
-<p><code>uv sync</code> installs all 44 dependencies in under 30 s on first run, single-digit seconds after that. No heavy AI SDK chain — just <code>httpx</code>, <code>click</code>, <code>rich</code>, <code>textual</code>, <code>mcp</code>, <code>pyyaml</code>, <code>zstandard</code>, <code>ulid-py</code>.</p>
-<blockquote>
-<p><strong>Tip.</strong> <code>bene setup</code> is the fastest path. It writes <code>bene.yaml</code> for you and runs <code>bene init</code>. Pick the preset closest to your goal: <code>local</code>, <code>local-multi</code>, <code>anthropic</code>, <code>openai</code>, or <code>hybrid</code>.</p>
-</blockquote>
-<h2 id="step-2-start-vllm-5-min-plus-first-run-download">Step 2 — Start vLLM (5 min, plus first-run download)</h2>
-<p>vLLM serves models with an OpenAI-compatible API. BENE talks to it via raw <code>httpx</code> — no <code>openai</code> SDK, no <code>litellm</code>.</p>
-<h3 id="single-model-start-here">Single model — start here</h3>
+<h2 id="step-1-serve-a-model-5-min-plus-first-run-download">Step 1 — Serve a model (5 min, plus first-run download)</h2>
+<p>The model download is the slowest part of the whole tutorial, so kick it off before anything else. vLLM exposes the standard OpenAI HTTP surface; bene reaches it through raw <code>httpx</code> — neither the <code>openai</code> SDK nor <code>litellm</code> is anywhere in the stack.</p>
+<h3 id="one-model-one-gpu-the-default-path">One model, one GPU — the default path</h3>
 <div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>vllm
 vllm<span class="w"> </span>serve<span class="w"> </span>Qwen/Qwen2.5-Coder-7B-Instruct<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span>
 </code></pre></div>
 
-<p>Verify:</p>
+<p>Confirm it answers:</p>
 <div class="codehilite"><pre><span></span><code>curl<span class="w"> </span>http://localhost:8000/v1/models
 <span class="c1"># Should return JSON listing the served model.</span>
 </code></pre></div>
 
 <blockquote>
-<p><strong>Tip.</strong> Model weights download into <code>~/.cache/huggingface/</code> on first run (~14 GB for the 7B). If you have a fast connection elsewhere, pre-stage with <code>huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct</code> and the warm path takes seconds.</p>
+<p><strong>Tip.</strong> First launch pulls the weights into <code>~/.cache/huggingface/</code> (~14 GB for the 7B). On a slow link, pre-stage them with <code>huggingface-cli download Qwen/Qwen2.5-Coder-7B-Instruct</code>; a warm cache cuts startup to seconds.</p>
 </blockquote>
-<h3 id="multi-model-recommended-if-you-have-48-gb-vram">Multi-model — recommended if you have ≥48 GB VRAM</h3>
+<h3 id="three-models-three-complexity-tiers-for-48-gb-vram">Three models, three complexity tiers — for ≥48 GB VRAM</h3>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Terminal 1 — small model for trivial tasks + routing classifier</span>
 vllm<span class="w"> </span>serve<span class="w"> </span>Qwen/Qwen2.5-Coder-7B-Instruct<span class="w"> </span>--port<span class="w"> </span><span class="m">8000</span>
 
@@ -302,20 +254,42 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 </code></pre></div>
 
 <blockquote>
-<p><strong>See also.</strong> <a href="t06-ml-research-lab.html">tutorials/t06 — ML Research Lab</a> shows the same 3-GPU layout running 6 parallel hypothesis agents overnight. The config in the next step is essentially the t06 layout.</p>
+<p><strong>See also.</strong> <a href="t06-ml-research-lab.html">tutorials/t06 — ML Research Lab</a> runs this exact 3-GPU layout with 6 parallel hypothesis agents overnight; the config you write in Step 3 is essentially the t06 one.</p>
 </blockquote>
-<h3 id="any-openai-compatible-endpoint-works">Any OpenAI-compatible endpoint works</h3>
-<p>BENE speaks raw httpx — anything serving <code>/v1/chat/completions</code> is fine:</p>
+<h3 id="no-vllm-any-v1chatcompletions-server-qualifies">No vLLM? Any <code>/v1/chat/completions</code> server qualifies</h3>
+<p>Because the client side is plain httpx, the server side is interchangeable:</p>
 <ul>
 <li><strong>vLLM</strong> (recommended) — fastest batched inference.</li>
-<li><strong>llama.cpp</strong> / <strong>ollama</strong> — lighter weight, runs on consumer hardware.</li>
-<li><strong>text-generation-webui</strong> — works if you already have it running.</li>
+<li><strong>llama.cpp</strong> / <strong>ollama</strong> — small enough for consumer hardware.</li>
+<li><strong>text-generation-webui</strong> — fine when it is already part of your setup.</li>
 <li><strong>LocalAI</strong> — drop-in OpenAI replacement.</li>
 <li>Remote OpenAI-compatible providers — Together, Fireworks, Anyscale, RunPod, etc.</li>
 </ul>
 <p>Point <code>endpoint:</code> at the URL.</p>
-<h2 id="step-3-configure-bene-3-min">Step 3 — Configure BENE (3 min)</h2>
-<p>If <code>bene setup</code> wrote your <code>bene.yaml</code>, skim this section and jump to the sanity check at the end. Otherwise, copy and edit:</p>
+<h2 id="step-2-install-bene-2-min">Step 2 — Install bene (2 min)</h2>
+<p>Run <code>uv sync</code> after cloning so the local virtualenv matches the project lockfile.</p>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/good-night-oppie/bene.git
+<span class="nb">cd</span><span class="w"> </span>bene
+uv<span class="w"> </span>sync
+uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>--version
+<span class="c1"># bene, version 0.1.0</span>
+</code></pre></div>
+
+<p>Create the database — wizard or manual, your pick:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># Interactive wizard — picks a preset, generates bene.yaml, initializes the DB.</span>
+uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>setup
+
+<span class="c1"># Or manually — default config + empty DB.</span>
+uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>init
+<span class="c1"># Initialized BENE database: ./bene.db</span>
+</code></pre></div>
+
+<p>The dependency footprint is deliberately small: <code>httpx</code>, <code>click</code>, <code>rich</code>, <code>textual</code>, <code>mcp</code>, <code>pyyaml</code>, <code>zstandard</code>, <code>ulid-py</code> — 44 packages total, under 30 s to sync cold and single-digit seconds warm. There is no heavy AI SDK chain to drag in.</p>
+<blockquote>
+<p><strong>Tip.</strong> <code>bene setup</code> is the fastest path. It writes <code>bene.yaml</code> for you and runs <code>bene init</code>. Pick the preset closest to your goal: <code>local</code>, <code>local-multi</code>, <code>anthropic</code>, <code>openai</code>, or <code>hybrid</code>.</p>
+</blockquote>
+<h2 id="step-3-tell-bene-where-the-models-live-3-min">Step 3 — Tell bene where the models live (3 min)</h2>
+<p>Already ran <code>bene setup</code>? Then <code>bene.yaml</code> exists — skim to the wiring check at the bottom of this step. Otherwise start from the example:</p>
 <div class="codehilite"><pre><span></span><code>cp<span class="w"> </span>bene.yaml.example<span class="w"> </span>bene.yaml
 </code></pre></div>
 
@@ -374,10 +348,10 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="w">  </span><span class="nt">max_parallel_agents</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8</span>
 </code></pre></div>
 
-<p>How Tier routes:</p>
+<p>What the Tier router does with an incoming task:</p>
 <ol>
-<li>A task arrives. BENE asks the <code>classifier_model</code> (the 7B) "trivial, moderate, complex, or critical?"</li>
-<li>The router picks a model whose <code>use_for</code> contains the classified complexity.</li>
+<li>It asks the <code>classifier_model</code> (the 7B) to label the task: trivial, moderate, complex, or critical.</li>
+<li>It then selects a model whose <code>use_for</code> list contains that label.</li>
 <li>If the classifier itself fails, a keyword heuristic takes over (<code>refactor</code>, <code>security</code>, <code>format</code>, …).</li>
 <li>If the chosen model fails, the request falls through to <code>fallback_model</code>.</li>
 </ol>
@@ -385,7 +359,7 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <p><strong>Tip.</strong> The classifier only needs to be smart enough to label tasks. A 7B is plenty and stays warm in VRAM. Reserve the 70B for actual work, not for "is this hard?"</p>
 </blockquote>
 <h3 id="hybrid-local-cloud">Hybrid — local + cloud</h3>
-<p>Route trivial tasks to a free local GPU and only escalate to a cloud model when the work needs it.</p>
+<p>Send trivial work to the free local GPU; escalate to a paid cloud model only when the task earns it.</p>
 <div class="codehilite"><pre><span></span><code><span class="nt">models</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">claude-sonnet</span><span class="p">:</span>
 <span class="w">    </span><span class="nt">provider</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropic</span>
@@ -419,15 +393,15 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <p><strong>Tip.</strong> Hybrid pays off when trivial volume is high. Route 80 % of "rename this variable" calls to the free local model and 20 % of hard ones to Claude — your monthly bill drops by roughly the same ratio. Measure before tuning: the Tier router records classifier output in the event journal, and a query against the <code>events</code> table tells you the actual split, not the assumed one.</p>
 </blockquote>
 <h3 id="cloud-only">Cloud-only</h3>
-<p>If you have no GPU at all, skip vLLM. Use the <code>anthropic</code>, <code>openai</code>, or <code>hybrid</code> preset and point everything at the cloud endpoint.</p>
-<h3 id="sanity-check">Sanity check</h3>
+<p>No GPU anywhere? Skip vLLM entirely: take the <code>anthropic</code>, <code>openai</code>, or <code>hybrid</code> preset and aim every model entry at a cloud endpoint.</p>
+<h3 id="prove-the-wiring">Prove the wiring</h3>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>run<span class="w"> </span><span class="s2">&quot;Say hello and list the tools available to you&quot;</span><span class="w"> </span>--name<span class="w"> </span>test-agent
 </code></pre></div>
 
-<p>You should see structured agent output and a populated <code>bene.db</code>. If yes, the model + BENE stack is wired.</p>
-<h2 id="step-4-connect-to-claude-code-3-min">Step 4 — Connect to Claude Code (3 min)</h2>
-<p>Register BENE as an MCP server so Claude Code can call all 18 BENE tools natively.</p>
-<h3 id="add-to-claude-code-settings">Add to Claude Code settings</h3>
+<p>Structured agent output plus a freshly populated <code>bene.db</code> means the model-to-bene path is sound. Fix this before touching MCP — debugging both layers at once is miserable.</p>
+<h2 id="step-4-hand-claude-code-the-controls-3-min">Step 4 — Hand Claude Code the controls (3 min)</h2>
+<p>Registering bene as an MCP server gives Claude Code native access to all 18 bene tools.</p>
+<h3 id="register-the-server">Register the server</h3>
 <p><code>~/.claude/settings.json</code> (create the file if missing):</p>
 <div class="codehilite"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
@@ -456,27 +430,57 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="p">}</span>
 </code></pre></div>
 
-<h3 id="verify-the-connection">Verify the connection</h3>
+<h3 id="confirm-the-37-tools">Confirm the 37 tools</h3>
 <p>Restart Claude Code, then ask:</p>
 <blockquote>
 <p><em>"What BENE tools are available?"</em></p>
 </blockquote>
-<p>Claude Code should list all 18: <code>agent_spawn</code>, <code>agent_spawn_only</code>, <code>agent_read</code>, <code>agent_write</code>, <code>agent_ls</code>, <code>agent_status</code>, <code>agent_kill</code>, <code>agent_pause</code>, <code>agent_resume</code>, <code>agent_checkpoint</code>, <code>agent_restore</code>, <code>agent_diff</code>, <code>agent_checkpoints</code>, <code>agent_query</code>, <code>agent_parallel</code>, <code>mh_search</code>, <code>mh_frontier</code>, <code>mh_resume</code>.</p>
+<p>The full set should come back: <code>agent_spawn</code>, <code>agent_spawn_only</code>, <code>agent_kill</code>, <code>agent_pause</code>, <code>agent_resume</code>, <code>agent_status</code>, <code>agent_read</code>, <code>agent_write</code>, <code>agent_ls</code>, <code>agent_checkpoint</code>, <code>agent_restore</code>, <code>agent_diff</code>, <code>agent_checkpoints</code>, <code>agent_query</code>, <code>agent_parallel</code>, <code>mh_search</code>, <code>mh_frontier</code>, <code>mh_resume</code>, <code>mh_start_search</code>, <code>mh_submit_candidate</code>, <code>mh_next_iteration</code>, <code>mh_write_skill</code>, <code>mh_spawn_coevolution</code>, <code>mh_hub_sync</code>, <code>agent_memory_write</code>, <code>agent_memory_search</code>, <code>agent_memory_read</code>, <code>shared_log_intent</code>, <code>shared_log_vote</code>, <code>shared_log_decide</code>, <code>shared_log_append</code>, <code>shared_log_read</code>, <code>skill_save</code>, <code>skill_search</code>, <code>skill_apply</code>, <code>skill_list</code>, <code>skill_outcome</code>.</p>
 <blockquote>
 <p><strong>Tip.</strong> If the MCP wiring fails, the fastest split is to run the server standalone first: <code>uv run --project /path/to/bene bene serve --transport stdio</code>. If that starts cleanly, the bug is in <code>settings.json</code> (most often a JSON syntax error). If it fails standalone, the bug is in BENE or <code>bene.yaml</code>.</p>
 </blockquote>
-<h2 id="step-5-your-first-agent-2-min">Step 5 — Your first agent (2 min)</h2>
+<h2 id="the-map-of-what-you-just-assembled">The map of what you just assembled</h2>
+<div class="codehilite"><pre><span></span><code>┌──────────────────────────────┐
+│        Claude Code           │  ← you talk to this (sections 5+)
+│  (your terminal / IDE)       │
+└─────────┬────────────────────┘
+          │ MCP protocol (stdio)
+          ▼
+┌──────────────────────────────┐
+│       BENE MCP Server       │  ← 37 tools: spawn, read, write,
+│  agent_spawn, agent_parallel,│     checkpoint, query, pause,
+│  agent_checkpoint, mh_search │     resume, mh_search, …
+└─────────┬────────────────────┘
+          │
+          ▼
+┌──────────────────────────────┐
+│       BENE core + CCR       │  ← isolated VFS, event journal,
+│  SQLite, blob store, events  │     checkpoints, blob dedup
+└─────────┬────────────────────┘
+          │ Tier router (raw httpx)
+          ▼
+┌──────────────────────────────┐
+│           vLLM               │  ← your local GPU(s)
+│  Qwen, DeepSeek, Llama, …    │     or any /v1/chat/completions
+└──────────────────────────────┘
+</code></pre></div>
+
+<p>Reading top to bottom: your prompts become MCP tool calls; each tool call lands in bene core, which keeps one isolated VFS per agent; the Tier router grades the task and dispatches it to a model; the model is your GPU. Every hop is journaled in SQLite, and no hop crosses the network edge of your machine.</p>
+<blockquote>
+<p><strong>See also.</strong> <a href="t00-bene-e2e-walkthrough.html">tutorials/t00 — End-to-End Walkthrough</a> for a spawn → checkpoint → audit → restore round-trip that does <strong>not</strong> need vLLM. Good warm-up: it isolates audit-DB skills from LLM behavior.</p>
+</blockquote>
+<h2 id="step-5-one-agent-end-to-end-2-min">Step 5 — One agent, end to end (2 min)</h2>
 <p>In Claude Code:</p>
 <blockquote>
 <p><em>"Use BENE to spawn an agent called 'hello-world' that writes a Python hello world program to /src/main.py."</em></p>
 </blockquote>
-<p>Behind the scenes:</p>
+<p>What that one sentence triggers:</p>
 <ol>
-<li>Claude Code calls <code>agent_spawn</code> with <code>name="hello-world"</code> and the task.</li>
-<li>BENE creates an agent with a fresh, isolated VFS.</li>
-<li>The Tier router classifies "trivial" and routes to the 7B.</li>
-<li>The agent runs a plan-act-observe loop: decide → call <code>fs_write</code> to create <code>/src/main.py</code> → check the result → return.</li>
-<li>Every step is logged to the <code>events</code> table.</li>
+<li>An <code>agent_spawn</code> call goes out, carrying <code>name="hello-world"</code> plus the task text.</li>
+<li>bene allocates the agent its own blank, walled-off VFS.</li>
+<li>The Tier router grades the task "trivial" and hands it to the 7B.</li>
+<li>The agent loops plan → act → observe: decide, <code>fs_write</code> to <code>/src/main.py</code>, inspect the result, finish.</li>
+<li>Each of those moves becomes a row in the <code>events</code> table.</li>
 </ol>
 <p>Read it back:</p>
 <blockquote>
@@ -491,11 +495,11 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="k">WHERE</span><span class="w"> </span><span class="n">agent_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;...&#39;</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">event_id</span><span class="p">;</span>
 </code></pre></div>
 
-<p>You see every action: <code>agent_spawn</code>, <code>file_write</code>, <code>tool_call_start</code>, <code>tool_call_end</code>, <code>agent_complete</code>.</p>
+<p>Nothing the agent did is missing from this list: <code>agent_spawn</code>, <code>file_write</code>, <code>tool_call_start</code>, <code>tool_call_end</code>, <code>agent_complete</code>.</p>
 <blockquote>
 <p><strong>See also.</strong> <a href="t00-bene-e2e-walkthrough.html">tutorials/t00 — End-to-End Walkthrough</a> walks the same spawn → read → audit loop without an LLM. Good for grokking the audit DB shape before you also have to interpret model output.</p>
 </blockquote>
-<h2 id="step-6-parallel-agents-the-real-power-5-min">Step 6 — Parallel agents, the real power (5 min)</h2>
+<h2 id="step-6-fan-out-three-agents-at-once-5-min">Step 6 — Fan out: three agents at once (5 min)</h2>
 <p><img alt="Parallel agents and the Tier router — 3 agents running concurrently" src="../demos/bene_03_parallel_agents.gif" /></p>
 <p>In Claude Code:</p>
 <blockquote>
@@ -504,15 +508,15 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <em>2. 'implementer' — implement the REST payments endpoint.</em>
 <em>3. 'doc-writer' — write API documentation for the payments endpoint."</em></p>
 </blockquote>
-<p>What happens:</p>
+<p>Under the hood:</p>
 <ol>
-<li>Claude Code calls <code>agent_parallel</code> with 3 tasks.</li>
-<li>BENE spawns 3 agents, each with its own isolated VFS.</li>
-<li>Tier routes each to the appropriate model based on classified complexity.</li>
-<li>All 3 run concurrently, bounded by the semaphore (default 8).</li>
-<li>Auto-checkpoints every 10 iterations.</li>
+<li>One <code>agent_parallel</code> call carries the 3 tasks.</li>
+<li>Three agents come up, each behind its own VFS wall.</li>
+<li>Tier grades every task independently and matches it to a model.</li>
+<li>Execution is concurrent, capped by the semaphore (default 8).</li>
+<li>A checkpoint lands automatically every 10 iterations.</li>
 </ol>
-<h3 id="see-per-agent-token-cost">See per-agent token cost</h3>
+<h3 id="token-spend-per-agent">Token spend, per agent</h3>
 <blockquote>
 <p><em>"How many tokens did each agent use?"</em></p>
 </blockquote>
@@ -521,7 +525,7 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">agent_id</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">tokens</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
 </code></pre></div>
 
-<h3 id="see-per-agent-files">See per-agent files</h3>
+<h3 id="who-wrote-what">Who wrote what</h3>
 <blockquote>
 <p><em>"Show me the files each agent created."</em></p>
 </blockquote>
@@ -530,38 +534,39 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="k">WHERE</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">deleted</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="n">path</span><span class="p">;</span>
 </code></pre></div>
 
-<p>The key insight: <strong>each agent wrote to <code>/src/payments.py</code> or <code>/tests/test_payments.py</code> — there is no conflict</strong> because each agent has its own namespace. Isolation is enforced at the SQL level, not by convention.</p>
+<p>Notice what did <strong>not</strong> happen: <code>/src/payments.py</code> and <code>/tests/test_payments.py</code> were written by different agents into identically-named paths, and nothing collided. Each name resolves inside that agent's private namespace — a guarantee the SQL schema enforces, not a politeness agents are asked to observe.</p>
 <blockquote>
 <p><strong>Tip.</strong> Default <code>max_parallel_agents: 8</code>. Bump it carefully — every running agent holds GPU memory for its KV cache. Multi-GPU vLLM with tensor parallelism lifts the ceiling at the cost of per-request latency.</p>
 <p><strong>See also.</strong> <a href="t03-security-swarm.html">tutorials/t03 — Security Swarm</a> uses the same role-split pattern and proves zero cross-agent reads with a single SQL query. Anchor for "isolation is real, not a convention."</p>
 </blockquote>
-<h2 id="step-7-checkpoint-restore-and-debug-5-min">Step 7 — Checkpoint, restore, and debug (5 min)</h2>
+<h3 id="watch-it-live-1-min">Watch it live (1 min)</h3>
+<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>dashboard
+</code></pre></div>
+
+<p>A Textual TUI tracking every agent — running, completed, failed, killed — with a streaming event feed. Handy during a fan-out, when re-running <code>SELECT</code>s by hand gets old.</p>
+<h2 id="step-7-undo-checkpoint-restore-diff-5-min">Step 7 — Undo: checkpoint, restore, diff (5 min)</h2>
 <p><img alt="Checkpoints and rollback — checkpoint before risky operations, restore on failure" src="../demos/bene_02_checkpoints.gif" /></p>
 <h3 id="scenario-safe-refactor-with-rollback">Scenario: safe refactor with rollback</h3>
 <blockquote>
 <p><em>"Use BENE to: (1) spawn an agent 'refactorer'. (2) Write this code to /src/auth.py: [paste code]. (3) Checkpoint with label 'original'. (4) Have it refactor to add error handling."</em></p>
 </blockquote>
-<p>After the agent runs, if the refactor went sideways:</p>
+<p>Suppose the result is a mess:</p>
 <blockquote>
 <p><em>"The refactor doesn't look right. Restore the refactorer agent to the 'original' checkpoint."</em></p>
 </blockquote>
-<p>Claude Code calls <code>agent_restore</code>. The VFS rolls back exactly to its pre-refactor state. No other agents are affected.</p>
+<p>One <code>agent_restore</code> later, the VFS is byte-for-byte back at the labeled snapshot. Sibling agents never notice.</p>
 <h3 id="diff-two-checkpoints">Diff two checkpoints</h3>
 <blockquote>
 <p><em>"Show me what changed between the 'original' checkpoint and the current state."</em></p>
 </blockquote>
-<p>Claude Code calls <code>agent_diff</code>, which returns:</p>
-<ul>
-<li>Files added, removed, or modified (by content hash).</li>
-<li>State changes (KV pairs added, removed, modified — before and after values).</li>
-<li>Tool calls made between the two checkpoints.</li>
-</ul>
-<p>This is time-travel debugging — you see exactly what the agent did, step by step, and undo it without disturbing any sibling agent.</p>
+<p>The <code>agent_diff</code> answer has three parts: which files appeared, vanished, or changed (compared by content hash); which KV state entries moved, with before and after values; and which tool calls fired in the window between the two snapshots.</p>
+<p>Read it as time travel for debugging — replay the agent's path move by move, then erase it without touching anything that ran beside it.</p>
 <blockquote>
 <p><strong>See also.</strong> <a href="t02-e2e-self-healing.html">tutorials/t02 — End-to-End Self-Healing</a> — wrong-fix detection, surgical rollback, root cause from the audit trail in one worked example. Per-agent restore in 0.3 s.</p>
 </blockquote>
-<h2 id="step-8-post-mortem-when-something-breaks-3-min">Step 8 — Post-mortem when something breaks (3 min)</h2>
+<h2 id="step-8-investigate-sql-against-a-failure-3-min">Step 8 — Investigate: SQL against a failure (3 min)</h2>
 <p><img alt="Post-mortem debugging — SQL audit trail, log search, checkpoint diff" src="../demos/bene_uc03_post_mortem_debug.gif" /></p>
+<p>When an agent fails, the evidence is already in the database. Four prompts cover most post-mortems:</p>
 <blockquote>
 <p><em>"Show me all failed tool calls across all agents."</em></p>
 </blockquote>
@@ -594,21 +599,16 @@ vllm<span class="w"> </span>serve<span class="w"> </span>deepseek-ai/DeepSeek-R1
 <span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">modified_at</span><span class="p">;</span>
 </code></pre></div>
 
-<p>You can also use the CLI directly:</p>
+<p>The same questions work straight from the shell:</p>
 <div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT name, status FROM agents&quot;</span>
 uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT event_type, COUNT(*) FROM events GROUP BY event_type&quot;</span>
 </code></pre></div>
 
-<p>Or open <code>bene.db</code> in any SQLite client (DBeaver, DataGrip, <code>sqlite3</code> CLI) and explore.</p>
+<p>And because <code>bene.db</code> is ordinary SQLite, any client you already like — DBeaver, DataGrip, the <code>sqlite3</code> CLI — opens it directly.</p>
 <blockquote>
 <p><strong>See also.</strong> <a href="t05-incident-response.html">tutorials/t05 — Incident Response</a> walks the same SQL patterns at root-cause speed — 12 seconds from incident to fix candidate. Reuse those queries in your runbook.</p>
 </blockquote>
-<h2 id="step-9-the-live-dashboard-1-min">Step 9 — The live dashboard (1 min)</h2>
-<div class="codehilite"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span>dashboard
-</code></pre></div>
-
-<p>A Textual-based terminal UI shows agents and their status (running, completed, failed, killed), live updates, and an event stream. Useful when running parallel agents and you want to watch progress without piping <code>SELECT</code> queries.</p>
-<h2 id="what-you-got-for-free">What you got for free</h2>
+<h2 id="what-this-setup-buys-you">What this setup buys you</h2>
 <table>
 <thead>
 <tr>
@@ -663,7 +663,7 @@ uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span
 </tr>
 </tbody>
 </table>
-<h2 id="configuration-reference">Configuration reference</h2>
+<h2 id="reference">Reference</h2>
 <h3 id="beneyaml-full-options"><code>bene.yaml</code> — full options</h3>
 <div class="codehilite"><pre><span></span><code><span class="nt">database</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">path</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./bene.db</span><span class="w">              </span><span class="c1"># database file path</span>
@@ -761,7 +761,7 @@ uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span
 <span class="p">}</span>
 </code></pre></div>
 
-<h2 id="troubleshooting">Troubleshooting</h2>
+<h2 id="when-something-breaks">When something breaks</h2>
 <table>
 <thead>
 <tr>
@@ -808,7 +808,7 @@ uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span
 </tr>
 </tbody>
 </table>
-<h2 id="next-steps">Next steps</h2>
+<h2 id="where-to-go-next">Where to go next</h2>
 <p>Annotated by what each link gives you fastest:</p>
 <ul>
 <li><a href="t00-bene-e2e-walkthrough.html">tutorials/t00 — End-to-End Walkthrough</a> — <em>spawn → checkpoint → audit → restore in 5 minutes,</em> without an LLM. Cleanest way to internalize the audit DB shape.</li>

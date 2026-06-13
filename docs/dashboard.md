@@ -1,111 +1,17 @@
 # BENE Dashboard
 
-The BENE web dashboard gives you a live view of every agent run — what they're doing, how long they've been running, which ones failed, and a complete timeline of events.
+One browser tab shows your whole agent fleet live: what's still working, what finished, what died — and the event trail behind every bar.
+
+> **From a red bar to the exact tool call that caused it — without leaving your machine.**
 
 ```bash
 bene ui           # open the web dashboard
 bene demo         # demo data + dashboard (no setup needed)
 ```
 
----
+Everything on screen is read from a local SQLite file; remote access stays off until you ask for it with `--host 0.0.0.0`.
 
-## Gantt Timeline
-
-The main view is a **Gantt timeline** grouped by execution wave. Each wave is a set of agents that started around the same time — typically one `bene parallel` run or one MCP-triggered batch.
-
-![Getting Started — BENE workflow](demos/bene_01_getting_started.gif)
-
-### What you see
-
-**Wave header** — one card per execution wave, showing:
-
-- The goal (plain-English task description of the wave)
-- Start time
-- Total duration
-- Status bar: proportional split of completed / running / failed / killed agents
-- Status pills: count by status
-
-**Gantt rows** — inside each wave, one horizontal bar per agent:
-
-- Bar width = how long the agent ran (relative to the wave)
-- Bar color = status: green (completed), purple (running), red (failed), gray (killed/paused)
-- Running agents have a shimmer animation
-- A vertical "now" line shows the current time on active waves
-- Time axis ticks show the time scale (0s → Xm)
-
-**Tooltip** — hover any bar to see the agent's name, role, task, and status.
-
-### Expanding waves
-
-Click a wave header to expand/collapse its agent rows. Waves with running agents expand automatically. Small waves (≤12 agents) also expand by default.
-
-### Filtering
-
-Use the toolbar at the top:
-
-- **Search box** — filters by agent name, task description, or role
-- **Status pills** — show only running / done / failed / killed agents
-
----
-
-## Agent Inspector
-
-Click any agent bar to open the inspector panel on the right. It has five tabs:
-
-### Overview
-
-- Status badge, creation time, last heartbeat
-- Files written, tool calls made, tokens used, events recorded
-- Full task description
-- Config and metadata JSON
-
-### Events
-
-Live-updating list of every event the agent recorded: file reads/writes, tool call starts/ends, state changes, lifecycle events. New events append in real time via SSE.
-
-### Tool Calls
-
-Full call tree: every tool invocation, its input, output, duration, and token count. Nested calls are shown indented. Click a row to expand input/output details.
-
-### Files
-
-Browse the agent's virtual filesystem. Navigate directories, see file sizes. Click a directory to drill in; use the breadcrumb to navigate back.
-
-### Checkpoints
-
-Timeline of all checkpoints for the agent — label, creation time, and metadata notes.
-
----
-
-## Live Event Feed
-
-The bottom strip shows a real-time stream of events across all agents — file writes, tool calls, completions, failures. Filter by event type using the pills in the header.
-
-Clicking an agent ID in the feed opens that agent in the inspector.
-
----
-
-## Multi-project
-
-The top bar has a project selector dropdown. Switch between different `.db` files without restarting. Use **+ Project** to open a database at any path.
-
-URL parameter: `http://localhost:8765/?db=/path/to/bene.db`
-
----
-
-## Terminal Dashboard
-
-For environments without a browser (SSH, CI), use the TUI:
-
-```bash
-bene dashboard
-```
-
-Shows agents in a table with live status updates, token counts, and a scrolling event feed.
-
----
-
-## Configuration
+## Launch options
 
 ```bash
 bene ui --port 9000         # custom port (default: 8765)
@@ -113,3 +19,73 @@ bene ui --host 0.0.0.0     # bind to all interfaces (for remote access)
 bene ui --no-browser        # don't auto-open browser
 bene ui --db ./project.db  # specific database
 ```
+
+## Read the timeline
+
+![Getting Started — BENE workflow](demos/bene_01_getting_started.gif)
+
+The centerpiece is a **Gantt timeline**, bucketed into *waves*: agents whose start times cluster together — in practice, one `bene parallel` invocation or one MCP-fired batch.
+
+### Waves
+
+Each wave gets a header card carrying:
+
+- the goal — the wave's task, described in plain English
+- when it started, and its total duration
+- a status bar split proportionally across completed, running, failed, and killed agents
+- pills counting agents per status
+
+### Bars
+
+Beneath it, each agent is one horizontal bar:
+
+- length encodes the agent's runtime, scaled to its wave
+- color encodes status — green for completed, purple for running, red for failed, gray for killed or paused
+- still-running bars shimmer
+- a vertical "now" marker tracks the present moment on active waves
+- axis ticks give the scale (0s → Xm)
+
+Hover any bar for a tooltip: name, role, task, status.
+
+### Expand and filter
+
+Clicking a wave's header toggles its rows. Waves unfold on their own while agents are running, and when small (≤12 agents).
+
+The toolbar trims the view:
+
+- the **search box** matches against names, task text, or roles
+- the **status pills** isolate a single status — running, done, failed, or killed
+
+## Watch the live feed
+
+A strip along the bottom streams events from all agents as they land: failures, completions, tool calls, file writes. Pills in its header narrow the stream to one event type; clicking an agent ID there jumps the inspector (below) to that agent.
+
+## Inspect one agent
+
+Click a bar in the Gantt (or an ID in the feed) and an inspector panel slides in on the right. Five tabs:
+
+**Overview** — the agent at a glance: status badge, when it was created, its last heartbeat; counters for files written, tool calls, tokens, and recorded events; the full task text; config and metadata JSON.
+
+**Events** — everything the agent has logged, updating live over SSE: lifecycle transitions, state changes, file reads and writes, tool-call starts and ends. New entries arrive without a refresh.
+
+**Tool Calls** — the complete call tree. Each invocation shows its input, its output, how long it took, and its token count; nesting renders as indentation. Expand any row for full input/output detail.
+
+**Files** — a browser for the agent's virtual filesystem. Step into directories, read sizes, climb back out with the breadcrumb.
+
+**Checkpoints** — the agent's checkpoints in order — label, creation time, metadata notes.
+
+## Work over SSH or in CI
+
+No browser on the box? The same data renders as a terminal UI:
+
+```bash
+bene dashboard
+```
+
+You get a live agent table, per-agent token counts, and an event feed that scrolls.
+
+## Switch between databases
+
+One dashboard serves many projects: pick a different `.db` file from the top-bar dropdown and the view swaps without a restart. **+ Project** loads a database from any path; the same switch works as a URL parameter:
+
+`http://localhost:8765/?db=/path/to/bene.db`

@@ -1,12 +1,14 @@
-# Checkpoints, Restore & Diff
+# Checkpoints — undo for agents
 
-BENE snapshots an agent's complete state — files, KV state, and metadata — at any point. You can restore to any snapshot and diff two snapshots to see exactly what changed.
+Checkpoint an agent before risky work, and a failed run costs one restore command instead of a rebuild. bene captures full agent state on demand; rewind to any capture, or diff two.
+
+> **One call to save, one to rewind, one to diff — all history in one SQLite file on your machine.**
 
 ![Checkpoints — snapshot, diff, surgical restore](demos/bene_02_checkpoints.gif)
 
 ---
 
-## Creating a checkpoint
+## Save a known-good state
 
 ```python
 cp = db.checkpoint(agent_id, label="before-migration")
@@ -16,17 +18,17 @@ cp = db.checkpoint(agent_id, label="before-migration")
 bene checkpoint <agent-id> --label "before-migration"
 ```
 
-A checkpoint captures:
+Each snapshot records:
 
-- All files in the agent's VFS (via content-addressable blob references — no data duplication)
-- All KV state (`db.set_state(...)`)
-- Timestamp and optional metadata
+- every VFS file, as content-addressable blob references — no duplicate bytes
+- every key written through `db.set_state(...)`
+- its timestamp, plus any metadata you attach
 
-Checkpoints are cheap. Because files are stored as deduplicated blobs, a checkpoint only stores references — not copies.
+Snapshots write blob pointers, not file copies, so take them freely.
 
-### Auto-checkpointing
+### Automatic snapshots
 
-The `ClaudeCodeRunner` creates checkpoints automatically every N iterations (default: 10):
+`ClaudeCodeRunner` checkpoints itself every `checkpoint_interval` iterations (10 by default):
 
 ```yaml
 # bene.yaml
@@ -36,23 +38,9 @@ ccr:
 
 ---
 
-## Listing checkpoints
+## Rewind a bad run
 
-```python
-cps = db.list_checkpoints(agent_id)
-# [{"checkpoint_id": "01K...", "label": "before-migration", "created_at": "..."}]
-```
-
-```bash
-bene checkpoints <agent-id>
-bene --json checkpoints <agent-id>
-```
-
----
-
-## Restoring
-
-Roll back an agent to a previous snapshot. Every other agent is completely unaffected.
+Roll back to any capture:
 
 ```python
 db.restore(agent_id, checkpoint_id)
@@ -62,9 +50,9 @@ db.restore(agent_id, checkpoint_id)
 bene restore <agent-id> --checkpoint <checkpoint-id>
 ```
 
-Restore is a SQL operation — it rewrites the agent's file and state rows to match the checkpoint. It takes milliseconds regardless of how many files were changed.
+Restore is pure SQL — bene rewrites the agent's file rows and state rows — so it lands in milliseconds however much changed, touches no other agent, and never leaves your machine.
 
-### Pattern: safe operations
+The habit worth building: snapshot, attempt, roll back on failure.
 
 ```python
 cp = db.checkpoint(agent_id, label="pre-migration")
@@ -75,20 +63,11 @@ except Exception:
     raise
 ```
 
-### Pattern: A/B compare
-
-```python
-cp_a = db.checkpoint(agent_id, label="approach-A")
-# ... run approach A ...
-cp_b = db.checkpoint(agent_id, label="approach-B")
-
-# Compare
-diff = db.diff_checkpoints(agent_id, cp_a, cp_b)
-```
-
 ---
 
-## Diffing two checkpoints
+## See what changed
+
+Diff any two captures:
 
 ```python
 diff = db.diff_checkpoints(agent_id, checkpoint_id_a, checkpoint_id_b)
@@ -98,15 +77,15 @@ diff = db.diff_checkpoints(agent_id, checkpoint_id_a, checkpoint_id_b)
 bene diff <agent-id> --from <checkpoint-id-A> --to <checkpoint-id-B>
 ```
 
-The diff shows:
+Each diff reports:
 
-- **Files added** — new paths in checkpoint B
-- **Files removed** — paths that existed in A but not B
-- **Files modified** — paths present in both with different content (SHA-256 mismatch)
-- **State changed** — KV keys that were added, removed, or changed value
-- **Tool calls between** — calls that happened between the two snapshots
+- **Files added** — paths that exist only in snapshot B
+- **Files removed** — there in A, gone in B
+- **Files modified** — the same path with a different SHA-256 on each side
+- **State changed** — KV keys gained, dropped, or given new values
+- **Tool calls between** — calls made between the two captures
 
-### Example output
+A typical report:
 
 ```text
 Files added (2):
@@ -127,11 +106,38 @@ Tool calls between checkpoints: 12
   8 success, 3 error, 1 running
 ```
 
+### Compare two attempts
+
+Snapshot each approach, then diff them:
+
+```python
+cp_a = db.checkpoint(agent_id, label="approach-A")
+# ... run approach A ...
+cp_b = db.checkpoint(agent_id, label="approach-B")
+
+# Compare
+diff = db.diff_checkpoints(agent_id, cp_a, cp_b)
+```
+
 ---
 
-## Checkpoint metadata
+## Find a capture
 
-Attach notes or arbitrary metadata to a checkpoint:
+List an agent's captures:
+
+```python
+cps = db.list_checkpoints(agent_id)
+# [{"checkpoint_id": "01K...", "label": "before-migration", "created_at": "..."}]
+```
+
+```bash
+bene checkpoints <agent-id>
+bene --json checkpoints <agent-id>
+```
+
+### Annotate a snapshot
+
+Labels name a capture; metadata explains it — test results, triggers, notes:
 
 ```python
 cp = db.checkpoint(agent_id, label="v2-attempt", metadata={
@@ -141,15 +147,15 @@ cp = db.checkpoint(agent_id, label="v2-attempt", metadata={
 })
 ```
 
-Metadata appears in `bene checkpoints <agent-id>` and in the dashboard's Checkpoints tab.
+It shows up in `bene checkpoints <agent-id>` and the dashboard's Checkpoints tab.
 
 ---
 
-## How storage works
+## What snapshots cost
 
-Files are stored as content-addressable blobs (SHA-256, zstd-compressed). A checkpoint stores blob references, not copies. Two checkpoints that share 95% of the same files cost almost nothing extra in storage.
+Almost nothing. File bodies live once in the blob store (SHA-256 keys, zstd compression); a checkpoint is just pointers. Two captures sharing 95% of their files cost barely more than one.
 
-Garbage collection removes unreferenced blobs. Run it with:
+Reclaim blobs nothing references anymore:
 
 ```python
 db.gc()  # removes blobs not referenced by any file or checkpoint
@@ -157,9 +163,9 @@ db.gc()  # removes blobs not referenced by any file or checkpoint
 
 ---
 
-## Export a checkpoint
+## Move it to another machine
 
-To share a specific checkpoint state:
+Exporting an agent carries all its checkpoints in one portable file:
 
 ```bash
 # Export the entire agent (includes all checkpoints)

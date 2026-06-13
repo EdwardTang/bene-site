@@ -1,67 +1,69 @@
-# Cross-Agent Skill Library
+# Skill Library
 
-> **Source:** "Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering" — Zhou et al. 2026, [arXiv:2604.08224](https://arxiv.org/abs/2604.08224)
+When one agent in your project works out a dependable procedure, every agent after it can find that procedure, fill in the parameters, and run it — instead of re-deriving it from zero.
+
+> **The point in one line:** a skill is a prompt template with `{param}` holes that any project agent can locate by full-text search, render with its own values, and grade after use.
 
 ![Cross-Agent Skill Library — parameterized procedural templates with usage tracking](demos/bene_uc_skills.gif)
 
----
+Everything stays on your machine. The whole library is a pair of SQLite tables (`agent_skills` plus its full-text index) inside the same database file as the rest of your project state — copy the file and the skills travel with it.
 
-## What is a skill?
+## How agents use it
 
-A skill is a **parameterized prompt template** that encodes a reliable solution strategy. Skills are *procedural* — they tell agents *how* to do something. This distinguishes them from memory entries, which are *factual* (what happened, what was found).
+Memory records what happened; a skill records how to do it again. Without the library, a hard-won approach to text classification, async debugging, or API response shaping evaporates when its session ends. With it, the working loop is:
 
-| | Memory | Skill |
-|---|---|---|
-| **What it stores** | Facts, observations, results | Procedures, strategies, templates |
-| **Example** | "Accuracy improved to 87% with ensemble voting" | "To improve accuracy: try {n} models with {voting} voting" |
-| **When to use** | After an agent finishes work | When an agent discovers a reusable pattern |
-| **Retrieval** | FTS5 search by content | FTS5 search by name, description, tags, template |
-| **Table** | `memory` | `agent_skills` |
+1. **Search first.** Before a task begins, an agent runs `skill_search "task description"` (or `bene skills search`) to check whether the problem has already been cracked.
+2. **Render.** `skill_apply` fills the template's `{param}` placeholders with values for the task at hand.
+3. **Work, then grade.** Afterwards the agent reports success or failure via `skill_outcome`; the `use_count` and `success_count` counters turn repeated use into visible reliability.
+4. **Contribute back.** When an agent lands on a fresh pattern worth keeping, it stores the template with `skill_save` (or `bene skills save`).
 
----
+## Run it from the shell
 
-## Why skills?
+The `bene skills` subcommands cover the whole lifecycle — save, find, list, render, delete:
 
-Agents repeatedly reinvent solutions. An agent that discovers a reliable pattern for classifying text, debugging async code, or structuring API responses has no way to share that procedure with future agents — unless it's explicitly stored as a skill.
+```bash
+# Save a skill
+bene skills save \
+  --name ensemble_classifier \
+  --description "Improve classification accuracy with ensemble voting" \
+  --template "Use {n_models} models with {voting} voting on {task}." \
+  --tags classification,ensemble
 
-BENE's skill library solves this. Any agent can save a skill. Any agent, in any future session, can search for relevant skills before starting a task.
+# Search before starting work
+bene skills search "classification accuracy"
+bene skills search "async error handling" --tag python
 
-The self-improving loop:
+# List all skills — sorted by most used
+bene skills ls --order use_count
 
-1. Agent solves a hard problem and identifies a reliable pattern
-2. Agent calls `skill_save` (or `bene skills save`) to store the template
-3. Future agents call `skill_search "task description"` to find it
-4. Agent renders the skill with `skill_apply`, fills in parameters, uses it
-5. Agent records the outcome — success or failure — so reliability accumulates over time
+# Render a skill with parameters
+bene skills apply 3 -p n_models=3 -p voting=majority -p task="sentiment"
 
----
-
-## Schema
-
-```sql
-CREATE TABLE agent_skills (
-    skill_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    name            TEXT NOT NULL,
-    description     TEXT NOT NULL,
-    template        TEXT NOT NULL,          -- {param} placeholders
-    tags            TEXT NOT NULL DEFAULT '[]',  -- JSON array
-    source_agent_id TEXT,
-    use_count       INTEGER NOT NULL DEFAULT 0,
-    success_count   INTEGER NOT NULL DEFAULT 0,
-    created_at      TEXT NOT NULL,
-    updated_at      TEXT NOT NULL
-);
-
--- FTS5 index over name, description, tags, template
-CREATE VIRTUAL TABLE agent_skills_fts USING fts5(
-    name, description, tags, template,
-    tokenize = 'porter unicode61'
-);
+# Delete
+bene skills delete 3
 ```
 
----
+## Get sharper search results
 
-## Python API
+Search runs on SQLite FTS5 with porter stemming, and four fields feed the index:
+
+- `name` — the snake_case identifier
+- `description` — purpose, plus the situations it fits
+- `tags` — the JSON array, tokenized like ordinary text
+- `template` — the prompt body itself, placeholder names included
+
+Hits come back ranked by BM25. Anything FTS5 accepts as a query works here:
+
+```bash
+bene skills search "ensemble accuracy"        # stemmed phrase
+bene skills search '"gradient clipping"'      # exact phrase
+bene skills search "classification NOT naive" # negation
+bene skills search "classif*"                 # prefix wildcard
+```
+
+## Call it from Python
+
+In-process, `SkillStore` exposes the same operations:
 
 ```python
 from bene import Bene
@@ -103,35 +105,9 @@ sk.record_outcome(sid, success=True)
 reliable = sk.list(order_by="success_count")
 ```
 
----
+## Wire it into Claude Code or Cursor
 
-## CLI
-
-```bash
-# Save a skill
-bene skills save \
-  --name ensemble_classifier \
-  --description "Improve classification accuracy with ensemble voting" \
-  --template "Use {n_models} models with {voting} voting on {task}." \
-  --tags classification,ensemble
-
-# Search before starting work
-bene skills search "classification accuracy"
-bene skills search "async error handling" --tag python
-
-# List all skills — sorted by most used
-bene skills ls --order use_count
-
-# Render a skill with parameters
-bene skills apply 3 -p n_models=3 -p voting=majority -p task="sentiment"
-
-# Delete
-bene skills delete 3
-```
-
----
-
-## MCP tools (for Claude Code / Cursor)
+Five MCP tools expose the library to agents running under either harness:
 
 | Tool | Description |
 |---|---|
@@ -141,7 +117,7 @@ bene skills delete 3
 | `skill_list` | List skills with optional tag/agent/sort filters |
 | `skill_outcome` | Record success or failure for a used skill |
 
-### Example workflow in Claude Code
+### A worked session
 
 ![Skill library in action — search before starting, apply, record outcome](demos/bene_uc_skills_usecase.gif)
 
@@ -162,55 +138,56 @@ skill_apply(skill_id=7, params={
 skill_outcome(skill_id=7, success=True)
 ```
 
----
+## Skill or memory entry?
 
-## How FTS5 search works
+Both stores are project-wide and FTS5-searchable; what differs is the kind of knowledge each holds.
 
-Skills are indexed using SQLite FTS5 with porter stemming over four fields:
+| | Memory | Skill |
+|---|---|---|
+| **What it stores** | Facts, observations, results | Procedures, strategies, templates |
+| **Example** | "Accuracy improved to 87% with ensemble voting" | "To improve accuracy: try {n} models with {voting} voting" |
+| **When to use** | After an agent finishes work | When an agent discovers a reusable pattern |
+| **Retrieval** | FTS5 search by content | FTS5 search by name, description, tags, template |
+| **Table** | `memory` | `agent_skills` |
 
-- `name` — snake_case identifier
-- `description` — what the skill does and when to use it
-- `tags` — JSON array stored as text (tokenized)
-- `template` — the full prompt template including placeholder names
+Put it in **memory** when the value is the fact itself — "model achieved 87% on dataset X" is worth recording even though there is nothing to re-run. Findings, errors, and measured results belong there.
 
-Results are ranked by BM25 relevance. The search supports full FTS5 syntax:
+Put it in a **skill** when the value is the procedure — a strategy the next agent should apply as a fill-in-the-blanks template rather than reconstruct from scratch.
 
-```bash
-bene skills search "ensemble accuracy"        # stemmed phrase
-bene skills search '"gradient clipping"'      # exact phrase
-bene skills search "classification NOT naive" # negation
-bene skills search "classif*"                 # prefix wildcard
+## What's actually stored
+
+Two tables: `agent_skills` holds the rows, `agent_skills_fts` indexes them.
+
+```sql
+CREATE TABLE agent_skills (
+    skill_id        INTEGER PRIMARY KEY AUTOINCREMENT,
+    name            TEXT NOT NULL,
+    description     TEXT NOT NULL,
+    template        TEXT NOT NULL,          -- {param} placeholders
+    tags            TEXT NOT NULL DEFAULT '[]',  -- JSON array
+    source_agent_id TEXT,
+    use_count       INTEGER NOT NULL DEFAULT 0,
+    success_count   INTEGER NOT NULL DEFAULT 0,
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL
+);
+
+-- FTS5 index over name, description, tags, template
+CREATE VIRTUAL TABLE agent_skills_fts USING fts5(
+    name, description, tags, template,
+    tokenize = 'porter unicode61'
+);
 ```
 
----
+## Where the design comes from
 
-## Skills vs. memory — when to use each
-
-Use **memory** when:
-
-- You want to record what happened: "model achieved 87% on dataset X"
-- You want to record a finding or error for future agents to know about
-- The value is in the *fact*, not in reusing the *procedure*
-
-Use **skills** when:
-
-- You've identified a reliable strategy that should be reused
-- The value is in the *template* — a parameterized procedure
-- Future agents tackling similar tasks should find and apply this pattern
-
-Both are searchable via FTS5. Both are shared across all agents in the project. They complement each other in the agent's externalized knowledge base.
-
----
-
-## Credits
-
-The skill library design is informed by the *externalization* framework in:
+The library implements the *skills* axis of the externalization framework described in:
 
 > "Externalization in LLM Agents: A Unified Review of Memory, Skills, Protocols and Harness Engineering"
 > Zhou, Chai, Chen, et al. (2026)
 > [arXiv:2604.08224](https://arxiv.org/abs/2604.08224)
 
-The paper identifies four axes of externalization in LLM agent systems — memory, skills, protocols, and harness engineering. BENE now implements all four:
+That review names four externalization axes, and BENE ships a component on each one:
 
 | Axis | BENE component |
 |---|---|

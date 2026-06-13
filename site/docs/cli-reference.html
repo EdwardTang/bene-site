@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="README.html">README</a>
 <a href="architecture.html">architecture</a>
 <a href="checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="shared-log.html">shared-log</a>
 <a href="skills.html">skills</a>
 <a href="use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="benchmarks/PREREG.html">PREREG</a>
 <a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,183 +191,186 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="index.html">docs</a> / cli-reference.md</div>
 <h1 id="bene-cli-reference">BENE CLI Reference</h1><div class="demo-embed"><div class="frame"><div class="dots"><i></i><i></i><i></i></div><img src="../assets/demos/demo-litany.gif" alt="Demo — rewind a bad turn: an agent scaled replicas 3 → 0; checkpoint → diff → restore puts it back." loading="lazy" onerror="this.closest('.demo-embed').style.display='none'"></div><p>Demo — rewind a bad turn: an agent scaled replicas 3 → 0; checkpoint → diff → restore puts it back.</p></div>
-<p>All commands support <code>--json</code> for structured output (composable with <code>jq</code> and agent frameworks).</p>
+<p>Launch, watch, rewind, and query a fleet of agents from your terminal — every command works against the same local <code>bene.db</code> file.</p>
+<blockquote>
+<p><strong>Every command takes <code>--json</code>, so any output can feed <code>jq</code>, scripts, or another agent framework.</strong></p>
+</blockquote>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>--json<span class="w"> </span>&lt;command&gt;
 </code></pre></div>
 
 <hr />
-<h2 id="setup-init">Setup &amp; Init</h2>
+<h2 id="get-set-up">Get set up</h2>
 <h3 id="bene-setup"><code>bene setup</code></h3>
-<p>Interactive wizard. Picks a model preset, generates <code>bene.yaml</code>, initializes the database, and auto-installs the MCP server into Claude Code.</p>
+<p>One wizard: pick a model preset, get <code>bene.yaml</code> generated, the database initialized, and the MCP server auto-installed into Claude Code.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>setup
 </code></pre></div>
 
-<p>Presets: Claude (Sonnet/Opus), OpenAI (GPT-4o), local vLLM (7B/70B), or custom endpoint.</p>
+<p>Preset choices: Claude (Sonnet/Opus), OpenAI (GPT-4o), a local vLLM (7B/70B), or a custom endpoint.</p>
 <h3 id="bene-init"><code>bene init</code></h3>
-<p>Initialize a new database at the default path (<code>./bene.db</code>) or a custom path.</p>
+<p>Create the database — at <code>./bene.db</code> by default, or anywhere you point it.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>init
 bene<span class="w"> </span>init<span class="w"> </span>--db<span class="w"> </span>./my-project.db
 </code></pre></div>
 
 <h3 id="bene-demo"><code>bene demo</code></h3>
-<p>Seed a demo database with realistic agent data and open the web dashboard. No API keys needed.</p>
+<p>Zero API keys needed. Seeds <code>demo.db</code> with realistic agent data, then opens the web dashboard.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>demo
 bene<span class="w"> </span>demo<span class="w"> </span>--port<span class="w"> </span><span class="m">9000</span>
 bene<span class="w"> </span>demo<span class="w"> </span>--no-browser
 </code></pre></div>
 
-<p>Creates <code>demo.db</code> with 3 execution waves: code review swarm, parallel refactor, prod triage.</p>
+<p>Inside: 3 execution waves — a code review swarm, a parallel refactor, and prod triage.</p>
 <hr />
-<h2 id="running-agents">Running Agents</h2>
+<h2 id="start-agents">Start agents</h2>
 <h3 id="bene-run"><code>bene run</code></h3>
-<p>Spawn and run a single agent.</p>
+<p>One prompt, one agent.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>run<span class="w"> </span><span class="s2">&quot;Refactor auth.py to use JWT tokens&quot;</span><span class="w"> </span>--name<span class="w"> </span>auth-agent
 bene<span class="w"> </span>run<span class="w"> </span><span class="s2">&quot;Find security vulnerabilities&quot;</span><span class="w"> </span>--name<span class="w"> </span>security<span class="w"> </span>--db<span class="w"> </span>./project.db
 </code></pre></div>
 
-<p>Options:</p>
+<p>Flags:</p>
 <ul>
-<li><code>--name</code>, <code>-n</code> — agent name (auto-generated if omitted)</li>
+<li><code>--name</code>, <code>-n</code> — the agent's name; auto-generated when omitted</li>
 <li><code>--db</code> — database path (default: <code>./bene.db</code>)</li>
 </ul>
 <h3 id="bene-parallel"><code>bene parallel</code></h3>
-<p>Run multiple agents simultaneously. Each <code>-t name "prompt"</code> pair is one agent.</p>
+<p>Several agents at once; each <code>-t name "prompt"</code> pair adds one.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>parallel<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-t<span class="w"> </span>security<span class="w">  </span><span class="s2">&quot;Find vulnerabilities in auth.py&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-t<span class="w"> </span>tests<span class="w">     </span><span class="s2">&quot;Write unit tests for auth.py&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-t<span class="w"> </span>docs<span class="w">      </span><span class="s2">&quot;Update API documentation&quot;</span>
 </code></pre></div>
 
-<p>Options:</p>
+<p>Flags:</p>
 <ul>
-<li><code>-t name prompt</code> — define an agent (repeatable)</li>
-<li><code>--db</code> — database path</li>
+<li><code>-t name prompt</code> — one agent per pair (repeatable)</li>
+<li><code>--db</code> — which database to use</li>
 </ul>
 <hr />
-<h2 id="inspecting-agents">Inspecting Agents</h2>
+<h2 id="watch-them-live">Watch them live</h2>
+<h3 id="bene-ui"><code>bene ui</code></h3>
+<p>Web dashboard in a browser tab: Gantt timeline, live event feed, agent inspector.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>ui
+bene<span class="w"> </span>ui<span class="w"> </span>--port<span class="w"> </span><span class="m">9000</span>
+bene<span class="w"> </span>ui<span class="w"> </span>--db<span class="w"> </span>./project.db<span class="w"> </span>--no-browser
+</code></pre></div>
+
+<p>More in the <a href="dashboard.html">Dashboard guide</a>.</p>
+<h3 id="bene-dashboard"><code>bene dashboard</code></h3>
+<p>The same monitoring, as a terminal TUI.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>dashboard
+bene<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>./project.db
+</code></pre></div>
+
+<hr />
+<h2 id="see-what-an-agent-did">See what an agent did</h2>
 <h3 id="bene-ls"><code>bene ls</code></h3>
-<p>List all agents with status, file count, and tool call count.</p>
+<p>Every agent, with status, file count, and tool calls.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>ls
 bene<span class="w"> </span>ls<span class="w"> </span>--db<span class="w"> </span>./project.db
 bene<span class="w"> </span>--json<span class="w"> </span>ls<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.[] | select(.status == &quot;failed&quot;)&#39;</span>
 </code></pre></div>
 
 <h3 id="bene-status"><code>bene status</code></h3>
-<p>Detailed status for one agent.</p>
+<p>One agent, in detail.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>status<span class="w"> </span>&lt;agent-id&gt;
 bene<span class="w"> </span>--json<span class="w"> </span>status<span class="w"> </span>&lt;agent-id&gt;
 </code></pre></div>
 
 <h3 id="bene-logs"><code>bene logs</code></h3>
-<p>Full conversation log and event timeline for an agent.</p>
+<p>The agent's conversation plus its event timeline.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>logs<span class="w"> </span>&lt;agent-id&gt;
 bene<span class="w"> </span>logs<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--tail<span class="w"> </span><span class="m">20</span><span class="w">    </span><span class="c1"># last 20 events</span>
 </code></pre></div>
 
 <h3 id="bene-read"><code>bene read</code></h3>
-<p>Read a file from an agent's virtual filesystem.</p>
+<p>Pull one file out of an agent's virtual filesystem.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span><span class="nb">read</span><span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>/path/to/file
 bene<span class="w"> </span><span class="nb">read</span><span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>/src/auth.py
 </code></pre></div>
 
 <hr />
-<h2 id="checkpoints">Checkpoints</h2>
-<h3 id="bene-checkpoint"><code>bene checkpoint</code></h3>
-<p>Create a named snapshot of an agent's files and state.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoint<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--label<span class="w"> </span><span class="s2">&quot;before-migration&quot;</span>
-bene<span class="w"> </span>checkpoint<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>-l<span class="w"> </span><span class="s2">&quot;pre-refactor&quot;</span>
-</code></pre></div>
-
-<h3 id="bene-checkpoints"><code>bene checkpoints</code></h3>
-<p>List all checkpoints for an agent.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
-bene<span class="w"> </span>--json<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
-</code></pre></div>
-
-<h3 id="bene-restore"><code>bene restore</code></h3>
-<p>Roll back an agent to a previous checkpoint. Other agents are unaffected.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>restore<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--checkpoint<span class="w"> </span>&lt;checkpoint-id&gt;
-</code></pre></div>
-
-<p>Get checkpoint IDs from <code>bene checkpoints &lt;agent-id&gt;</code>.</p>
-<h3 id="bene-diff"><code>bene diff</code></h3>
-<p>Show what changed between two checkpoints: files added/removed/modified, state changes.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>diff<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--from<span class="w"> </span>&lt;checkpoint-id-A&gt;<span class="w"> </span>--to<span class="w"> </span>&lt;checkpoint-id-B&gt;
-</code></pre></div>
-
-<hr />
-<h2 id="querying">Querying</h2>
-<h3 id="bene-query"><code>bene query</code></h3>
-<p>Run arbitrary SQL against the database.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT name, status FROM agents&quot;</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT SUM(token_count) FROM tool_calls&quot;</span>
-bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT * FROM events WHERE agent_id = &#39;abc123&#39; ORDER BY timestamp&quot;</span>
-</code></pre></div>
-
-<p>See <a href="schema.html">schema reference</a> for all tables.</p>
+<h2 id="find-anything">Find anything</h2>
 <h3 id="bene-search"><code>bene search</code></h3>
-<p>Full-text search across all agent files and state.</p>
+<p>Full-text search over every agent's files and state.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;SQL injection&quot;</span>
 bene<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;ConnectionError&quot;</span><span class="w"> </span>--db<span class="w"> </span>./project.db
 bene<span class="w"> </span>--json<span class="w"> </span>search<span class="w"> </span><span class="s2">&quot;keyword&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.results&#39;</span>
 </code></pre></div>
 
+<h3 id="bene-query"><code>bene query</code></h3>
+<p>Run any SQL you want against the database.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT name, status FROM agents&quot;</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT SUM(token_count) FROM tool_calls&quot;</span>
+bene<span class="w"> </span>query<span class="w"> </span><span class="s2">&quot;SELECT * FROM events WHERE agent_id = &#39;abc123&#39; ORDER BY timestamp&quot;</span>
+</code></pre></div>
+
+<p>Tables are listed in the <a href="schema.html">schema reference</a>.</p>
 <h3 id="bene-index"><code>bene index</code></h3>
-<p>Build a <code>/index.md</code> file in an agent's VFS summarizing all its files (for faster search).</p>
+<p>Write an <code>/index.md</code> summary of an agent's files into its VFS, so searches land faster.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>index<span class="w"> </span>&lt;agent-id&gt;
 </code></pre></div>
 
 <hr />
-<h2 id="agent-lifecycle">Agent Lifecycle</h2>
+<h2 id="undo-mistakes">Undo mistakes</h2>
+<h3 id="bene-checkpoint"><code>bene checkpoint</code></h3>
+<p>Snapshot an agent's files and state under a label.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoint<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--label<span class="w"> </span><span class="s2">&quot;before-migration&quot;</span>
+bene<span class="w"> </span>checkpoint<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>-l<span class="w"> </span><span class="s2">&quot;pre-refactor&quot;</span>
+</code></pre></div>
+
+<h3 id="bene-checkpoints"><code>bene checkpoints</code></h3>
+<p>Every checkpoint an agent has.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
+bene<span class="w"> </span>--json<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
+</code></pre></div>
+
+<h3 id="bene-diff"><code>bene diff</code></h3>
+<p>Compare two checkpoints — files added/removed/modified, state changes.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>diff<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--from<span class="w"> </span>&lt;checkpoint-id-A&gt;<span class="w"> </span>--to<span class="w"> </span>&lt;checkpoint-id-B&gt;
+</code></pre></div>
+
+<h3 id="bene-restore"><code>bene restore</code></h3>
+<p>Rewind one agent to a checkpoint; every other agent is untouched.</p>
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>restore<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--checkpoint<span class="w"> </span>&lt;checkpoint-id&gt;
+</code></pre></div>
+
+<p>Checkpoint IDs come from <code>bene checkpoints &lt;agent-id&gt;</code>.</p>
+<hr />
+<h2 id="stop-move-share">Stop, move, share</h2>
 <h3 id="bene-kill"><code>bene kill</code></h3>
-<p>Terminate a running agent.</p>
+<p>Stop a running agent.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span><span class="nb">kill</span><span class="w"> </span>&lt;agent-id&gt;
 </code></pre></div>
 
 <h3 id="bene-export"><code>bene export</code></h3>
-<p>Export a single agent's complete state to a standalone database file.</p>
+<p>Write one agent's full state into its own standalone database file.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span><span class="nb">export</span><span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--output<span class="w"> </span>agent-snapshot.db
 </code></pre></div>
 
 <h3 id="bene-import"><code>bene import</code></h3>
-<p>Import an agent from an exported database file.</p>
+<p>Bring an exported agent back in.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>import<span class="w"> </span>agent-snapshot.db
 </code></pre></div>
 
 <hr />
-<h2 id="dashboard-monitoring">Dashboard &amp; Monitoring</h2>
-<h3 id="bene-ui"><code>bene ui</code></h3>
-<p>Launch the web dashboard. Opens a browser tab with the Gantt timeline, live event feed, and agent inspector.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>ui
-bene<span class="w"> </span>ui<span class="w"> </span>--port<span class="w"> </span><span class="m">9000</span>
-bene<span class="w"> </span>ui<span class="w"> </span>--db<span class="w"> </span>./project.db<span class="w"> </span>--no-browser
-</code></pre></div>
-
-<p>See <a href="dashboard.html">Dashboard guide</a> for details.</p>
-<h3 id="bene-dashboard"><code>bene dashboard</code></h3>
-<p>Launch the terminal TUI monitor.</p>
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>dashboard
-bene<span class="w"> </span>dashboard<span class="w"> </span>--db<span class="w"> </span>./project.db
-</code></pre></div>
-
-<hr />
-<h2 id="mcp-server">MCP Server</h2>
+<h2 id="plug-into-claude-code">Plug into Claude Code</h2>
 <h3 id="bene-serve"><code>bene serve</code></h3>
-<p>Start the MCP server (18 tools) for Claude Code and other MCP-compatible clients.</p>
+<p>Expose bene to Claude Code — or any MCP-compatible client — as an MCP server with 37 tools.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>stdio<span class="w">       </span><span class="c1"># for Claude Code / most clients</span>
 bene<span class="w"> </span>serve<span class="w"> </span>--transport<span class="w"> </span>sse<span class="w">         </span><span class="c1"># HTTP/SSE transport</span>
 bene<span class="w"> </span>serve<span class="w"> </span>--port<span class="w"> </span><span class="m">8765</span><span class="w">             </span><span class="c1"># custom port (SSE only)</span>
 </code></pre></div>
 
-<p>See <a href="mcp-integration.html">MCP integration guide</a> for setup.</p>
+<p>Setup steps: <a href="mcp-integration.html">MCP integration guide</a>.</p>
 <hr />
-<h2 id="meta-harness">Meta-Harness</h2>
-<p>Commands for running automated prompt/strategy optimization searches.</p>
+<h2 id="breed-better-harnesses">Breed better harnesses</h2>
+<p>Automated prompt/strategy optimization searches, from the CLI.</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>&lt;benchmark&gt;<span class="w"> </span>-n<span class="w"> </span>&lt;iterations&gt;<span class="w">   </span><span class="c1"># start a search</span>
 bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>text_classify<span class="w"> </span>-n<span class="w"> </span><span class="m">10</span><span class="w"> </span>-k<span class="w"> </span><span class="m">2</span><span class="w">      </span><span class="c1"># 10 iterations, 2 candidates each</span>
 bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span>-b<span class="w"> </span>lawbench<span class="w"> </span>-n<span class="w"> </span><span class="m">20</span><span class="w"> </span>--background<span class="w">   </span><span class="c1"># run detached</span>
@@ -377,9 +380,9 @@ bene<span class="w"> </span>mh<span class="w"> </span>knowledge<span class="w"> 
 bene<span class="w"> </span>mh<span class="w"> </span>resume<span class="w"> </span>&lt;search-id&gt;<span class="w">                       </span><span class="c1"># resume interrupted search</span>
 </code></pre></div>
 
-<p>See <a href="meta-harness.html">Meta-Harness guide</a> for details.</p>
+<p>Details in the <a href="meta-harness.html">Meta-Harness guide</a>.</p>
 <hr />
-<h2 id="global-options">Global Options</h2>
+<h2 id="flags-that-work-everywhere">Flags that work everywhere</h2>
 <table>
 <thead>
 <tr>

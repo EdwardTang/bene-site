@@ -1,28 +1,18 @@
-# How BENE AI Agents Roll Back a Cascading CI Failure in 0.3 Seconds
+# Undo an Agent's Bad Fix in 0.3 Seconds, Repo Untouched
 
-*Code Quality*
+This tutorial lets you give an agent a risky repair, watch the repair go wrong, and rewind that one agent to its pre-attempt state — while your checkout and every other running agent stay exactly as they were.
 
-*When one bad fix cascades to four failures, a repo-wide git reset blows up every other agent's work. BENE AI agents roll back per-agent VFS checkpoints in 0.3 seconds — surgically, without touching anything else.*
+> **A checkpoint before each risky edit means a failed fix costs one command, not a lost morning.**
 
----
-
-The refactor looked clean. The type change was surgical — just the `amount` field. But when CI ran, one test failed. Then the fix made it four.
-
-This is the cascading failure pattern. You're not debugging the original problem anymore. You're debugging the fix to the fix. By morning, you've got six failing tests and a commit message that says *"should be fine."*
-
-BENE handles this differently. Here's the exact sequence.
-
----
+The loop you will follow: one red test, a plausible fix that turns it into four, a per-agent restore, a root-cause report the agent wrote about itself, and the repair that takes the suite to 47 green. Every transcript comes from the recorded run:
 
 ![BENE end-to-end self-healing demo — checkpoint, wrong fix, cascade, rollback, correct fix, all tests green](../demos/bene_uc_e2e.gif)
 
-*Full sequence: spawn agent → checkpoint → wrong fix → 4 failures → surgical restore → root cause read → correct fix → 47 tests green.*
+*The whole loop in one take: spawn, checkpoint, cascade to 4 failures, restore, root-cause report, correct fix, 47 green.*
 
----
+## The trap: a red test that invites a cascade
 
-## The Scenario
-
-Payment service. The `amount` field was refactored from `float` to `str` for API serialization consistency. One test breaks immediately:
+A payment service has just refactored its `amount` field from `float` to `str` to keep API serialization consistent. CI reports a single failure:
 
 ```text
 FAILED tests/test_payment.py::test_payment_decimal_precision
@@ -34,13 +24,11 @@ Got:      10.0
 1 failed, 46 passed in 3.2s
 ```
 
-The dangerous pattern: fixing numeric precision by changing types can cascade. `float`, `Decimal`, and `str` all behave differently with equality checks, rounding, and JSON serialization. One wrong fix can turn one failure into four.
+Precision bugs invite type-juggling repairs, and type juggling is where cascades begin: `float`, `Decimal`, and `str` each have their own ideas about equality, rounding, and JSON. A plausible one-liner here can multiply a single red test into four — leaving you chasing your own repair instead of the bug.
 
----
+## Set up: give the failure a sandbox
 
-## Step 1 — Spawn the QA Agent
-
-The QA agent gets its own isolated VFS — a complete copy of the payment service code in its own SQLite-backed virtual filesystem. It cannot affect your working tree or any other agent.
+Spawn a QA agent. It receives a full copy of the service inside its own SQLite-backed virtual filesystem (VFS) — a private workspace where breakage cannot reach your checkout or any sibling agent.
 
 ```text
 bene spawn payment-qa --from ./payment-service
@@ -57,13 +45,11 @@ FAILED tests/test_payment.py::test_payment_decimal_precision
 1 failed, 46 passed
 ```
 
-The failure is isolated inside the agent's VFS. Your repo is untouched.
+The red test now lives entirely inside `payment-qa`'s VFS. Nothing on your disk moved.
 
----
+## Insure first: checkpoint the agent, not the repo
 
-## Step 2 — Checkpoint Before Attempting Anything
-
-Before the agent touches a single line of code, it checkpoints. Not a git stash — a point-in-time snapshot of this agent's entire VFS state.
+The agent's first action is not an edit — it is a snapshot. A checkpoint captures this one agent's full VFS at a moment in time, scoped to `payment-qa` and nobody else.
 
 ```text
 bene checkpoint payment-qa --label pre-fix-attempt
@@ -74,13 +60,11 @@ bene checkpoint payment-qa --label pre-fix-attempt
 # Timestamp: 2026-04-11T02:14:33Z
 ```
 
-This checkpoint belongs to `payment-qa` specifically. If the fix goes wrong, you restore exactly this agent's state — not a repo-wide git reset that blows up every other agent's work in progress.
+23 files, with the known-bad baseline (1 failing, 46 passing) on record. If the next edit goes sideways, recovery means returning this one agent to this label — no repo-wide reset, no collateral damage to agents mid-flight.
 
----
+## Let it break: one failure becomes four
 
-## Step 3 — The Wrong Fix (and Why It Matters)
-
-The agent's first attempt is logically reasonable. The test expects `Decimal('10.00')`. The field returns `float`. Obvious fix: wrap in `float()` to normalize everything.
+The first attempt is the one most engineers would reach for. The assertion wants `Decimal('10.00')`; the field returns something else; so coerce with `float()` and move on.
 
 ```python
 # payment/models.py — agent's first attempt
@@ -89,7 +73,7 @@ def get_amount(self):
 +   return float(self.amount)  # normalize to float
 ```
 
-This is catastrophically wrong for financial data. `float(Decimal('10.00'))` returns `10.0` — losing the precision. And it breaks four more tests:
+For money, that coercion destroys the very property the test protects: `float(Decimal('10.00'))` comes back as `10.0`, two decimal places gone. Four tests now fail where one did:
 
 ```text
 FAILED tests/test_payment.py::test_payment_decimal_precision
@@ -100,13 +84,9 @@ FAILED tests/test_payment.py::test_refund_partial_amount
 4 failed, 43 passed in 3.4s
 ```
 
-1 failure became 4. The cascade happened.
+The cascade is live. On an ordinary branch this is where the second guess gets committed on top of the first.
 
----
-
-## Step 4 — Surgical Restore
-
-One command returns the agent to exactly the pre-fix checkpoint — not a `git reset --hard` that would affect the entire repository:
+## Recover: rewind one agent in one command
 
 ```text
 bene restore payment-qa --label pre-fix-attempt
@@ -122,13 +102,20 @@ bene restore payment-qa --label pre-fix-attempt
 # VFS state: 1 test failing, 46 passing (pre-fix state confirmed)
 ```
 
-**Surgical** is the right word. Other agents running in parallel — integration tests, the documentation agent, the security scanner — none of them are touched. This one agent's VFS is rewound. Everything else keeps going.
+The restore finished in 0.04s and confirmed the baseline: back to 1 failing, 46 passing, exactly as checkpointed. Agents handling integration tests, documentation, and security scanning kept working through the entire rewind — isolation lives in the VFS rather than on the host filesystem, so with 4 agents up, one failing and recovering costs the other 3 nothing.
 
----
+## Where git stops and the journal starts
 
-## Step 5 — Read the Diagnostics
+| With git alone | With a bene checkpoint |
+|---|---|
+| `git reset --hard` rewinds the whole repository | `bene restore` rewinds one agent's VFS |
+| `git log` records commits | the event journal records each file write, paired with the test run around it |
+| `git stash` waits for a human to type it | agents checkpoint themselves ahead of each risky edit |
+| `git bisect` hunts the breaking commit | one SQL query shows what the agent did at 02:14:41 that produced 3 new failures |
 
-During the failed fix attempt, the QA agent wrote a structured failure report to its VFS. That report is now readable:
+## Diagnose: the agent's own root-cause report
+
+While the bad attempt was unraveling, the agent wrote a structured root-cause report into its VFS. The rewind reverted only `payment/models.py`, so the report is still there to read:
 
 ```text
 bene read payment-qa /qa/failure_report.md
@@ -152,11 +139,11 @@ This preserves precision, handles string input, and passes IEEE 854
 decimal arithmetic requirements for financial calculations.
 ```
 
-The agent diagnosed itself. The failure report sits in the VFS audit trail and is SQL-queryable forever.
+Self-diagnosis, on the record: the report names the path that failed, names the path that will hold, and stays SQL-queryable for as long as the database exists.
 
----
+## Repair: the fix that holds
 
-## Step 6 — The Right Fix
+Apply the path the report recommends:
 
 ```python
 # payment/models.py — correct fix
@@ -180,13 +167,11 @@ tests/test_payment.py::test_refund_partial_amount      PASSED
 47 passed in 3.1s
 ```
 
-All 47 tests pass.
+47 of 47 green, including the four the cascade took down.
 
----
+## Verify after the fact: replay it from SQL
 
-## The Audit Trail
-
-Every event in this sequence is recorded in the BENE SQLite journal:
+Each step above landed in bene's SQLite journal as it happened:
 
 ```text
 Timestamp  Event       File                   Notes
@@ -202,33 +187,18 @@ Timestamp  Event       File                   Notes
 02:14:54   tool_call   —                      pytest: 47 pass
 ```
 
-Every write. Every restore. Every test run. Timestamped, queryable, permanent. `git log` tells you what changed. The BENE event journal tells you *what happened*.
+From the spawn at 02:14:29 to the green run at 02:14:54, every write, rewind, and pytest invocation is timestamped and queryable. Git history answers which lines changed; the journal answers which test run provoked which edit. If the loop ran overnight, this table reconstructs it at breakfast — down to the write that started the cascade and the restore that unwound it.
+
+## Keep going
+
+- [Component guide: Checkpoints](../checkpoints.md) — snapshot and restore mechanics in depth
+- [Audit trail SQL: events table](../schema.md#events) — query the journal yourself
+- [Use case: End-to-end Self-Healing CI](../use-cases.md#end-to-end-self-healing-ci) — this pattern in the catalog
+- [Use Cases](../use-cases.md) — more recovery and orchestration patterns
+- [README](../README.md) — the full doc map
 
 ---
 
-## Why This Is Different From `git reset`
-
-- **git reset** is repo-wide. BENE restore is per-agent.
-- **git log** shows commits. BENE events show every file write with the test output that caused it.
-- **git stash** is manual. BENE checkpoints are programmatic — your agent creates them before every risky operation.
-- **git bisect** finds which commit broke things. BENE SQL finds what the agent was doing at 02:14:41 that caused 3 new failures.
-
-**The surgical guarantee:** In a system where 4 agents are running simultaneously, one failing and recovering does not degrade the other 3. BENE isolation is at the VFS layer, not the filesystem layer. Each agent's state is fully independent.
-
----
-
-The build fixed itself while you slept. The audit trail told you exactly what happened when you woke up — down to the millisecond, down to the exact file write that caused the cascade, down to the restore that unwound it.
-
-## Related
-
-- [README](../README.md) — BENE overview and full doc index
-- [Use Cases](../use-cases.md) — more real-world patterns
-- [Component guide: Checkpoints](../checkpoints.md)
-- [Use case: End-to-end Self-Healing CI](../use-cases.md#end-to-end-self-healing-ci)
-- [Audit trail SQL: events table](../schema.md#events)
-
----
-
-*BENE is MIT-licensed and runs entirely locally. No data leaves your machine.*
+*bene is MIT-licensed and runs entirely locally; nothing is sent anywhere.*
 
 *GitHub: [github.com/good-night-oppie/bene](https://github.com/good-night-oppie/bene)*

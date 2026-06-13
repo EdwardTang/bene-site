@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BENE AI Agents Detected Data Corruption at Row 847K and Rolled Back the Migration in 0.3 Seconds — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — BENE AI Agents Detected Data Corruption at Row 847K and Rolled Back the Migration in 0.3 Seconds" />
+<title>Roll Back a Bad Migration in 0.3 Seconds — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Roll Back a Bad Migration in 0.3 Seconds" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="../README.html">README</a>
 <a href="../architecture.html">architecture</a>
 <a href="../checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../shared-log.html">shared-log</a>
 <a href="../skills.html">skills</a>
 <a href="../use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="../design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="../design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="../design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="../design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="../benchmarks/PREREG.html">PREREG</a>
 <a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="../tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,22 +191,39 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="../case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="../infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="../index.html">docs</a> / tutorials/t04-migration-rollback.md</div>
-<h1 id="bene-ai-agents-detected-data-corruption-at-row-847k-and-rolled-back-the-migration-in-03-seconds">BENE AI Agents Detected Data Corruption at Row 847K and Rolled Back the Migration in 0.3 Seconds</h1>
-<p><em>Data Engineering</em></p>
-<p><em>A 2M-row backfill hit 7.6% unexpected NULLs mid-stream. The BENE migration agent detected the anomaly, rolled back its own VFS in 0.3 seconds, and left every other agent running untouched.</em></p>
-<hr />
-<p>The migration looked fine until row 847,412. Then 7.6% of rows came out NULL where they should have been NOT NULL. The <code>subscription_tier</code> column — the one that determines what every user can access — had silent data corruption at scale.</p>
-<p>Without BENE, you find this after the migration completes and a monitoring alert fires. With BENE, the anomaly detector catches it mid-stream, pauses the migration, and rolls back in 0.3 seconds — before any corruption reaches production.</p>
-<hr />
+<h1 id="roll-back-a-bad-migration-in-03-seconds">Roll Back a Bad Migration in 0.3 Seconds</h1>
+<p>Run a risky migration with an undo button: when a 2-million-row backfill went bad mid-stream, one command erased the damage in 0.31 seconds, and no other agent noticed.</p>
+<blockquote>
+<p><strong>One checkpoint before the risky phase turns a 2-million-row mistake into a 0.31-second fix.</strong></p>
+</blockquote>
 <p><img alt="BENE migration rollback demo — 2M row backfill, anomaly at row 847K, 0.3s surgical rollback" src="../demos/bene_uc_migration.gif" /></p>
-<p><em>Phase 1 succeeds, checkpoint taken. Phase 2 backfill detects NULL anomaly at row 847,412. Rollback in 0.3s. Analytics agents unaffected.</em></p>
-<hr />
-<h2 id="the-migration-plan">The Migration Plan</h2>
-<p>Adding a <code>subscription_tier</code> column to a 2-million-row <code>users</code> table. Three phases, checkpoints between each, analytics agents running alongside:</p>
+<p><em>Checkpoint after phase 1; the phase-2 backfill pauses itself on a NULL anomaly at row 847,412; restore in 0.3s; analytics agents keep running.</em></p>
+<h2 id="start-with-the-payoff-the-restore">Start with the payoff: the restore</h2>
+<p>The backfill had written 64,412 bad NULLs into <code>subscription_tier</code> before the agent paused itself. Recovery was one command against a labeled checkpoint:</p>
+<div class="codehilite"><pre><span></span><code>bene restore migration-agent --label pre-backfill
+
+# Restoring migration-agent to checkpoint: pre-backfill
+#
+# Changes reverted:
+# --- migration/state.json
+# -  &quot;phase&quot;: &quot;backfill&quot;,
+# -  &quot;rows_processed&quot;: 847412,
+# -  &quot;null_count&quot;: 64412,
+# -  &quot;status&quot;: &quot;anomaly_paused&quot;
+# +  &quot;phase&quot;: &quot;schema_complete&quot;,
+# +  &quot;rows_processed&quot;: 0,
+# +  &quot;status&quot;: &quot;ready_for_backfill&quot;
+#
+# Restore complete in 0.31s
+</code></pre></div>
+
+<p>0.31 seconds, and the agent's virtual filesystem (VFS) — the private workspace every bene agent runs in — is back at a known-good point; everything the failed phase wrote is gone. The rest of this page replays the run behind that one-liner.</p>
+<h2 id="the-plan-behind-the-run">The plan behind the run</h2>
+<p>The job: add <code>subscription_tier</code> — the column deciding what each user can access — to a <code>users</code> table of 2 million rows. Three phases, a checkpoint boundary after each, an anomaly check armed on the dangerous one:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># migration/add_subscription_tier.py</span>
 
 <span class="n">PHASES</span> <span class="o">=</span> <span class="p">[</span>
@@ -235,9 +252,9 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <span class="p">]</span>
 </code></pre></div>
 
-<p>Other analytics agents — <code>analytics-agent-1</code> and <code>analytics-agent-2</code> — are running queries against the same data throughout. The migration agent cannot interfere with them because each agent has its own isolated VFS.</p>
-<hr />
-<h2 id="phase-1-succeeds-first-checkpoint">Phase 1 Succeeds — First Checkpoint</h2>
+<p>Two analytics agents, <code>analytics-agent-1</code> and <code>analytics-agent-2</code>, query this data throughout. Each owns a separate VFS, so interference is structurally impossible.</p>
+<h2 id="checkpoint-before-you-touch-data">Checkpoint before you touch data</h2>
+<p>Phase 1 is the cheap, reversible part — an <code>ALTER TABLE</code> that changes no rows. Run it, then pin the moment with a label:</p>
 <div class="codehilite"><pre><span></span><code>bene run migration-agent &quot;ALTER TABLE users ADD COLUMN subscription_tier VARCHAR(20)&quot;
 
 # [migration-agent] schema change: SUCCESS
@@ -250,10 +267,9 @@ bene checkpoint migration-agent --label pre-backfill
 # Timestamp: 2026-04-13T01:33:11Z
 </code></pre></div>
 
-<p>This checkpoint is the safety line. If anything goes wrong in the 2-million-row backfill, <code>bene restore migration-agent --label pre-backfill</code> returns to exactly this state — schema applied, data untouched, ready to retry with a fix.</p>
-<hr />
-<h2 id="phase-2-the-backfill-and-the-anomaly">Phase 2 — The Backfill (and the Anomaly)</h2>
-<p>The backfill starts in 10,000-row batches. The anomaly detector samples NULL counts every 50K rows:</p>
+<p>That label is the whole insurance policy. The rollback actor is <code>migration-agent</code>; whatever the backfill does, <code>bene restore migration-agent --label pre-backfill</code> brings the agent back here: schema in place, zero rows changed, ready for another attempt.</p>
+<h2 id="the-backfill-stops-itself">The backfill stops itself</h2>
+<p>Phase 2 streams updates in 10,000-row batches while the anomaly check samples the NULL count every 50K rows. The log stays clean until row 847,412:</p>
 <div class="codehilite"><pre><span></span><code>[backfill]  100,000 rows processed  NULL count: 0      (0.0%)  ✓
 [backfill]  200,000 rows processed  NULL count: 0      (0.0%)  ✓
 [backfill]  300,000 rows processed  NULL count: 0      (0.0%)  ✓
@@ -268,43 +284,9 @@ Got:      64,412 NULLs out of 847,412 rows processed
 Migration PAUSED. No further rows updated.
 </code></pre></div>
 
-<p>The migration pauses automatically. 7.6% NULL rate with a NOT NULL target is not recoverable without a fix.</p>
-<hr />
-<h2 id="surgical-rollback-03-seconds">Surgical Rollback — 0.3 Seconds</h2>
-<div class="codehilite"><pre><span></span><code>bene restore migration-agent --label pre-backfill
-
-# Restoring migration-agent to checkpoint: pre-backfill
-#
-# Changes reverted:
-# --- migration/state.json
-# -  &quot;phase&quot;: &quot;backfill&quot;,
-# -  &quot;rows_processed&quot;: 847412,
-# -  &quot;null_count&quot;: 64412,
-# -  &quot;status&quot;: &quot;anomaly_paused&quot;
-# +  &quot;phase&quot;: &quot;schema_complete&quot;,
-# +  &quot;rows_processed&quot;: 0,
-# +  &quot;status&quot;: &quot;ready_for_backfill&quot;
-#
-# Restore complete in 0.31s
-</code></pre></div>
-
-<p>0.31 seconds. The full VFS state of the migration agent is rewound. The partial backfill state, the anomaly markers, the paused status — all gone. Back to a clean, known-good state.</p>
-<hr />
-<h2 id="while-this-was-happening-other-agents-kept-running">While This Was Happening — Other Agents Kept Running</h2>
-<div class="codehilite"><pre><span></span><code>bene ls
-
-# NAME                STATUS    UPTIME   EVENTS
-# migration-agent     restored  14m      847 (rollback applied)
-# analytics-agent-1   running   14m      1,204
-# analytics-agent-2   running   14m      983
-# dashboard-agent     running   14m      441
-</code></pre></div>
-
-<p>All three other agents kept running through the entire incident. Their VFS state was never touched. This is what isolated VFS means in practice.</p>
-<p><strong>The key guarantee:</strong> A migration agent failing and rolling back has zero effect on any other agent. Their VFS is in a separate SQLite-backed filesystem. The migration's partial state exists only inside <code>migration-agent</code>'s VFS and is now gone after the restore.</p>
-<hr />
-<h2 id="root-cause-analysis">Root Cause Analysis</h2>
-<p>The migration agent wrote a detailed anomaly report to its VFS before pausing:</p>
+<p>No human watched for this. The agent froze the run on its own — a 7.6% NULL rate can never satisfy the NOT NULL constraint waiting in phase 3.</p>
+<h2 id="the-diagnosis-was-already-written">The diagnosis was already written</h2>
+<p>Before pausing, the agent left a root-cause report in its own VFS. Reading it costs one command:</p>
 <div class="codehilite"><pre><span></span><code>bene read migration-agent /logs/anomaly.md
 
 ## Anomaly Report: subscription_tier NULL at 7.6%
@@ -325,9 +307,9 @@ Fix: Use COALESCE to default unmatched users to &#39;free&#39;:
 Estimated affected rows: ~156,000 legacy users (pre-2021-03-15)
 </code></pre></div>
 
-<p>The fix is one word: <code>COALESCE</code>.</p>
-<hr />
-<h2 id="retry-2-million-rows-0-nulls">Retry — 2 Million Rows, 0 NULLs</h2>
+<p>Every NULL belongs to an account created before 2021-03-15 — older than the <code>subscriptions</code> table itself, so the JOIN finds nothing to match. The repair is a single <code>COALESCE</code>.</p>
+<h2 id="a-clean-second-pass">A clean second pass</h2>
+<p>Restore (shown above), apply the <code>COALESCE</code> default, rerun. Same plan, same batch size, different ending:</p>
 <div class="codehilite"><pre><span></span><code>[backfill]  500,000 rows   NULL count: 0  (0.0%)  ✓
 [backfill]  1,000,000 rows NULL count: 0  (0.0%)  ✓
 [backfill]  1,500,000 rows NULL count: 0  (0.0%)  ✓
@@ -340,8 +322,21 @@ Estimated affected rows: ~156,000 legacy users (pre-2021-03-15)
 Migration complete. Duration: 47m total (including rollback + retry).
 </code></pre></div>
 
-<hr />
-<h2 id="the-audit-trail">The Audit Trail</h2>
+<p>47 minutes wall-clock, failed attempt and rollback included.</p>
+<h2 id="check-the-blast-radius-yourself">Check the blast radius yourself</h2>
+<p>Isolation is a claim you can verify, not a promise to trust. The fleet, immediately after the restore:</p>
+<div class="codehilite"><pre><span></span><code>bene ls
+
+# NAME                STATUS    UPTIME   EVENTS
+# migration-agent     restored  14m      847 (rollback applied)
+# analytics-agent-1   running   14m      1,204
+# analytics-agent-2   running   14m      983
+# dashboard-agent     running   14m      441
+</code></pre></div>
+
+<p>Three unrelated agents, zero interruptions. Each works in its own SQLite-backed filesystem, so the migration's half-finished state was never visible to them — and after the restore it exists nowhere.</p>
+<h2 id="replay-the-whole-incident">Replay the whole incident</h2>
+<p>The full run reads back as one timeline — spawn, checkpoints, anomaly, restore, fix, clean finish:</p>
 <div class="codehilite"><pre><span></span><code>Time      Event       Phase               Rows       NULLs   Notes
 --------  ----------  ------------------  ---------  ------  --------------------------------
 01:33:08  spawn       —                   —          —       agent initialized
@@ -356,18 +351,17 @@ Migration complete. Duration: 47m total (including rollback + retry).
 02:21:17  checkpoint  complete            2,041,847  0       migration complete
 </code></pre></div>
 
-<hr />
-<p>2 million rows migrated safely. The anomaly was caught at row 847K — before any corruption reached production. Other operations never noticed. The rollback took 0.3 seconds. Without anomaly detection, you'd have found the NULL data from a user report, probably the next morning.</p>
-<h2 id="related">Related</h2>
+<p>Without the mid-stream check, your first signal is a user bug report the next morning, after corrupt values ship. With it, the bad rows never left one agent's workspace, and erasing them took 0.3 seconds.</p>
+<h2 id="keep-reading">Keep reading</h2>
 <ul>
-<li><a href="../README.html">README</a> — BENE overview and full doc index</li>
-<li><a href="../use-cases.html">Use Cases</a> — more real-world patterns</li>
 <li><a href="../checkpoints.html">Component guide: Checkpoints</a></li>
 <li><a href="../use-cases.html#db-migration-rollback">Use case: DB Migration Rollback</a></li>
+<li><a href="../use-cases.html">Use Cases</a> — more patterns like this one</li>
 <li><a href="../architecture.html">Architecture: VFS engine</a></li>
+<li><a href="../README.html">README</a> — overview and full doc index</li>
 </ul>
 <hr />
-<p><em>BENE is MIT-licensed and runs entirely locally. No data leaves your machine.</em></p>
+<p><em>bene is MIT-licensed and local-first: every command on this page ran on one machine, and no data left it.</em></p>
 <p><em>GitHub: <a href="https://github.com/good-night-oppie/bene">github.com/good-night-oppie/bene</a></em></p>
 <div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/tutorials/t04-migration-rollback.md" target="_blank" rel="noopener noreferrer">docs/tutorials/t04-migration-rollback.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
 </main>

@@ -1,61 +1,33 @@
-# How BENE Runs a Full ML Research Lab Overnight with 4 Parallel AI Agents
+# Four Hypotheses, One Night: an Overnight ML Research Lab on BENE
 
 *ML Research*
 
-*4 BENE AI agents explore orthogonal hypotheses simultaneously — LoRA, Lion optimizer, batch scaling, regularization — each isolated, each auditable. You wake up to a SQL table of results and a clear winner (-19.2% val_loss).*
+Run four competing training experiments at once — on one cluster, in one night — and choose tomorrow's direction from a SQL table instead of a hunch. This tutorial builds an overnight research lab: four agents test four orthogonal ideas (LoRA, the Lion optimizer, batch scaling, regularization), each inside its own isolated filesystem, every action recorded in one auditable database.
 
----
+**Four hypotheses run in parallel while you sleep; by morning, a single query shows the winner cut val_loss by 19.2%.**
 
-You have one GPU cluster and four competing ideas. You can only run one tonight. Or can you?
-
-The classic ML researcher bottleneck: experiments are serial by default. One hypothesis at a time. Run it, wait, read the loss curve, form the next hypothesis, repeat. A four-hypothesis night takes four nights.
-
-BENE breaks the serialization. Four agents, four isolated copies of `train.py`, four hypotheses running in parallel overnight. You wake up to a SQL table of results and a clear winner.
+ML experimentation defaults to serial: form a hypothesis, train, stare at the curve, form the next one. The loop is the bottleneck, not the thinking — and a four-idea backlog quietly becomes a four-night wait. BENE's answer is to give every idea its own agent and let them all run side by side.
 
 ---
 
 ![BENE ML research lab demo — 4 agents running parallel experiments overnight, SQL results table, winner identified](../demos/bene_uc_mllab.gif)
 
-*4 agents spawn at 22:00. scale-explorer finishes first at 00:14. arch-explorer finishes last at 05:47. SQL comparison at 06:00 shows clear winner.*
+*Spawned at 22:00; scale-explorer reports in first at 00:14, arch-explorer last at 05:47; the 06:00 SQL comparison names the winner.*
 
 ---
 
-## Inspired by Karpathy's Autoresearch
+## Tonight's job: beat val_loss 2.34
 
-[Karpathy's autoresearch](https://github.com/karpathy/autoresearch) is a compelling demonstration: one agent, one GPU, given a model training script. The agent modifies `train.py`, runs it, reads the loss curve, and proposes an improvement. It keeps the changes that help, discards the ones that don't, and iterates through the night.
+The baseline is a character-level language model trained on Shakespeare, currently sitting at `val_loss = 2.34`. Four ideas might beat it, and each gets its own agent:
 
-The key insight: ML research is systematic enough to be automated. An agent can read a loss curve and generate a reasonable next hypothesis. The bottleneck isn't intelligence — it's the serial loop.
+- **arch-explorer** tests LoRA adapters against a full finetune — the bet is that fewer trainable parameters help a small model generalize.
+- **optim-explorer** pits AdamW against Lion — the bet is that Lion's sign-based updates suit small language models.
+- **scale-explorer** compares batch size 32 with 128 — the bet is that bigger batches make char-level training more stable.
+- **reg-explorer** weighs dropout 0.1 against 0.3 — the bet is that a model this small is overfitting and wants more regularization.
 
-The BENE version extends this to N agents and N hypotheses running simultaneously. Each agent gets its own isolated VFS copy of the training code. They cannot see each other's modifications. Results are queryable when they finish. The insights compound across searches via the BENE knowledge agent.
+Run them one at a time and tonight turns into four nights. Run them under BENE and tonight is enough.
 
-### What autoresearch does vs. what BENE adds
-
-| autoresearch | BENE research lab |
-|---|---|
-| 1 agent, 1 GPU | N agents, N directions, parallel |
-| Git commit/reset for checkpoints | Formal checkpoints with diff |
-| `results.tsv` for tracking | SQL-queryable event journal |
-| Git log for audit trail | 14-event-type append-only journal |
-| One `train.py`, modified in place | Each agent has its own isolated copy |
-| Manual inspection | `bene query "SELECT ..."` |
-| One direction at a time | Architecture, optimizer, scaling, regularization simultaneously |
-
----
-
-## The Problem: Character-Level Language Model, val_loss = 2.34
-
-Task: improve a character-level language model baseline. The model trains on Shakespeare. Current best: `val_loss = 2.34`. Four hypotheses to test tonight:
-
-- **arch-explorer** — LoRA adapters vs full finetune (hypothesis: parameter efficiency helps small models generalize)
-- **optim-explorer** — AdamW vs Lion optimizer (hypothesis: Lion's sign-based updates work better for small LMs)
-- **scale-explorer** — batch size 32 vs 128 (hypothesis: larger batches stabilize char-level training)
-- **reg-explorer** — dropout 0.1 vs 0.3 (hypothesis: more regularization needed for character-level overfit)
-
-Sequential: 4 nights minimum. Parallel with BENE: one night.
-
----
-
-## Spawning 4 Isolated Agents
+## Step 1 — Launch four sandboxed agents
 
 ```bash
 bene parallel \
@@ -72,13 +44,164 @@ bene parallel \
 # 4 agents training in parallel — 22:00
 ```
 
-Each agent's `train.py` is in its own VFS. No file conflicts. No race conditions. Agent 1 cannot accidentally overwrite Agent 2's best checkpoint. Fully reproducible — each experiment can be replayed from its exact VFS state.
+Four private copies of `train.py`, four virtual filesystems, zero shared state. Nothing to lock, nothing to merge: no agent can clobber another's best checkpoint, and any experiment can be replayed later from the exact VFS state it ran in.
 
-### Behind the CLI: the Python API
+## Step 2 — Let the keep-or-revert loop run
 
-The `bene parallel` command is a thin wrapper over the Python SDK. If you want programmatic control — custom direction prompts, different seed scripts per agent, post-run reduction — drop down to Python.
+Inside each sandbox the agent works the same disciplined loop: change one config value, train, compare against the previous best, then keep the change or revert it. Two agents mid-flight:
 
-**Step 1 — define the base training script.** Each agent gets its own isolated copy.
+```text
+Agent: arch-explorer
+  ├── Reads /train.py
+  ├── Changes CONFIG["activation"] = "swiglu"
+  ├── Runs experiment → val_bpb = 1.12 (improved from 1.18)
+  ├── Keeps the change ✓
+  ├── Changes CONFIG["n_layers"] = 8
+  ├── Runs experiment → val_bpb = 1.25 (regressed!)
+  ├── Reverts the change ✗
+  ├── Changes CONFIG["pos_encoding"] = "learned"
+  ├── Runs experiment → val_bpb = 1.10 (improved!)
+  ├── Keeps the change ✓
+  └── ... continues ...
+
+Agent: optim-explorer (running simultaneously, isolated)
+  ├── Reads /train.py (its own copy, unaffected by arch-explorer)
+  ├── Changes CONFIG["optimizer"] = "lion"
+  ├── Runs experiment → val_bpb = 1.05 (big improvement!)
+  ├── Keeps the change ✓
+  └── ... continues ...
+```
+
+Both agents are editing a file called `/train.py` — and that is fine, because every edit lands in that agent's own VFS. Coordination is not a feature anyone had to build; isolation makes it unnecessary.
+
+Through the night, the completions interleave:
+
+```text
+[00:14]  scale-explorer   COMPLETE  final_val_loss=2.21  (-5.6%)
+         Finding: batch_size=128 stabilizes training. Converges faster.
+
+[01:47]  reg-explorer     COMPLETE  final_val_loss=2.28  (-2.6%)
+         Finding: dropout=0.3 marginally helps. Small effect.
+
+[03:31]  optim-explorer   COMPLETE  final_val_loss=2.19  (-6.4%)
+         Finding: Lion optimizer wins on this task. Better char-level.
+
+[05:47]  arch-explorer    COMPLETE  final_val_loss=1.89  (-19.2%)
+         Finding: LoRA + cosine LR schedule. Clear winner.
+```
+
+The finish order tells its own story. Flipping a batch size is cheap, so `scale-explorer` is done by 00:14. `arch-explorer` needs until 05:47 — LoRA takes longer to stabilize, and the agent trains two complete cycles to get a fair comparison.
+
+## Step 3 — Compare results with one query
+
+```sql
+SELECT
+  agent_name,
+  final_val_loss,
+  ROUND((2.34 - final_val_loss) / 2.34 * 100, 1) AS improvement_pct,
+  train_time_min,
+  notes
+FROM ml_results
+WHERE run_id = 'overnight-2026-04-15'
+ORDER BY final_val_loss ASC
+```
+
+```text
+Agent            val_loss  Improvement  Time    Finding
+---------------  --------  -----------  ------  ----------------------------------
+arch-explorer    1.89 *    -19.2% *     347min  LoRA + cosine LR schedule
+optim-explorer   2.19      -6.4%        191min  Lion optimizer outperforms AdamW
+scale-explorer   2.21      -5.6%        74min   batch=128 stabilizes convergence
+reg-explorer     2.28      -2.6%        182min  dropout=0.3 marginal improvement
+
+* winner
+```
+
+It is not close: `arch-explorer` lands at val_loss 1.89, 19.2% under the 2.34 baseline, on the strength of LoRA plus a cosine LR schedule. The Lion result from `optim-explorer` (-6.4%) is the natural candidate to stack on top of it next.
+
+## Step 4 — Read the winning config
+
+The winning agent wrote up its own findings. Read them straight out of its VFS:
+
+```text
+bene read arch-explorer /results/best_config.md
+
+## Winning Configuration — val_loss = 1.89
+
+### Architecture Changes
+- LoRA rank: 8 (r=8, alpha=16)
+- Applied to: q_proj, v_proj in all attention layers
+- Full finetune baseline: val_loss=2.34 (no improvement)
+- LoRA finetune: val_loss=1.89 (19.2% improvement)
+
+### Training Changes
+- LR schedule: cosine with warmup (1% warmup steps)
+- Peak LR: 3e-4 (was 1e-3 — reduced due to LoRA sensitivity)
+- Gradient clip: 1.0 (unchanged)
+
+### Hypothesis confirmed
+Parameter-efficient finetuning (LoRA) dramatically outperforms
+full finetune on this small character-level model. The reduced
+parameter count prevents overfitting on the Shakespeare corpus.
+```
+
+## Step 5 — Bank the win, seed the next search
+
+Two commands turn tonight's result into tomorrow's starting point: checkpoint the winner, then point the meta-harness search at it.
+
+```bash
+bene checkpoint arch-explorer --label winning-lora-config
+
+# Seed the next search from this agent's discoveries
+bene mh search \
+  -b char_lm \
+  --seed-from arch-explorer \
+  --model claude-sonnet-4-6 \
+  -n 10
+
+# [mh-search] Loading knowledge from arch-explorer...
+# [mh-search] Loaded skills: lora_param_efficiency, cosine_lr_warmup
+# [mh-search] Seeding with best config: val_loss=1.89
+# [mh-search] Search starts from the known frontier, not from scratch
+```
+
+The follow-up search opens at 1.89, not 2.34, and carries the LoRA finding forward as a reusable skill. Three overnight runs in, the knowledge agent holds a skill library for this architecture — so run 4 begins with a seed pool that manual iteration would have needed weeks to build. Wins accumulate instead of evaporating.
+
+## Audit the night afterward
+
+Beyond the leaderboard, the event journal answers operational questions that a results file never could — how hard did each agent work, what did the run cost, which files actually changed:
+
+```sql
+-- How many experiments did each agent run?
+SELECT a.name, COUNT(tc.call_id) AS experiments
+FROM agents a JOIN tool_calls tc ON a.agent_id = tc.agent_id
+WHERE tc.tool_name = 'shell_exec'
+GROUP BY a.agent_id;
+
+-- Total compute across all agents
+SELECT SUM(token_count) AS total_tokens,
+       SUM(duration_ms) / 1000.0 AS total_seconds
+FROM tool_calls;
+
+-- Which agent's train.py changed the most?
+SELECT a.name, f.version AS modifications
+FROM files f JOIN agents a ON f.agent_id = a.agent_id
+WHERE f.path = '/train.py'
+ORDER BY f.version DESC;
+
+-- What did the best agent actually change? (read its final train.py)
+SELECT content FROM files f
+JOIN agents a ON f.agent_id = a.agent_id
+WHERE a.name = 'arch-explorer' AND f.path = '/train.py';
+```
+
+All of it runs against a single `.db` file, in a single query language.
+
+## Prefer Python? The SDK underneath the CLI
+
+`bene parallel` is a thin layer over the Python SDK. Script it directly when you need per-agent seed scripts, custom direction prompts, or a reduction step after the runs finish.
+
+**Write the base training script.** Every agent will receive a private copy of this file.
 
 ```python
 BASE_TRAIN_PY = """
@@ -98,7 +221,7 @@ def train(config):
 """
 ```
 
-**Step 2 — define the research directions.** Each direction becomes a BENE agent with a specific research mandate.
+**Describe the research directions.** One mandate per agent; the prompt is the hypothesis.
 
 ```python
 DIRECTIONS = [
@@ -125,7 +248,7 @@ DIRECTIONS = [
 ]
 ```
 
-**Step 3 — spawn and run in parallel.**
+**Spawn, checkpoint, run.**
 
 ```python
 from bene import Bene
@@ -144,174 +267,15 @@ for direction in DIRECTIONS:
 results = await ccr.run_parallel(DIRECTIONS)
 ```
 
-BENE auto-checkpoints every 5 iterations. If an agent crashes at iteration 23, you restore to iteration 20 and lose at most 3 experiments — not the entire night.
+`checkpoint_interval=5` puts a checkpoint down every 5 iterations. A crash at iteration 23 costs at most 3 experiments: restore the iteration-20 checkpoint and carry on. The night survives the crash.
 
-### What happens inside each agent
+## Go bigger: three GPUs, six agents, three model tiers
 
-Each agent runs an autonomous keep-or-revert experiment loop:
-
-```text
-Agent: arch-explorer
-  ├── Reads /train.py
-  ├── Changes CONFIG["activation"] = "swiglu"
-  ├── Runs experiment → val_bpb = 1.12 (improved from 1.18)
-  ├── Keeps the change ✓
-  ├── Changes CONFIG["n_layers"] = 8
-  ├── Runs experiment → val_bpb = 1.25 (regressed!)
-  ├── Reverts the change ✗
-  ├── Changes CONFIG["pos_encoding"] = "learned"
-  ├── Runs experiment → val_bpb = 1.10 (improved!)
-  ├── Keeps the change ✓
-  └── ... continues ...
-
-Agent: optim-explorer (running simultaneously, isolated)
-  ├── Reads /train.py (its own copy, unaffected by arch-explorer)
-  ├── Changes CONFIG["optimizer"] = "lion"
-  ├── Runs experiment → val_bpb = 1.05 (big improvement!)
-  ├── Keeps the change ✓
-  └── ... continues ...
-```
-
-The key: **both agents modify `train.py`, but they cannot see each other's changes.** Each has its own VFS. No conflicts. No coordination needed.
-
----
-
-## Running Overnight — Interleaved Training Loops
-
-```text
-[00:14]  scale-explorer   COMPLETE  final_val_loss=2.21  (-5.6%)
-         Finding: batch_size=128 stabilizes training. Converges faster.
-
-[01:47]  reg-explorer     COMPLETE  final_val_loss=2.28  (-2.6%)
-         Finding: dropout=0.3 marginally helps. Small effect.
-
-[03:31]  optim-explorer   COMPLETE  final_val_loss=2.19  (-6.4%)
-         Finding: Lion optimizer wins on this task. Better char-level.
-
-[05:47]  arch-explorer    COMPLETE  final_val_loss=1.89  (-19.2%)
-         Finding: LoRA + cosine LR schedule. Clear winner.
-```
-
-`scale-explorer` finishes first — batch size is a simpler change. `arch-explorer` finishes last — LoRA requires more iterations to stabilize, and the agent runs two full training cycles to compare.
-
----
-
-## The SQL Comparison
-
-```sql
-SELECT
-  agent_name,
-  final_val_loss,
-  ROUND((2.34 - final_val_loss) / 2.34 * 100, 1) AS improvement_pct,
-  train_time_min,
-  notes
-FROM ml_results
-WHERE run_id = 'overnight-2026-04-15'
-ORDER BY final_val_loss ASC
-```
-
-```text
-Agent            val_loss  Improvement  Time    Finding
----------------  --------  -----------  ------  ----------------------------------
-arch-explorer    1.89 *    -19.2% *     347min  LoRA + cosine LR schedule
-optim-explorer   2.19      -6.4%        191min  Lion optimizer outperforms AdamW
-scale-explorer   2.21      -5.6%        74min   batch=128 stabilizes convergence
-reg-explorer     2.28      -2.6%        182min  dropout=0.3 marginal improvement
-
-* winner
-```
-
-`arch-explorer` wins by a wide margin. val_loss 1.89 — a 19.2% improvement over baseline. The LoRA + cosine LR combination is the clear path forward. Lion optimizer is worth combining with the LoRA result.
-
-### More queries across all agents
-
-The same event journal answers operational questions a TSV file cannot:
-
-```sql
--- How many experiments did each agent run?
-SELECT a.name, COUNT(tc.call_id) AS experiments
-FROM agents a JOIN tool_calls tc ON a.agent_id = tc.agent_id
-WHERE tc.tool_name = 'shell_exec'
-GROUP BY a.agent_id;
-
--- Total compute across all agents
-SELECT SUM(token_count) AS total_tokens,
-       SUM(duration_ms) / 1000.0 AS total_seconds
-FROM tool_calls;
-
--- Which agent's train.py changed the most?
-SELECT a.name, f.version AS modifications
-FROM files f JOIN agents a ON f.agent_id = a.agent_id
-WHERE f.path = '/train.py'
-ORDER BY f.version DESC;
-
--- What did the best agent actually change? (read its final train.py)
-SELECT content FROM files f
-JOIN agents a ON f.agent_id = a.agent_id
-WHERE a.name = 'arch-explorer' AND f.path = '/train.py';
-```
-
-One `.db` file, one query language, one source of truth for the whole lab.
-
----
-
-## Read the Winner
-
-```text
-bene read arch-explorer /results/best_config.md
-
-## Winning Configuration — val_loss = 1.89
-
-### Architecture Changes
-- LoRA rank: 8 (r=8, alpha=16)
-- Applied to: q_proj, v_proj in all attention layers
-- Full finetune baseline: val_loss=2.34 (no improvement)
-- LoRA finetune: val_loss=1.89 (19.2% improvement)
-
-### Training Changes
-- LR schedule: cosine with warmup (1% warmup steps)
-- Peak LR: 3e-4 (was 1e-3 — reduced due to LoRA sensitivity)
-- Gradient clip: 1.0 (unchanged)
-
-### Hypothesis confirmed
-Parameter-efficient finetuning (LoRA) dramatically outperforms
-full finetune on this small character-level model. The reduced
-parameter count prevents overfitting on the Shakespeare corpus.
-```
-
----
-
-## Checkpoint and Compound
-
-```bash
-bene checkpoint arch-explorer --label winning-lora-config
-
-# Seed the next search from this agent's discoveries
-bene mh search \
-  -b char_lm \
-  --seed-from arch-explorer \
-  --model claude-sonnet-4-6 \
-  -n 10
-
-# [mh-search] Loading knowledge from arch-explorer...
-# [mh-search] Loaded skills: lora_param_efficiency, cosine_lr_warmup
-# [mh-search] Seeding with best config: val_loss=1.89
-# [mh-search] Search starts from the known frontier, not from scratch
-```
-
-The next search doesn't start from baseline 2.34. It starts from 1.89, with the LoRA insight already encoded as a reusable skill. The insights compound. Each overnight run seeds the next.
-
-**The compounding effect:** After 3 overnight runs, the knowledge agent has a library of reusable skills for this architecture. Run 4 starts with a seed pool that would have taken weeks of manual iteration to assemble.
-
----
-
-## Multi-GPU Orchestration
-
-For larger-scale research, BENE distributes agents across multiple GPUs, each running a different model tier. The Tier router assigns each agent to a specific model via `force_model`, so cheap sweeps run on the small model and creative hypothesis generation runs on the largest model.
+When the lab outgrows one GPU, the tier router places each agent on a specific model via `force_model`: cheap hyperparameter sweeps go to the small model, creative hypothesis generation goes to the largest one.
 
 ![Parallel agents and the Tier router — running multiple hypothesis agents concurrently](../demos/bene_03_parallel_agents.gif)
 
-### 3-GPU setup
+### The layout
 
 ```text
 GPU 0 — Qwen2.5-Coder-7B    (port 8000) → 2 sweep agents (fast hyperparameter scans)
@@ -319,7 +283,7 @@ GPU 1 — Qwen2.5-Coder-32B   (port 8001) → 2 architecture agents (design expl
 GPU 2 — DeepSeek-R1-70B      (port 8002) → 2 novel research agents (creative hypothesis)
 ```
 
-### Configuration
+### The config
 
 ```yaml
 # bene.yaml
@@ -338,7 +302,7 @@ models:
     use_for: [complex, novel_research]
 ```
 
-### Running 6 agents across 3 GPUs
+### Six agents, one script
 
 ```python
 # examples/multi_gpu_research.py
@@ -378,11 +342,9 @@ for d in DIRECTIONS:
 results = await ccr.run_parallel(DIRECTIONS)
 ```
 
-Each agent is fully isolated. The 7B agents on GPU 0 churn through hyperparameter sweeps quickly, while the 70B on GPU 2 takes longer but produces more creative directions. All results live in one `.db` file, queryable with the same SQL.
+The 7B agents on GPU 0 burn through sweeps fast; the 70B on GPU 2 is slower per run but proposes more inventive directions. Nothing waits on anything else, every agent stays isolated, and all six write into the same `.db`, answerable with the same SQL.
 
----
-
-## The Cost
+## What the night cost
 
 ```text
 Approach                   Wall Time  Engineer Time               Hypotheses Tested
@@ -391,27 +353,37 @@ Sequential (human-driven)  4 nights   4 × setup + analysis        4
 BENE parallel overnight    1 night    30 min setup + 15min review  4
 ```
 
-Same 4 hypotheses. One night instead of four. No wasted hypotheses — even the weaker results are real data that inform the next search. The machine ran the experiments. You read the results.
+The hypothesis count is identical; the calendar is not. Your hands-on time shrinks to half an hour of setup and a quarter hour of reading. And none of the four runs is wasted — the losing branches are still real data feeding the next search.
+
+## Where the pattern comes from
+
+This lab is [Karpathy's autoresearch](https://github.com/karpathy/autoresearch), multiplied. In autoresearch, a single agent sits with a single GPU and a training script: edit `train.py`, train, study the curve, keep what helped, drop what didn't, repeat until morning. What it demonstrates is that the research loop itself is mechanical enough to delegate — a model can read a loss curve and pick a sane next move. What stays serial in autoresearch is the loop itself.
+
+BENE removes that constraint by cloning the loop: N agents, each holding a private VFS copy of the training code, each chasing a different hypothesis at the same moment, none able to touch another's files. When they finish, every result is one query away, and what each agent learned travels into the next search through the BENE knowledge agent.
+
+### Side by side
+
+| autoresearch | BENE research lab |
+|---|---|
+| 1 agent, 1 GPU | N agents, N directions, parallel |
+| Git commit/reset for checkpoints | Formal checkpoints with diff |
+| `results.tsv` for tracking | SQL-queryable event journal |
+| Git log for audit trail | 14-event-type append-only journal |
+| One `train.py`, modified in place | Each agent has its own isolated copy |
+| Manual inspection | `bene query "SELECT ..."` |
+| One direction at a time | Architecture, optimizer, scaling, regularization simultaneously |
+
+What the differences buy you:
+
+- **Isolation without setup.** autoresearch edits one `train.py` in place, so several directions would mean juggling git worktrees or copied directories. A BENE agent gets a private virtual filesystem for free.
+- **Checkpoints, not git tricks.** autoresearch leans on `git commit` and `git reset`. A BENE checkpoint bundles files, state, and event watermarks together, diffs cleanly against any other checkpoint, and restores one agent without disturbing the rest.
+- **Questions answered in SQL.** Which agent found the best loss, how many experiments ran in total, what the failing agent did wrong — each is one query against the journal, not a TSV-parsing session.
+- **A lab you can carry.** Agents, experiments, results: one `.db` file. Hand it to a colleague, open it on another machine, back it up with `cp`.
+- **Throughput.** autoresearch runs about 12 experiments/hour on one GPU. Four BENE agents across 4 GPUs run 48 experiments/hour — every one on a distinct direction, every one tracked.
 
 ---
 
-## Why BENE for autonomous research?
-
-**Isolation that matters.** In autoresearch, there is one `train.py` and the agent modifies it in place. Multiple research directions mean multiple git worktrees or separate directories. BENE gives each agent its own virtual filesystem with zero setup.
-
-**Checkpoints that are not git hacks.** autoresearch uses `git commit` and `git reset`. BENE checkpoints capture files, state, and event watermarks together, and you can diff two checkpoints to see exactly what changed. Restore any agent to any point without affecting the others.
-
-**SQL-queryable everything.** Instead of parsing a TSV file, query all experiments across all agents with SQL. *Which agent found the best loss? How many experiments total? What did the failing agent do wrong?* One query, one answer.
-
-**Portability.** The entire research lab — all agents, all experiments, all results — is one `.db` file. Send it to a colleague. Open it on another machine. Back it up with `cp`.
-
-**Scale.** autoresearch runs about 12 experiments/hour on one GPU. With BENE orchestrating 4 agents across 4 GPUs, you run 48 experiments/hour — each exploring a different direction, all isolated and tracked.
-
----
-
-The machine ran 4 experiments overnight. You wake up to a SQL table of results and a clear winner. The winning configuration is documented, checkpointed, and ready to apply. The insights are encoded as reusable skills that seed the next search.
-
-That's how research should work.
+That is the whole shape of it. You stated four bets at 22:00 and read the verdict at 06:00: winning config checkpointed, findings written down by the agent that found them, lessons packaged as skills for the search after this one. The experiments ran themselves; your job was the judgment at either end.
 
 ## Related
 
@@ -427,8 +399,8 @@ That's how research should work.
 
 ---
 
-*BENE is MIT-licensed and runs entirely locally. No data leaves your machine.*
+*BENE is MIT-licensed, and the privacy claim is checkable: every agent, experiment, and result in this tutorial lives in a local SQLite file on your disk — nothing leaves your machine, and a full backup is one `cp` of that file.*
 
-*Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch). BENE extends the single-agent loop to N parallel agents with isolated VFS, SQL-queryable results, and persistent knowledge across searches.*
+*The single-agent pattern is [Karpathy's autoresearch](https://github.com/karpathy/autoresearch); BENE multiplies it into N parallel agents, an isolated VFS for each, SQL over every result, and knowledge that persists between searches.*
 
 *GitHub: [github.com/good-night-oppie/bene](https://github.com/good-night-oppie/bene)*

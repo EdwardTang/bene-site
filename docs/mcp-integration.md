@@ -1,75 +1,109 @@
-# BENE MCP Server Integration
+# BENE as an MCP Server
 
-> How to expose BENE as an MCP server for Claude Code and other MCP-compatible clients.
+<a id="overview"></a>
 
-![MCP Server Integration — 18 tools, Claude Code, agent_spawn and mh_search](demos/bene_04_mcp_server.gif)
+Hook BENE up to Claude Code once, and from then on you run agents in plain English — spawn one to write tests, checkpoint it before a risky change, roll it back when the change goes wrong, and query everything it did, without leaving the conversation.
 
-> **v0.5.2 notes:**
->
-> - **CLI-first architecture** — `--json` output on all commands. Agents can shell out to `bene --json ls` instead of using MCP (10-32x cheaper on tokens).
-> - **Large output handling** — Agent results >4KB are stored in VFS at `/result.txt`. MCP returns a preview + pointer to use `agent_read` for the full output.
-> - **stdout protection** — MCP stdio transport redirects `sys.stdout` to `sys.stderr` at startup, preventing library logging from corrupting the JSON-RPC protocol.
-> - **Worker processes** — `mh_search` and `mh_resume` spawn detached workers that survive MCP disconnection. Worker logs written to `bene-worker-*.log`.
-> - **New CLI commands** — `bene read`, `bene logs`, `bene mh search --dry-run`.
+> **One entry in `settings.json` gives Claude Code 37 BENE tools — agents, files, checkpoints, SQL, meta-harness search, memory, shared log, and skills — all backed by a single local SQLite file.**
 
----
+Everything these tools touch lives in `bene.db` on your machine. The stdio transport opens no network socket, and `agent_query` is read-only by construction — write statements raise a `PermissionError`. Network access only happens if you ask for it, by starting the SSE transport on a host you choose.
 
-## Table of Contents
+![MCP Server Integration — 37 tools, Claude Code, agent_spawn and mh_search](demos/bene_04_mcp_server.gif)
 
-1. [Overview](#overview)
-2. [CLI Alternative (v0.5.2)](#cli-alternative)
-3. [Starting the MCP Server](#starting-the-mcp-server)
-4. [Claude Code Integration](#claude-code-integration)
-5. [Available Tools](#available-tools)
-6. [Example Conversation Flows](#example-conversation-flows)
+On this page:
 
----
+- [Connect Claude Code](#connect-claude-code)
+- [Run the server directly](#run-the-server-directly)
+- [The cheaper path: the `--json` CLI](#the-cheaper-path-the---json-cli)
+- [Tool reference](#tool-reference)
+- [Conversations that work today](#conversations-that-work-today)
+- [What v0.5.2 changed](#what-v052-changed)
 
-## Overview
+Original anchor map: [Overview](#overview), [CLI Alternative](#cli-alternative), [Starting the MCP Server](#starting-the-mcp-server), [Claude Code Integration](#claude-code-integration), [Available Tools](#available-tools), [Example Conversation Flows](#example-conversation-flows).
 
-BENE implements the [Model Context Protocol](https://modelcontextprotocol.io/) (MCP), allowing Claude Code and other MCP clients to spawn agents, read/write files, create checkpoints, run SQL queries, and orchestrate parallel agent execution through natural language.
-
-The MCP server is implemented in `bene/mcp/server.py` using the `mcp` Python package. It wraps the `Bene` and `ClaudeCodeRunner` instances, exposing 18 tools across 6 categories: Lifecycle, VFS, Checkpoints, Query, Orchestration, and Meta-Harness.
+Under the hood: the server lives in `bene/mcp/server.py`, built on the `mcp` Python package. It wraps one `Bene` instance plus a `ClaudeCodeRunner` and publishes 37 tools spanning 9 categories — Lifecycle, VFS, Checkpoints, Query, Orchestration, Meta-Harness, Memory, Shared Log, and Skills. Any [Model Context Protocol](https://modelcontextprotocol.io/) client gets the same surface.
 
 ---
 
-## CLI Alternative
+<a id="claude-code-integration"></a>
 
-As of v0.5.2, every CLI command supports `--json` output, making BENE composable with any agent via shell commands:
+## Connect Claude Code
 
-```bash
-# Structured JSON output — any agent can parse this
-bene --json ls
-bene --json status <agent-id>
-bene --json query "SELECT * FROM agents WHERE status='running'"
-bene --json mh status <search-agent-id>
+### Register the server
 
-# Background worker — survives parent exit
-bene mh search -b text_classify -n 10 --background
+Drop this into `~/.claude/settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "bene": {
+      "command": "bene",
+      "args": ["serve", "--transport", "stdio"]
+    }
+  }
+}
 ```
 
-This is the recommended approach when:
+### Point at a specific database and config
 
-- You want minimal token overhead (no MCP schema injection)
-- You need the search to survive process restarts
-- You're integrating with non-MCP agent frameworks
+```json
+{
+  "mcpServers": {
+    "bene": {
+      "command": "bene",
+      "args": [
+        "serve",
+        "--transport", "stdio",
+        "--db", "/path/to/project/bene.db",
+        "--config-file", "/path/to/project/bene.yaml"
+      ]
+    }
+  }
+}
+```
 
-**Transport modes:**
+### Run from a source checkout with uv
 
-- **stdio** -- Process-based transport for direct Claude Code integration. The MCP client spawns `bene serve` as a child process and communicates via stdin/stdout.
-- **SSE** -- HTTP-based transport using Server-Sent Events. Runs a Starlette/uvicorn HTTP server for network-accessible MCP integration.
+No global install? Have `uv run` launch it straight from the source tree:
+
+```json
+{
+  "mcpServers": {
+    "bene": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--project", "/path/to/bene",
+        "bene", "serve", "--transport", "stdio"
+      ]
+    }
+  }
+}
+```
+
+### Check it worked
+
+Restart Claude Code after editing settings, then ask:
+
+> "What BENE tools are available?"
+
+All 18 should come back in the answer.
 
 ---
 
-## Starting the MCP Server
+<a id="starting-the-mcp-server"></a>
 
-### stdio mode (recommended for Claude Code)
+## Run the server directly
+
+Two transports exist. With **stdio**, the MCP client launches `bene serve` as a child process and talks over stdin/stdout — the right choice for Claude Code. With **SSE**, a Starlette/uvicorn HTTP server speaks Server-Sent Events, for clients that reach BENE over the network.
+
+### stdio (the default)
 
 ```bash
 bene serve --transport stdio
 ```
 
-This is the default transport. The server reads MCP messages from stdin and writes responses to stdout. Claude Code manages the process lifecycle.
+MCP messages arrive on stdin; responses leave on stdout; Claude Code owns the process from launch to exit.
 
 **Options:**
 
@@ -80,16 +114,16 @@ bene serve \
   --config-file ./bene.yaml
 ```
 
-### SSE mode (network access)
+### SSE (network access)
 
 ```bash
 bene serve --transport sse --host 127.0.0.1 --port 3100
 ```
 
-This starts an HTTP server with two endpoints:
+The HTTP server exposes two routes:
 
-- `GET /sse` -- SSE connection endpoint for MCP clients.
-- `POST /messages` -- Message posting endpoint for MCP clients.
+- `GET /sse` — where MCP clients open the event stream.
+- `POST /messages` — where MCP clients post their messages.
 
 **Options:**
 
@@ -109,81 +143,48 @@ bene serve \
 | `BENE_DB` | `./bene.db` | Database file path (overridden by `--db`). |
 | `BENE_CONFIG` | `./bene.yaml` | Configuration file path (overridden by `--config-file`). |
 
-### Without a config file
+### No `bene.yaml`? Still works
 
-If `bene.yaml` is not found, the server starts with a single default model endpoint at `http://localhost:8000/v1`. This allows using the MCP server for non-LLM operations (file management, checkpoints, queries) without any vLLM setup.
-
----
-
-## Claude Code Integration
-
-### settings.json configuration
-
-Add the BENE MCP server to your Claude Code settings file (`~/.claude/settings.json`):
-
-```json
-{
-  "mcpServers": {
-    "bene": {
-      "command": "bene",
-      "args": ["serve", "--transport", "stdio"]
-    }
-  }
-}
-```
-
-### With custom database and config paths
-
-```json
-{
-  "mcpServers": {
-    "bene": {
-      "command": "bene",
-      "args": [
-        "serve",
-        "--transport", "stdio",
-        "--db", "/path/to/project/bene.db",
-        "--config-file", "/path/to/project/bene.yaml"
-      ]
-    }
-  }
-}
-```
-
-### Using uv to run from source
-
-If BENE is not installed globally, you can use `uv run`:
-
-```json
-{
-  "mcpServers": {
-    "bene": {
-      "command": "uv",
-      "args": [
-        "run",
-        "--project", "/path/to/bene",
-        "bene", "serve", "--transport", "stdio"
-      ]
-    }
-  }
-}
-```
-
-### Verifying the integration
-
-After adding the configuration and restarting Claude Code, you should see the BENE tools available. You can verify by asking Claude Code:
-
-> "What BENE tools are available?"
-
-Claude Code should list all 18 BENE tools.
+When no `bene.yaml` is present, the server falls back to one default model endpoint, `http://localhost:8000/v1`. File management, checkpoints, and queries all keep working in that state — none of them touch a model, so no vLLM setup is required.
 
 ---
 
-## Available Tools
+<a id="cli-alternative"></a>
 
-### agent_spawn
+## The cheaper path: the `--json` CLI
 
-Spawn a new agent with an isolated virtual filesystem and immediately run a task.
+Since v0.5.2, every BENE command accepts `--json`. That means any agent that can run a shell command can drive BENE with structured output — no MCP client, no schema injection:
+
+```bash
+# Structured JSON output — any agent can parse this
+bene --json ls
+bene --json status <agent-id>
+bene --json query "SELECT * FROM agents WHERE status='running'"
+bene --json mh status <search-agent-id>
+
+# Background worker — survives parent exit
+bene mh search -b text_classify -n 10 --background
+```
+
+Reach for the CLI rather than MCP when:
+
+- token budget matters — shelling out skips the MCP schema overhead entirely
+- a long search must outlive process restarts
+- your agent framework doesn't speak MCP
+
+---
+
+<a id="available-tools"></a>
+
+## Tool reference
+
+The 37 tools, grouped by what you're trying to do. The detailed tables below cover the primary workflow tools; the addendum lists the extra memory, shared-log, skill, and stepwise meta-harness tools exposed by the same server.
+
+### Start and steer agents
+
+#### agent_spawn
+
+Create an agent in its own virtual filesystem and hand it a task, in one call.
 
 **Parameters:**
 
@@ -193,7 +194,7 @@ Spawn a new agent with an isolated virtual filesystem and immediately run a task
 | `task` | string | yes | Task description for the agent to execute. |
 | `config` | object | no | Agent configuration (model, temperature, etc.). Default: `{}`. |
 
-**Returns:** JSON with `agent_id` and `result`.
+**Returns:** `agent_id` and `result`, as JSON.
 
 **Example:**
 
@@ -214,11 +215,9 @@ Spawn a new agent with an isolated virtual filesystem and immediately run a task
 }
 ```
 
----
+#### agent_spawn_only
 
-### agent_spawn_only
-
-Spawn a new agent without running it. Useful for pre-populating the VFS before execution.
+Create the agent but hold off on execution — the way to go when you want to seed its VFS first.
 
 **Parameters:**
 
@@ -227,7 +226,7 @@ Spawn a new agent without running it. Useful for pre-populating the VFS before e
 | `name` | string | yes | Name for the agent. |
 | `config` | object | no | Agent configuration. Default: `{}`. |
 
-**Returns:** JSON with `agent_id` and `status`.
+**Returns:** `agent_id` and `status`, as JSON.
 
 **Example:**
 
@@ -246,83 +245,27 @@ Spawn a new agent without running it. Useful for pre-populating the VFS before e
 }
 ```
 
----
+#### agent_parallel
 
-### agent_read
-
-Read a file from an agent's virtual filesystem.
+Fan out several agents at once and collect every result.
 
 **Parameters:**
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `agent_id` | string | yes | Agent ID. |
-| `path` | string | yes | File path to read. |
+| `tasks` | array | yes | Array of task objects, each with `name` (string, required), `prompt` (string, required), and `config` (object, optional). |
 
-**Returns:** File content as UTF-8 text.
-
-**Example:**
-
-```json
-{
-  "agent_id": "01HXY...",
-  "path": "/src/auth.py"
-}
-```
-
----
-
-### agent_write
-
-Write a file to an agent's virtual filesystem.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID. |
-| `path` | string | yes | File path. |
-| `content` | string | yes | File content. |
-
-**Returns:** Confirmation with byte count.
+**Returns:** a JSON array of indexed results.
 
 **Example:**
 
 ```json
 {
-  "agent_id": "01HXY...",
-  "path": "/src/auth.py",
-  "content": "def authenticate(user, password):\n    ..."
-}
-```
-
-**Response:**
-
-```text
-Written 142 bytes to 01HXY...:/src/auth.py
-```
-
----
-
-### agent_ls
-
-List files in an agent's virtual filesystem.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID. |
-| `path` | string | no | Directory path. Default: `/`. |
-
-**Returns:** JSON array of file entries with path, name, is_dir, size, modified_at, and version.
-
-**Example:**
-
-```json
-{
-  "agent_id": "01HXY...",
-  "path": "/src"
+  "tasks": [
+    {"name": "test-writer", "prompt": "Write unit tests for payments"},
+    {"name": "doc-writer", "prompt": "Update payment API documentation"},
+    {"name": "refactorer", "prompt": "Refactor payments to use Stripe v3", "config": {"force_model": "deepseek-r1-70b"}}
+  ]
 }
 ```
 
@@ -330,16 +273,15 @@ List files in an agent's virtual filesystem.
 
 ```json
 [
-  {"path": "/src/auth.py", "name": "auth.py", "is_dir": false, "size": 1234, "modified_at": "2026-03-30T10:00:00.000", "version": 2},
-  {"path": "/src/utils", "name": "utils", "is_dir": true, "size": 0, "modified_at": "2026-03-30T09:55:00.000", "version": 1}
+  {"index": 0, "result": "I've written 8 test cases covering..."},
+  {"index": 1, "result": "Updated the API docs with..."},
+  {"index": 2, "result": "Refactored the payments module to..."}
 ]
 ```
 
----
+#### agent_status
 
-### agent_status
-
-Get status of one agent or list all agents.
+Inspect one agent — or omit the ID and list them all.
 
 **Parameters:**
 
@@ -348,9 +290,9 @@ Get status of one agent or list all agents.
 | `agent_id` | string | no | Agent ID. Omit to list all agents. |
 | `status_filter` | string | no | Filter by status (`running`, `completed`, `failed`, etc.). |
 
-**Returns:** JSON object (single agent) or JSON array (all agents).
+**Returns:** one JSON object for a single agent; a JSON array when listing.
 
-**Example (single agent):**
+**Example — one agent:**
 
 ```json
 {
@@ -374,7 +316,7 @@ Get status of one agent or list all agents.
 }
 ```
 
-**Example (list all running):**
+**Example — every running agent:**
 
 ```json
 {
@@ -382,11 +324,146 @@ Get status of one agent or list all agents.
 }
 ```
 
----
+#### agent_pause
 
-### agent_checkpoint
+Suspend a running agent; `agent_resume` picks it back up later.
 
-Create a snapshot of an agent's current state (files + KV store).
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID to pause. |
+
+**Returns:** a confirmation.
+
+#### agent_resume
+
+Continue an agent that was paused.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID to resume. |
+
+**Returns:** a confirmation.
+
+#### agent_kill
+
+Stop a running agent immediately.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID to kill. |
+
+**Returns:** a confirmation.
+
+**Example:**
+
+```json
+{
+  "agent_id": "01HXY..."
+}
+```
+
+**Response:**
+
+```text
+Agent 01HXY... killed
+```
+
+### Move files in and out
+
+#### agent_read
+
+Fetch one file out of an agent's VFS.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID. |
+| `path` | string | yes | File path to read. |
+
+**Returns:** the file body, as UTF-8 text.
+
+**Example:**
+
+```json
+{
+  "agent_id": "01HXY...",
+  "path": "/src/auth.py"
+}
+```
+
+#### agent_write
+
+Put a file into an agent's VFS.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID. |
+| `path` | string | yes | File path. |
+| `content` | string | yes | File content. |
+
+**Returns:** a confirmation including the byte count.
+
+**Example:**
+
+```json
+{
+  "agent_id": "01HXY...",
+  "path": "/src/auth.py",
+  "content": "def authenticate(user, password):\n    ..."
+}
+```
+
+**Response:**
+
+```text
+Written 142 bytes to 01HXY...:/src/auth.py
+```
+
+#### agent_ls
+
+Enumerate a directory inside an agent's VFS.
+
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID. |
+| `path` | string | no | Directory path. Default: `/`. |
+
+**Returns:** a JSON array; every entry carries path, name, is_dir, size, modified_at, and version.
+
+**Example:**
+
+```json
+{
+  "agent_id": "01HXY...",
+  "path": "/src"
+}
+```
+
+**Response:**
+
+```json
+[
+  {"path": "/src/auth.py", "name": "auth.py", "is_dir": false, "size": 1234, "modified_at": "2026-03-30T10:00:00.000", "version": 2},
+  {"path": "/src/utils", "name": "utils", "is_dir": true, "size": 0, "modified_at": "2026-03-30T09:55:00.000", "version": 1}
+]
+```
+
+### Snapshot and roll back
+
+#### agent_checkpoint
+
+Snapshot the agent's files and KV store exactly as they stand.
 
 **Parameters:**
 
@@ -395,7 +472,7 @@ Create a snapshot of an agent's current state (files + KV store).
 | `agent_id` | string | yes | Agent ID. |
 | `label` | string | no | Optional label for the checkpoint. |
 
-**Returns:** Confirmation with checkpoint ID.
+**Returns:** a confirmation carrying the new checkpoint ID.
 
 **Example:**
 
@@ -412,11 +489,36 @@ Create a snapshot of an agent's current state (files + KV store).
 Checkpoint 01HABC... created for agent 01HXY...
 ```
 
----
+#### agent_checkpoints
 
-### agent_restore
+Enumerate every checkpoint an agent has taken.
 
-Restore an agent to a previous checkpoint.
+**Parameters:**
+
+| Name | Type | Required | Description |
+|---|---|---|---|
+| `agent_id` | string | yes | Agent ID. |
+
+**Returns:** a JSON array; each checkpoint carries `checkpoint_id`, `label`, `created_at`, and `event_id`.
+
+**Example:**
+
+```json
+{"agent_id": "01HXY..."}
+```
+
+**Response:**
+
+```json
+[
+  {"checkpoint_id": "01HABC...", "label": "pre-refactor", "created_at": "2026-03-31T10:00:00.000", "event_id": 42},
+  {"checkpoint_id": "01HDEF...", "label": "post-refactor", "created_at": "2026-03-31T10:15:00.000", "event_id": 87}
+]
+```
+
+#### agent_restore
+
+Rewind an agent to a checkpoint you took earlier.
 
 **Parameters:**
 
@@ -425,7 +527,7 @@ Restore an agent to a previous checkpoint.
 | `agent_id` | string | yes | Agent ID. |
 | `checkpoint_id` | string | yes | Checkpoint ID to restore. |
 
-**Returns:** Confirmation.
+**Returns:** a confirmation.
 
 **Example:**
 
@@ -442,11 +544,9 @@ Restore an agent to a previous checkpoint.
 Agent 01HXY... restored to checkpoint 01HABC...
 ```
 
----
+#### agent_diff
 
-### agent_diff
-
-Compare two checkpoints of an agent, showing file and state differences.
+See what moved between two checkpoints — files, state keys, and the tool calls in between.
 
 **Parameters:**
 
@@ -456,7 +556,7 @@ Compare two checkpoints of an agent, showing file and state differences.
 | `from_checkpoint` | string | yes | Source checkpoint ID. |
 | `to_checkpoint` | string | yes | Target checkpoint ID. |
 
-**Returns:** JSON object with file changes, state changes, and tool calls between checkpoints.
+**Returns:** JSON covering file changes, state changes, and the tool calls between the two snapshots.
 
 **Example:**
 
@@ -488,11 +588,11 @@ Compare two checkpoints of an agent, showing file and state differences.
 }
 ```
 
----
+### Ask the database
 
-### agent_query
+#### agent_query
 
-Run a read-only SQL query against the BENE database.
+Read-only SQL straight against `bene.db`.
 
 **Parameters:**
 
@@ -500,7 +600,7 @@ Run a read-only SQL query against the BENE database.
 |---|---|---|---|
 | `sql` | string | yes | SQL SELECT query. |
 
-**Returns:** JSON array of result rows.
+**Returns:** result rows as a JSON array.
 
 **Example:**
 
@@ -519,134 +619,13 @@ Run a read-only SQL query against the BENE database.
 ]
 ```
 
-**Note:** Only SELECT queries are allowed. INSERT, UPDATE, DELETE, DROP, ALTER, and CREATE are rejected with a `PermissionError`.
+**Note:** SELECT is the only statement type accepted. INSERT, UPDATE, DELETE, DROP, ALTER, and CREATE all come back as a `PermissionError`.
 
----
+### Breed better harnesses
 
-### agent_kill
+#### mh_search
 
-Kill a running agent.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID to kill. |
-
-**Returns:** Confirmation.
-
-**Example:**
-
-```json
-{
-  "agent_id": "01HXY..."
-}
-```
-
-**Response:**
-
-```text
-Agent 01HXY... killed
-```
-
----
-
-### agent_parallel
-
-Spawn and run multiple agents in parallel.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `tasks` | array | yes | Array of task objects, each with `name` (string, required), `prompt` (string, required), and `config` (object, optional). |
-
-**Returns:** JSON array of results with index.
-
-**Example:**
-
-```json
-{
-  "tasks": [
-    {"name": "test-writer", "prompt": "Write unit tests for payments"},
-    {"name": "doc-writer", "prompt": "Update payment API documentation"},
-    {"name": "refactorer", "prompt": "Refactor payments to use Stripe v3", "config": {"force_model": "deepseek-r1-70b"}}
-  ]
-}
-```
-
-**Response:**
-
-```json
-[
-  {"index": 0, "result": "I've written 8 test cases covering..."},
-  {"index": 1, "result": "Updated the API docs with..."},
-  {"index": 2, "result": "Refactored the payments module to..."}
-]
-```
-
----
-
-### agent_pause
-
-Pause a running agent. The agent can be resumed later with `agent_resume`.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID to pause. |
-
-**Returns:** Confirmation.
-
----
-
-### agent_resume
-
-Resume a paused agent.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID to resume. |
-
-**Returns:** Confirmation.
-
----
-
-### agent_checkpoints
-
-List all checkpoints for an agent.
-
-**Parameters:**
-
-| Name | Type | Required | Description |
-|---|---|---|---|
-| `agent_id` | string | yes | Agent ID. |
-
-**Returns:** JSON array of checkpoints with `checkpoint_id`, `label`, `created_at`, and `event_id`.
-
-**Example:**
-
-```json
-{"agent_id": "01HXY..."}
-```
-
-**Response:**
-
-```json
-[
-  {"checkpoint_id": "01HABC...", "label": "pre-refactor", "created_at": "2026-03-31T10:00:00.000", "event_id": 42},
-  {"checkpoint_id": "01HDEF...", "label": "post-refactor", "created_at": "2026-03-31T10:15:00.000", "event_id": 87}
-]
-```
-
----
-
-### mh_search
-
-Run a Meta-Harness search to automatically optimize a harness for a benchmark. The search evaluates seed harnesses, then iteratively proposes and evaluates improvements using full execution traces.
+Kick off a Meta-Harness search: seed harnesses get scored on a benchmark, then each iteration proposes and evaluates improvements drawn from full execution traces.
 
 **Parameters:**
 
@@ -657,7 +636,7 @@ Run a Meta-Harness search to automatically optimize a harness for a benchmark. T
 | `candidates_per_iteration` | integer | no | Candidates proposed per iteration. Default: 2. |
 | `config` | object | no | Additional SearchConfig overrides. |
 
-**Returns:** JSON with `search_agent_id`, `summary`, `frontier`, `total_harnesses`, and `duration_seconds`.
+**Returns:** JSON carrying `search_agent_id`, `summary`, `frontier`, `total_harnesses`, and `duration_seconds`.
 
 **Example:**
 
@@ -665,11 +644,9 @@ Run a Meta-Harness search to automatically optimize a harness for a benchmark. T
 {"benchmark": "text_classify", "max_iterations": 10, "candidates_per_iteration": 2}
 ```
 
----
+#### mh_frontier
 
-### mh_frontier
-
-Get the Pareto frontier of a completed Meta-Harness search.
+Pull the Pareto frontier once a search has finished.
 
 **Parameters:**
 
@@ -677,13 +654,11 @@ Get the Pareto frontier of a completed Meta-Harness search.
 |---|---|---|---|
 | `search_agent_id` | string | yes | Search agent ID returned by `mh_search`. |
 
-**Returns:** JSON with the Pareto frontier (harness IDs, scores, iterations).
+**Returns:** the Pareto frontier as JSON — harness IDs, scores, iterations.
 
----
+#### mh_resume
 
-### mh_resume
-
-Resume an interrupted Meta-Harness search from its last completed iteration. All prior harness evaluations, traces, and Pareto frontier state are preserved. The search continues with the same configuration (benchmark, candidates per iteration, objectives).
+Pick an interrupted search back up at its last finished iteration. Nothing is lost: prior harness evaluations, traces, and frontier state carry over, and the benchmark, candidate count, and objectives stay exactly as configured.
 
 **Parameters:**
 
@@ -691,7 +666,7 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 |---|---|---|---|
 | `search_agent_id` | string | yes | Search agent ID of the interrupted search. |
 
-**Returns:** JSON with `search_agent_id`, `summary`, `frontier`, `total_harnesses`, `resumed_from_iteration`, and `duration_seconds`.
+**Returns:** JSON carrying `search_agent_id`, `summary`, `frontier`, `total_harnesses`, `resumed_from_iteration`, and `duration_seconds`.
 
 **Example:**
 
@@ -714,13 +689,40 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 }
 ```
 
+### Additional tools exposed by the same server
+
+The MCP list currently includes these 19 additional tools beyond the detailed workflow tables above:
+
+- Meta-Harness step tools: `mh_start_search`, `mh_submit_candidate`, `mh_next_iteration`, `mh_write_skill`, `mh_spawn_coevolution`, `mh_hub_sync`
+- Agent memory: `agent_memory_write`, `agent_memory_search`, `agent_memory_read`
+- Shared log: `shared_log_intent`, `shared_log_vote`, `shared_log_decide`, `shared_log_append`, `shared_log_read`
+- Skills: `skill_save`, `skill_search`, `skill_apply`, `skill_list`, `skill_outcome`
+
+Verify the current surface from the source checkout:
+
+```bash
+uv run python - <<'PY'
+import asyncio
+from bene.mcp.server import list_tools
+async def main():
+    tools = await list_tools()
+    print(len(tools))
+    print("\n".join(t.name for t in tools))
+asyncio.run(main())
+PY
+```
+
 ---
 
-## Example Conversation Flows
+<a id="example-conversation-flows"></a>
 
-### Flow 1: Spawn an agent to write tests
+## Conversations that work today
 
-**User:** "Use BENE to spawn an agent that writes unit tests for my auth module."
+Nine end-to-end exchanges, ordered the way work usually unfolds: build, fan out, steer, inspect, recover, evolve.
+
+### Have an agent write your tests
+
+**You:** "Spin up a BENE agent to cover my auth module with unit tests."
 
 **Claude Code calls:** `agent_spawn`
 
@@ -728,14 +730,11 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"name": "auth-tester", "task": "Write comprehensive unit tests for the authentication module covering login, logout, token refresh, and edge cases."}
 ```
 
-**Claude Code receives result and responds:**
-"I spawned agent `auth-tester` (ID: 01HXY...) which wrote 15 unit tests. Here's a summary of what it covered..."
+**Claude Code reads the result back:** agent `auth-tester` (ID: 01HXY...) produced 15 unit tests, and the reply summarizes their coverage.
 
----
+### Seed files first, refactor second
 
-### Flow 2: Pre-populate files, then run
-
-**User:** "Create an agent with some existing code, then have it refactor."
+**You:** "I want an agent loaded with code I already have — the refactor comes after."
 
 **Claude Code calls:** `agent_spawn_only`
 
@@ -761,15 +760,50 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"agent_id": "01HXY...", "label": "before-refactor"}
 ```
 
-**User:** "Now run the agent to refactor."
+**You:** "Now let it refactor."
 
-**Claude Code calls:** `agent_spawn` (with a new task referencing the existing files).
+**Claude Code calls:** `agent_spawn`, giving it a fresh task that points at the files already in place.
 
----
+### Review code from four angles at once
 
-### Flow 3: Investigate what an agent did
+**You:** "Give me four reviews of this code in parallel — security, performance, style, test coverage."
 
-**User:** "What did the refactorer agent do? Show me its file changes."
+**Claude Code calls:** `agent_parallel`
+
+```json
+{
+  "tasks": [
+    {"name": "security-reviewer", "prompt": "Review this code for security vulnerabilities: ...", "config": {"force_model": "deepseek-r1-70b"}},
+    {"name": "performance-reviewer", "prompt": "Review this code for performance issues: ..."},
+    {"name": "style-reviewer", "prompt": "Review this code for style and best practices: ..."},
+    {"name": "test-reviewer", "prompt": "Suggest test cases needed for this code: ..."}
+  ]
+}
+```
+
+**Four results come back; Claude Code folds them into one unified review.**
+
+### Pause an agent, look around, continue
+
+**You:** "Hold the refactorer for a moment — I want to look over its progress."
+
+**Claude Code calls:** `agent_pause`
+
+```json
+{"agent_id": "01HXY..."}
+```
+
+**You:** "Looks fine. Carry on."
+
+**Claude Code calls:** `agent_resume`
+
+```json
+{"agent_id": "01HXY..."}
+```
+
+### Audit what an agent actually did
+
+**You:** "Walk me through everything the refactorer changed."
 
 **Claude Code calls:** `agent_query`
 
@@ -789,62 +823,11 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"agent_id": "01HXY...", "path": "/src/payments.py"}
 ```
 
-**Claude Code responds with a summary of the agent's actions and the final file contents.**
+**Claude Code walks you through the event history and the file as it now stands.**
 
----
+### Watch token spend across running agents
 
-### Flow 4: Parallel code review swarm
-
-**User:** "Review this code from 4 angles: security, performance, style, and test coverage."
-
-**Claude Code calls:** `agent_parallel`
-
-```json
-{
-  "tasks": [
-    {"name": "security-reviewer", "prompt": "Review this code for security vulnerabilities: ...", "config": {"force_model": "deepseek-r1-70b"}},
-    {"name": "performance-reviewer", "prompt": "Review this code for performance issues: ..."},
-    {"name": "style-reviewer", "prompt": "Review this code for style and best practices: ..."},
-    {"name": "test-reviewer", "prompt": "Suggest test cases needed for this code: ..."}
-  ]
-}
-```
-
-**Claude Code aggregates the 4 results and presents a unified review.**
-
----
-
-### Flow 5: Checkpoint and rollback
-
-**User:** "The refactor broke things. Roll back to the checkpoint we made earlier."
-
-**Claude Code calls:** `agent_query`
-
-```json
-{"sql": "SELECT checkpoint_id, label, created_at FROM checkpoints WHERE agent_id = '01HXY...' ORDER BY created_at"}
-```
-
-**Claude Code identifies the checkpoint labeled "before-refactor".**
-
-**Claude Code calls:** `agent_restore`
-
-```json
-{"agent_id": "01HXY...", "checkpoint_id": "01HABC..."}
-```
-
-**Claude Code calls:** `agent_diff`
-
-```json
-{"agent_id": "01HXY...", "from_checkpoint": "01HABC...", "to_checkpoint": "01HDEF..."}
-```
-
-**Claude Code responds:** "Rolled back to the pre-refactor state. Here's what was undone: 3 files modified, 1 file added (now removed)."
-
----
-
-### Flow 6: Monitor and debug
-
-**User:** "Show me which agents are running and how many tokens they've used."
+**You:** "Which agents are live right now, and what have they spent in tokens?"
 
 **Claude Code calls:** `agent_status`
 
@@ -858,33 +841,37 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"sql": "SELECT a.name, SUM(tc.token_count) as tokens, COUNT(tc.call_id) as calls FROM agents a LEFT JOIN tool_calls tc ON a.agent_id = tc.agent_id WHERE a.status = 'running' GROUP BY a.agent_id"}
 ```
 
-**Claude Code presents a summary table of running agents with their token consumption.**
+**Claude Code lays out the live agents alongside their token totals.**
 
----
+### Undo a refactor gone wrong
 
-### Flow 7: Pause and resume an agent
+**You:** "That refactor was a mistake. Take the agent back to the earlier checkpoint."
 
-**User:** "Pause the refactorer agent, I want to review what it's done so far."
-
-**Claude Code calls:** `agent_pause`
+**Claude Code calls:** `agent_query`
 
 ```json
-{"agent_id": "01HXY..."}
+{"sql": "SELECT checkpoint_id, label, created_at FROM checkpoints WHERE agent_id = '01HXY...' ORDER BY created_at"}
 ```
 
-**User:** "OK, looks good. Resume it."
+**Claude Code spots the checkpoint labeled "before-refactor".**
 
-**Claude Code calls:** `agent_resume`
+**Claude Code calls:** `agent_restore`
 
 ```json
-{"agent_id": "01HXY..."}
+{"agent_id": "01HXY...", "checkpoint_id": "01HABC..."}
 ```
 
----
+**Claude Code calls:** `agent_diff`
 
-### Flow 8: Run a Meta-Harness search
+```json
+{"agent_id": "01HXY...", "from_checkpoint": "01HABC...", "to_checkpoint": "01HDEF..."}
+```
 
-**User:** "Use Meta-Harness to optimize my text classification harness."
+**Claude Code reports the rollback:** back at the pre-refactor state, with 3 files modified and 1 file added (now removed) — all undone.
+
+### Let the meta-harness optimize for you
+
+**You:** "Optimize my text-classification harness with a Meta-Harness search."
 
 **Claude Code calls:** `mh_search`
 
@@ -892,10 +879,9 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"benchmark": "text_classify", "max_iterations": 10, "candidates_per_iteration": 2}
 ```
 
-**Claude Code receives the Pareto frontier and presents:**
-"Meta-Harness evaluated 23 harnesses over 10 iterations. Best accuracy: 87% (harness 01HXY1F...). Best cost efficiency: 45 tokens/prediction (harness 01HXY1G...)."
+**The frontier comes back:** 23 harnesses evaluated across 10 iterations; top accuracy 87% (harness 01HXY1F...); best cost efficiency 45 tokens/prediction (harness 01HXY1G...).
 
-**User:** "Show me the full frontier."
+**You:** "Full frontier, please."
 
 **Claude Code calls:** `mh_frontier`
 
@@ -903,11 +889,9 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"search_agent_id": "01HXY..."}
 ```
 
----
+### Recover a crashed search
 
-### Flow 9: Resume an interrupted Meta-Harness search
-
-**User:** "My Meta-Harness search crashed at iteration 4. Can you resume it?"
+**You:** "The search died at iteration 4 — pick it up where it stopped."
 
 **Claude Code calls:** `mh_resume`
 
@@ -915,5 +899,14 @@ Resume an interrupted Meta-Harness search from its last completed iteration. All
 {"search_agent_id": "01HXY..."}
 ```
 
-**Claude Code receives the result and responds:**
-"Resumed the search from iteration 4. It completed 10 total iterations and evaluated 23 harnesses. Best accuracy: 87% (harness 01HXY1F...). The full frontier has 4 Pareto-optimal harnesses."
+**Claude Code reports:** resumed at iteration 4, ran through 10 iterations total, 23 harnesses evaluated, best accuracy 87% (harness 01HXY1F...), and 4 harnesses sit on the Pareto frontier.
+
+---
+
+## What v0.5.2 changed
+
+- **CLI first.** Every command takes `--json`, so an agent can shell out to `bene --json ls` rather than carry MCP schemas in context — 10-32x cheaper on tokens.
+- **Big results don't flood the wire.** When an agent's output runs past 4KB, the full text lands in its VFS at `/result.txt`; over MCP you get a preview plus a pointer to fetch the rest with `agent_read`.
+- **The JSON-RPC stream stays clean.** On stdio startup, the server points `sys.stdout` at `sys.stderr`, so stray library logging can never corrupt the protocol.
+- **Searches outlive the connection.** `mh_search` and `mh_resume` hand work to detached worker processes; an MCP disconnect doesn't kill a running search. Workers log to `bene-worker-*.log`.
+- **Three commands joined the CLI:** `bene read`, `bene logs`, and `bene mh search --dry-run`.

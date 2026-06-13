@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>How BENE Runs 4 Specialized AI Security Agents in Parallel — and Aggregates Every Finding in SQL — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — How BENE Runs 4 Specialized AI Security Agents in Parallel — and Aggregates Every Finding in SQL" />
+<title>Parallel security review: four agents, one query — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Parallel security review: four agents, one query" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="../README.html">README</a>
 <a href="../architecture.html">architecture</a>
 <a href="../checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../shared-log.html">shared-log</a>
 <a href="../skills.html">skills</a>
 <a href="../use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="../design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="../design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="../design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="../design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="../benchmarks/PREREG.html">PREREG</a>
 <a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="../tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,31 +191,21 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="../case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="../infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="../index.html">docs</a> / tutorials/t03-security-swarm.md</div>
-<h1 id="how-bene-runs-4-specialized-ai-security-agents-in-parallel-and-aggregates-every-finding-in-sql">How BENE Runs 4 Specialized AI Security Agents in Parallel — and Aggregates Every Finding in SQL</h1>
+<h1 id="parallel-security-review-four-agents-one-query">Parallel security review: four agents, one query</h1>
 <p><em>Security</em></p>
-<p><em>SQL injection, secrets leakage, auth bypass, unsafe deserialization — each BENE AI agent owns one attack surface, runs in full isolation, and results aggregate across all four with a single SQL query.</em></p>
-<hr />
-<p>Security review is serialized by default. One person, one angle, one pass. They check for SQL injection. Then they switch context to look for secrets. Then auth. Then deserialization. Each context switch costs focus. Most reviewers only catch what they were last thinking about.</p>
-<p>BENE makes it parallel. One agent per attack surface, all at once, results aggregated via SQL when they're done.</p>
-<hr />
+<p>Point four isolated agents at one pull request — injection, secrets, auth, deserialization — and read back a severity-ranked findings table from a single SQL query. The whole review takes 20 minutes of wall clock where four serial passes take 80.</p>
+<blockquote>
+<p><strong>One scanner per attack surface, zero shared state, every finding in one table.</strong></p>
+</blockquote>
 <p><img alt="BENE security swarm demo — 4 parallel agents scanning PR-2847, SQL aggregation of findings" src="../demos/bene_uc_security.gif" /></p>
-<p><em>4 agents spawn simultaneously, each scans one attack surface, findings aggregate in SQL. 20 minutes total instead of 80.</em></p>
-<hr />
-<h2 id="the-problem-with-sequential-security-reviews">The Problem With Sequential Security Reviews</h2>
-<p>A single reviewer cannot hold all attack surfaces in mind simultaneously. The cognitive cost of context-switching is real — and it produces gaps.</p>
-<ul>
-<li><strong>Context switching</strong> between SQLi → auth → secrets → deserialization loses the mental model each time</li>
-<li><strong>Anchoring bias</strong> — once you find one issue, you tend to look for similar issues, missing orthogonal vulnerabilities</li>
-<li><strong>Fatigue</strong> — the fourth pass over 400 lines of code is less thorough than the first</li>
-</ul>
-<p>The BENE solution: one agent per attack surface, each with no knowledge of what the others found. No anchoring. No fatigue. Full focus on one threat model each.</p>
-<hr />
-<h2 id="spawning-4-specialized-agents">Spawning 4 Specialized Agents</h2>
-<p>Each agent gets its own isolated VFS copy of the PR code. They run simultaneously and cannot see each other's findings — full VFS isolation by design.</p>
+<p><em>PR-2847 under review: the scanners launch together, and one query collects everything they found.</em></p>
+<h2 id="launch-the-swarm">Launch the swarm</h2>
+<p>Reviewing serially costs you three ways: every switch between threat models drops the previous one on the floor, the fourth pass over the same 400 lines gets less of your attention than the first did, and the first bug you spot recruits you into hunting its lookalikes while orthogonal ones slip past.</p>
+<p>Splitting the review removes all three taxes. One command starts four scanners, each specialized for a single threat model:</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>parallel<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span><span class="s2">&quot;spawn sqli-scanner    --from ./pr-2847 --task sqli_audit&quot;</span><span class="w"> </span><span class="se">\</span>
 <span class="w">  </span><span class="s2">&quot;spawn secrets-scanner --from ./pr-2847 --task secrets_audit&quot;</span><span class="w"> </span><span class="se">\</span>
@@ -230,37 +220,9 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <span class="c1"># 4 agents running in parallel</span>
 </code></pre></div>
 
-<hr />
-<h2 id="agent-1-sql-injection-scan">Agent 1: SQL Injection Scan</h2>
-<p>The SQL injection agent works through <code>api/users.py</code>, <code>api/search.py</code>, and the database layer. It finds the vulnerability in 4 minutes:</p>
-<div class="codehilite"><pre><span></span><code><span class="c1"># api/search.py — FINDING: SQL injection via f-string interpolation</span>
-
-<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/search&#39;</span><span class="p">)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">search_users</span><span class="p">():</span>
-    <span class="n">query</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="c1"># CRITICAL: direct string interpolation into SQL</span>
-    <span class="n">sql</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SELECT * FROM users WHERE name LIKE &#39;%</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">%&#39;&quot;</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-</code></pre></div>
-
-<p>Proposed fix — parameterized query:</p>
-<div class="codehilite"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/search&#39;</span><span class="p">)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">search_users</span><span class="p">():</span>
-    <span class="n">query</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
-    <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM users WHERE name LIKE ?&quot;</span>
-    <span class="n">results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;%</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s1">%&#39;</span><span class="p">,))</span>
-    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
-</code></pre></div>
-
-<p>Isolation matters here: this agent only sees the code. It doesn't know the secrets agent found a hardcoded key. No anchoring — it stays focused on injection patterns throughout.</p>
-<hr />
-<h2 id="agent-2-secrets-api-keys-scan">Agent 2: Secrets &amp; API Keys Scan</h2>
-<p>The secrets agent finds two issues in 6 minutes: a hardcoded production API key in <code>config/settings.py</code> (CRITICAL — now in git history forever) and an SSRF risk in <code>api/webhooks.py</code> where an unvalidated user-supplied URL is passed directly to <code>requests.get()</code> (MEDIUM).</p>
-<hr />
-<h2 id="agents-3-4-auth-deserialization">Agents 3 &amp; 4: Auth + Deserialization</h2>
-<p>The auth agent works through all authentication middleware, JWT handling, and session management — clean result after 18 minutes.</p>
-<p>The deserialization agent checks all <code>pickle.loads()</code>, <code>yaml.load()</code>, and <code>eval()</code> call sites — also clean.</p>
+<p>Every scanner gets a private virtual filesystem (bene's per-agent VFS) holding its own copy of the PR. No agent can read what a sibling wrote — the no-anchoring property is enforced by the database, not by discipline.</p>
+<h2 id="know-when-the-scanners-finish">Know when the scanners finish</h2>
+<p>The agents complete on their own schedules — injection at the 4-minute mark, secrets at 6, auth at 18 — each reporting a finding count as it lands:</p>
 <div class="codehilite"><pre><span></span><code><span class="p">[</span>
 <span class="w">  </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;sqli-scanner&quot;</span><span class="p">,</span><span class="w">    </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;complete&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;findings_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">},</span>
 <span class="w">  </span><span class="p">{</span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;secrets-scanner&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;status&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;complete&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;findings_count&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">},</span>
@@ -269,9 +231,8 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <span class="p">]</span>
 </code></pre></div>
 
-<hr />
-<h2 id="aggregating-with-sql">Aggregating with SQL</h2>
-<p>All four agents have written their findings to their individual VFS stores. Aggregate across all of them with a single query:</p>
+<h2 id="pull-every-finding-with-one-query">Pull every finding with one query</h2>
+<p>Results sit in each agent's own VFS store, but the stores share one database — so a single SELECT, ordered by severity, assembles the entire review:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">agent_name</span><span class="p">,</span><span class="w"> </span><span class="n">severity</span><span class="p">,</span><span class="w"> </span><span class="n">finding_type</span><span class="p">,</span><span class="w"> </span><span class="n">file_path</span><span class="p">,</span><span class="w"> </span><span class="n">line_no</span><span class="p">,</span><span class="w"> </span><span class="n">summary</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">vfs_findings</span>
 <span class="k">WHERE</span><span class="w"> </span><span class="n">pr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;PR-2847&#39;</span>
@@ -293,10 +254,34 @@ auth-scanner     CLEAN     —                 —                   —     No 
 deser-scanner    CLEAN     —                 —                   —     No unsafe deserialization found
 </code></pre></div>
 
-<p>2 CRITICAL, 1 MEDIUM, 2 clean passes. The full picture in one query.</p>
-<hr />
-<h2 id="verifying-isolation">Verifying Isolation</h2>
-<p>The power of this approach depends on isolation being real. Verify it directly:</p>
+<p>2 CRITICAL findings, 1 MEDIUM, and 2 surfaces confirmed clean — assembled without opening any agent's workspace.</p>
+<h2 id="what-each-scanner-caught">What each scanner caught</h2>
+<p><strong>SQL injection — CRITICAL, 4 minutes.</strong> Working across <code>api/users.py</code>, <code>api/search.py</code>, and the database layer, the injection scanner flagged a query built by f-string:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1"># api/search.py — FINDING: SQL injection via f-string interpolation</span>
+
+<span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/search&#39;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">search_users</span><span class="p">():</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="c1"># CRITICAL: direct string interpolation into SQL</span>
+    <span class="n">sql</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;SELECT * FROM users WHERE name LIKE &#39;%</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">%&#39;&quot;</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+</code></pre></div>
+
+<p>The fix it proposed binds the value as a parameter instead:</p>
+<div class="codehilite"><pre><span></span><code><span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s1">&#39;/search&#39;</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">search_users</span><span class="p">():</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s1">&#39;q&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+    <span class="n">sql</span> <span class="o">=</span> <span class="s2">&quot;SELECT * FROM users WHERE name LIKE ?&quot;</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="p">(</span><span class="sa">f</span><span class="s1">&#39;%</span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s1">%&#39;</span><span class="p">,))</span>
+    <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">results</span><span class="p">)</span>
+</code></pre></div>
+
+<p>This agent never learned that a leaked key existed elsewhere in the diff. It held the injection threat model from first file to last, because nothing else was visible to it.</p>
+<p><strong>Leaked key + SSRF — CRITICAL and MEDIUM, 6 minutes.</strong> The secrets scanner surfaced a production API key committed in <code>config/settings.py</code> — CRITICAL, and recoverable from git history forever — then flagged <code>api/webhooks.py</code>, where a user-supplied URL reaches <code>requests.get()</code> without validation (MEDIUM, SSRF).</p>
+<p><strong>Two clean surfaces.</strong> The auth scanner walked session management, JWT handling, and every piece of authentication middleware, coming back empty after 18 minutes. The deserialization scanner audited each <code>pickle.loads()</code>, <code>yaml.load()</code>, and <code>eval()</code> call site and likewise found nothing.</p>
+<h2 id="verify-that-no-agent-saw-another">Verify that no agent saw another</h2>
+<p>The zero-shared-state claim above is checkable, not rhetorical. The event journal records every read; ask it how many crossed an agent boundary:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">COUNT</span><span class="p">(</span><span class="n">e</span><span class="p">.</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">shared_events</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">agents</span><span class="w"> </span><span class="n">a</span>
 <span class="k">LEFT</span><span class="w"> </span><span class="k">JOIN</span><span class="w"> </span><span class="n">vfs_events</span><span class="w"> </span><span class="n">e</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">agent_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
@@ -307,10 +292,8 @@ deser-scanner    CLEAN     —                 —                   —     No 
 <span class="c1">-- Result: 0 cross-agent reads for all 4 agents</span>
 </code></pre></div>
 
-<p>Zero cross-agent reads. Each agent worked in complete isolation. No anchoring is possible because no agent could observe what the others found.</p>
-<p><strong>Why isolation matters for security reviews:</strong> If Agent 2 could see that Agent 1 found a SQL injection issue, it might start looking for similar injection patterns — and miss the hardcoded key it was supposed to find. BENE makes it structurally impossible for agents to influence each other's findings.</p>
-<hr />
-<h2 id="the-speed-math">The Speed Math</h2>
+<p>Zero, on all four scanners. That number is what turns "no anchoring" from a hope into a property: had the secrets agent watched the injection finding arrive, it could have drifted toward injection lookalikes and sailed straight past the key it was built to catch.</p>
+<h2 id="what-it-costs">What it costs</h2>
 <div class="codehilite"><pre><span></span><code>Approach                   Time               Anchoring Risk
 -------------------------  -----------------  --------------
 Sequential (1 reviewer)    80 min             High
@@ -318,9 +301,8 @@ Sequential (4 reviewers)   20 min wall clock  Medium
 BENE parallel agents       20 min wall clock  None
 </code></pre></div>
 
-<p>Same findings. 4× faster when parallelized against a single reviewer. Zero anchoring risk regardless.</p>
-<hr />
-<p>The SQL injection and the hardcoded key would have taken two separate human passes to find. The SSRF might have been missed entirely — it's an easy one to overlook when you're already mentally categorizing credentials. BENE found all three in 20 minutes, in parallel, with a full audit trail and zero cross-agent contamination.</p>
+<p>The findings come out identical either way. Parallelizing buys a 4× wall-clock win over a single reviewer; the isolation buys an anchoring column that reads "None" by construction rather than by effort.</p>
+<p>Note where the bugs sat: the injection and the key live in different mental categories — exactly where a serial reviewer pays the switching tax — and the SSRF is the kind most likely to vanish behind whichever category was loaded last. All three surfaced in 20 minutes, with an audit trail proving no finding shaped another.</p>
 <h2 id="related">Related</h2>
 <ul>
 <li><a href="../README.html">README</a> — BENE overview and full doc index</li>
@@ -330,7 +312,7 @@ BENE parallel agents       20 min wall clock  None
 <li><a href="../architecture.html">Architecture: agent isolation</a></li>
 </ul>
 <hr />
-<p><em>BENE is MIT-licensed and runs entirely locally. No data leaves your machine.</em></p>
+<p><em>bene is MIT-licensed and local-first: this whole review ran on one machine, and its complete state — agents, events, findings — is a single SQLite file you can copy.</em></p>
 <p><em>GitHub: <a href="https://github.com/good-night-oppie/bene">github.com/good-night-oppie/bene</a></em></p>
 <div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/tutorials/t03-security-swarm.md" target="_blank" rel="noopener noreferrer">docs/tutorials/t03-security-swarm.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
 </main>

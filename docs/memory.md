@@ -1,31 +1,18 @@
 # Cross-Agent Memory
 
-BENE's cross-agent memory store lets every agent in a project write persistent, searchable knowledge that any future agent can retrieve — across iterations, across sessions, across workers.
+Write a finding down once and any agent that runs later — next iteration, next session, another worker — can search for it.
+
+> **One agent's lesson becomes every agent's context: a single shared, full-text-searchable memory for the whole project.**
 
 ![Cross-Agent Memory — write once, search by any future agent in any session](demos/bene_uc_memory.gif)
 
-> Clean-room implemented with the idea inspired by [claude-mem](https://github.com/thedotmack/claude-mem) by Alex Newman ([@thedotmack](https://github.com/thedotmack)), AGPL-3.0.
-> Adapted for BENE's multi-agent, SQLite-backed architecture with FTS5 full-text search.
+Clean-room build of an idea from [claude-mem](https://github.com/thedotmack/claude-mem) (AGPL-3.0) — see [Credits](#credits).
 
 ---
 
-## Overview
+## Start Here
 
-Memory entries are stored in a SQLite table with an FTS5 virtual table for full-text search. All agents in the same `.db` file share one memory store.
-
-**Memory types:**
-
-| Type | Use case |
-|------|----------|
-| `observation` | Runtime findings, intermediate results |
-| `result` | Final outputs, benchmark scores |
-| `skill` | Reusable patterns, code templates |
-| `insight` | Analysis, lessons learned |
-| `error` | Known failure modes to avoid |
-
----
-
-## Quick Start
+Hand `MemoryStore` your connection; every agent sharing the `.db` file shares the store.
 
 ```python
 from bene import Bene
@@ -49,29 +36,31 @@ for h in hits:
     print(h.content)
 ```
 
+Full demo: [examples/memory_search.py](../examples/memory_search.py).
+
 ---
 
-## API Reference
+## Choose a Type Before You Write
 
-### `MemoryStore.write(agent_id, content, type, key, metadata) -> int`
+Each entry carries a type; failure hunters filter to `error`.
 
-Persist a memory entry. Returns the `memory_id`.
+| Type | Use case |
+|------|----------|
+| `observation` | Runtime findings, intermediate results |
+| `result` | Final outputs, benchmark scores |
+| `skill` | Reusable patterns, code templates |
+| `insight` | Analysis, lessons learned |
+| `error` | Known failure modes to avoid |
 
-```python
-mid = mem.write(
-    agent_id="agent-01",
-    content="Chain-of-thought prompting reduces errors by 23%.",
-    type="skill",
-    key="cot-numbered-steps",
-    metadata={"benchmark": "math_rag"},
-)
-```
+---
+
+## Search What Earlier Agents Learned
 
 ### `MemoryStore.search(query, limit, type, agent_id) -> list[MemoryEntry]`
 
-Full-text search using SQLite FTS5 with porter stemming. Results are ranked by BM25 relevance.
+Queries hit SQLite FTS5 with porter stemming, ranked by BM25 relevance.
 
-Supports FTS5 query syntax:
+FTS5 query syntax works as-is:
 
 - Phrase: `"chain of thought"`
 - NOT: `reasoning NOT error`
@@ -89,9 +78,27 @@ errors = mem.search("JSON decode", type="error")
 hits = mem.search("ensemble", agent_id="proposer-iter-3")
 ```
 
+---
+
+## Record, Browse, and Prune
+
+### `MemoryStore.write(agent_id, content, type, key, metadata) -> int`
+
+Stores one entry and returns its `memory_id`.
+
+```python
+mid = mem.write(
+    agent_id="agent-01",
+    content="Chain-of-thought prompting reduces errors by 23%.",
+    type="skill",
+    key="cot-numbered-steps",
+    metadata={"benchmark": "math_rag"},
+)
+```
+
 ### `MemoryStore.list(agent_id, type, limit, offset) -> list[MemoryEntry]`
 
-List entries (most recent first) with optional filters.
+Newest first; narrow by agent or type, page with `offset`.
 
 ```python
 # All entries
@@ -106,23 +113,38 @@ page2 = mem.list(offset=20, limit=20)
 
 ### `MemoryStore.get(memory_id) -> MemoryEntry | None`
 
-Fetch a single entry by primary key.
+Looks up one entry by primary key.
 
 ### `MemoryStore.get_by_key(key, agent_id) -> MemoryEntry | None`
 
-Fetch the most recent entry with a given key.
+Returns the newest entry carrying the given key.
 
 ### `MemoryStore.delete(memory_id) -> bool`
 
-Delete an entry (also removes from FTS index via trigger).
+Removes an entry; a trigger also clears its FTS row.
 
 ### `MemoryStore.stats() -> dict`
 
-Return total count and per-type breakdown.
+Reports total count plus a per-type breakdown.
 
 ---
 
-## CLI
+## Let the Meta-Harness Remember for You
+
+After each iteration the meta-harness records improved harnesses and known failures; the proposer's prompt gains a "Cross-Session Memory" block built from prior searches.
+
+**Restart a search and the proposer already knows what worked before.**
+
+```python
+# Memory is auto-written in _store_result() for improved/failed harnesses
+# Memory is auto-queried in proposer._load_memory_context()
+```
+
+---
+
+## Drive It from the Shell
+
+Write, search, and list have shell verbs; `--json` makes the output pipeable.
 
 ```bash
 # Write a memory entry
@@ -142,9 +164,9 @@ uv run bene --json memory search "ensemble" | jq '.[].content'
 
 ---
 
-## MCP Tools
+## Call It from Claude Code
 
-When using BENE via Claude Code or MCP:
+Agents reaching BENE over MCP get these memory tools:
 
 ```text
 agent_memory_write   — persist a memory entry
@@ -154,20 +176,9 @@ agent_memory_read    — fetch by memory_id or list recent
 
 ---
 
-## Meta-Harness Integration
+## Check Where Your Data Lives
 
-The Meta-Harness automatically writes improved harnesses and known failures to memory after each iteration. The proposer agent receives a "Cross-Session Memory" block in its prompt for context from prior searches.
-
-This means: **even if you restart a search, the proposer knows what has worked before.**
-
-```python
-# Memory is auto-written in _store_result() for improved/failed harnesses
-# Memory is auto-queried in proposer._load_memory_context()
-```
-
----
-
-## Schema
+Nothing leaves your machine: memory is one SQLite table inside the same `.db` file as your agents — copy that file and you have copied the memory. An FTS5 virtual table powers search, kept in sync by triggers.
 
 ```sql
 CREATE TABLE memory (
@@ -190,19 +201,11 @@ CREATE VIRTUAL TABLE memory_fts USING fts5(
 
 ---
 
-## Example
-
-See [examples/memory_search.py](../examples/memory_search.py) for a complete demo.
-
----
-
 ## Credits
 
-Inspired by [claude-mem](https://github.com/thedotmack/claude-mem) by Alex Newman ([@thedotmack](https://github.com/thedotmack)), licensed AGPL-3.0.
+The seed idea — agents leaving compact, searchable notes for later sessions to retrieve — comes from Alex Newman's [claude-mem](https://github.com/thedotmack/claude-mem) ([@thedotmack](https://github.com/thedotmack)), AGPL-3.0. BENE diverges:
 
-The core idea — agents writing compact, searchable memories for cross-session retrieval — is taken directly from claude-mem. BENE adapts it for:
-
-- SQLite FTS5 instead of a separate file store
-- Multi-agent (many writers, many readers) instead of single-agent
-- Typed entries (result, skill, error, insight, observation) for structured retrieval
-- Automatic meta-harness integration
+- storage is SQLite FTS5 rather than a separate file store
+- many agents write and many agents read, instead of one agent
+- entries carry a type (result, skill, error, insight, observation) so retrieval stays structured
+- the meta-harness reads and writes memory automatically

@@ -1,6 +1,8 @@
 # BENE CLI Reference
 
-All commands support `--json` for structured output (composable with `jq` and agent frameworks).
+Launch, watch, rewind, and query a fleet of agents from your terminal — every command works against the same local `bene.db` file.
+
+> **Every command takes `--json`, so any output can feed `jq`, scripts, or another agent framework.**
 
 ```bash
 bene --json <command>
@@ -8,21 +10,21 @@ bene --json <command>
 
 ---
 
-## Setup & Init
+## Get set up
 
 ### `bene setup`
 
-Interactive wizard. Picks a model preset, generates `bene.yaml`, initializes the database, and auto-installs the MCP server into Claude Code.
+One wizard: pick a model preset, get `bene.yaml` generated, the database initialized, and the MCP server auto-installed into Claude Code.
 
 ```bash
 bene setup
 ```
 
-Presets: Claude (Sonnet/Opus), OpenAI (GPT-4o), local vLLM (7B/70B), or custom endpoint.
+Preset choices: Claude (Sonnet/Opus), OpenAI (GPT-4o), a local vLLM (7B/70B), or a custom endpoint.
 
 ### `bene init`
 
-Initialize a new database at the default path (`./bene.db`) or a custom path.
+Create the database — at `./bene.db` by default, or anywhere you point it.
 
 ```bash
 bene init
@@ -31,7 +33,7 @@ bene init --db ./my-project.db
 
 ### `bene demo`
 
-Seed a demo database with realistic agent data and open the web dashboard. No API keys needed.
+Zero API keys needed. Seeds `demo.db` with realistic agent data, then opens the web dashboard.
 
 ```bash
 bene demo
@@ -39,29 +41,29 @@ bene demo --port 9000
 bene demo --no-browser
 ```
 
-Creates `demo.db` with 3 execution waves: code review swarm, parallel refactor, prod triage.
+Inside: 3 execution waves — a code review swarm, a parallel refactor, and prod triage.
 
 ---
 
-## Running Agents
+## Start agents
 
 ### `bene run`
 
-Spawn and run a single agent.
+One prompt, one agent.
 
 ```bash
 bene run "Refactor auth.py to use JWT tokens" --name auth-agent
 bene run "Find security vulnerabilities" --name security --db ./project.db
 ```
 
-Options:
+Flags:
 
-- `--name`, `-n` — agent name (auto-generated if omitted)
+- `--name`, `-n` — the agent's name; auto-generated when omitted
 - `--db` — database path (default: `./bene.db`)
 
 ### `bene parallel`
 
-Run multiple agents simultaneously. Each `-t name "prompt"` pair is one agent.
+Several agents at once; each `-t name "prompt"` pair adds one.
 
 ```bash
 bene parallel \
@@ -70,18 +72,43 @@ bene parallel \
   -t docs      "Update API documentation"
 ```
 
-Options:
+Flags:
 
-- `-t name prompt` — define an agent (repeatable)
-- `--db` — database path
+- `-t name prompt` — one agent per pair (repeatable)
+- `--db` — which database to use
 
 ---
 
-## Inspecting Agents
+## Watch them live
+
+### `bene ui`
+
+Web dashboard in a browser tab: Gantt timeline, live event feed, agent inspector.
+
+```bash
+bene ui
+bene ui --port 9000
+bene ui --db ./project.db --no-browser
+```
+
+More in the [Dashboard guide](dashboard.md).
+
+### `bene dashboard`
+
+The same monitoring, as a terminal TUI.
+
+```bash
+bene dashboard
+bene dashboard --db ./project.db
+```
+
+---
+
+## See what an agent did
 
 ### `bene ls`
 
-List all agents with status, file count, and tool call count.
+Every agent, with status, file count, and tool calls.
 
 ```bash
 bene ls
@@ -91,7 +118,7 @@ bene --json ls | jq '.[] | select(.status == "failed")'
 
 ### `bene status`
 
-Detailed status for one agent.
+One agent, in detail.
 
 ```bash
 bene status <agent-id>
@@ -100,7 +127,7 @@ bene --json status <agent-id>
 
 ### `bene logs`
 
-Full conversation log and event timeline for an agent.
+The agent's conversation plus its event timeline.
 
 ```bash
 bene logs <agent-id>
@@ -109,7 +136,7 @@ bene logs <agent-id> --tail 20    # last 20 events
 
 ### `bene read`
 
-Read a file from an agent's virtual filesystem.
+Pull one file out of an agent's virtual filesystem.
 
 ```bash
 bene read <agent-id> /path/to/file
@@ -118,11 +145,45 @@ bene read <agent-id> /src/auth.py
 
 ---
 
-## Checkpoints
+## Find anything
+
+### `bene search`
+
+Full-text search over every agent's files and state.
+
+```bash
+bene search "SQL injection"
+bene search "ConnectionError" --db ./project.db
+bene --json search "keyword" | jq '.results'
+```
+
+### `bene query`
+
+Run any SQL you want against the database.
+
+```bash
+bene query "SELECT name, status FROM agents"
+bene query "SELECT SUM(token_count) FROM tool_calls"
+bene query "SELECT * FROM events WHERE agent_id = 'abc123' ORDER BY timestamp"
+```
+
+Tables are listed in the [schema reference](schema.md).
+
+### `bene index`
+
+Write an `/index.md` summary of an agent's files into its VFS, so searches land faster.
+
+```bash
+bene index <agent-id>
+```
+
+---
+
+## Undo mistakes
 
 ### `bene checkpoint`
 
-Create a named snapshot of an agent's files and state.
+Snapshot an agent's files and state under a label.
 
 ```bash
 bene checkpoint <agent-id> --label "before-migration"
@@ -131,72 +192,38 @@ bene checkpoint <agent-id> -l "pre-refactor"
 
 ### `bene checkpoints`
 
-List all checkpoints for an agent.
+Every checkpoint an agent has.
 
 ```bash
 bene checkpoints <agent-id>
 bene --json checkpoints <agent-id>
 ```
 
-### `bene restore`
-
-Roll back an agent to a previous checkpoint. Other agents are unaffected.
-
-```bash
-bene restore <agent-id> --checkpoint <checkpoint-id>
-```
-
-Get checkpoint IDs from `bene checkpoints <agent-id>`.
-
 ### `bene diff`
 
-Show what changed between two checkpoints: files added/removed/modified, state changes.
+Compare two checkpoints — files added/removed/modified, state changes.
 
 ```bash
 bene diff <agent-id> --from <checkpoint-id-A> --to <checkpoint-id-B>
 ```
 
----
+### `bene restore`
 
-## Querying
-
-### `bene query`
-
-Run arbitrary SQL against the database.
+Rewind one agent to a checkpoint; every other agent is untouched.
 
 ```bash
-bene query "SELECT name, status FROM agents"
-bene query "SELECT SUM(token_count) FROM tool_calls"
-bene query "SELECT * FROM events WHERE agent_id = 'abc123' ORDER BY timestamp"
+bene restore <agent-id> --checkpoint <checkpoint-id>
 ```
 
-See [schema reference](schema.md) for all tables.
-
-### `bene search`
-
-Full-text search across all agent files and state.
-
-```bash
-bene search "SQL injection"
-bene search "ConnectionError" --db ./project.db
-bene --json search "keyword" | jq '.results'
-```
-
-### `bene index`
-
-Build a `/index.md` file in an agent's VFS summarizing all its files (for faster search).
-
-```bash
-bene index <agent-id>
-```
+Checkpoint IDs come from `bene checkpoints <agent-id>`.
 
 ---
 
-## Agent Lifecycle
+## Stop, move, share
 
 ### `bene kill`
 
-Terminate a running agent.
+Stop a running agent.
 
 ```bash
 bene kill <agent-id>
@@ -204,7 +231,7 @@ bene kill <agent-id>
 
 ### `bene export`
 
-Export a single agent's complete state to a standalone database file.
+Write one agent's full state into its own standalone database file.
 
 ```bash
 bene export <agent-id> --output agent-snapshot.db
@@ -212,7 +239,7 @@ bene export <agent-id> --output agent-snapshot.db
 
 ### `bene import`
 
-Import an agent from an exported database file.
+Bring an exported agent back in.
 
 ```bash
 bene import agent-snapshot.db
@@ -220,36 +247,11 @@ bene import agent-snapshot.db
 
 ---
 
-## Dashboard & Monitoring
-
-### `bene ui`
-
-Launch the web dashboard. Opens a browser tab with the Gantt timeline, live event feed, and agent inspector.
-
-```bash
-bene ui
-bene ui --port 9000
-bene ui --db ./project.db --no-browser
-```
-
-See [Dashboard guide](dashboard.md) for details.
-
-### `bene dashboard`
-
-Launch the terminal TUI monitor.
-
-```bash
-bene dashboard
-bene dashboard --db ./project.db
-```
-
----
-
-## MCP Server
+## Plug into Claude Code
 
 ### `bene serve`
 
-Start the MCP server (18 tools) for Claude Code and other MCP-compatible clients.
+Expose bene to Claude Code — or any MCP-compatible client — as an MCP server with 37 tools.
 
 ```bash
 bene serve --transport stdio       # for Claude Code / most clients
@@ -257,13 +259,13 @@ bene serve --transport sse         # HTTP/SSE transport
 bene serve --port 8765             # custom port (SSE only)
 ```
 
-See [MCP integration guide](mcp-integration.md) for setup.
+Setup steps: [MCP integration guide](mcp-integration.md).
 
 ---
 
-## Meta-Harness
+## Breed better harnesses
 
-Commands for running automated prompt/strategy optimization searches.
+Automated prompt/strategy optimization searches, from the CLI.
 
 ```bash
 bene mh search -b <benchmark> -n <iterations>   # start a search
@@ -275,11 +277,11 @@ bene mh knowledge                                # view persistent knowledge bas
 bene mh resume <search-id>                       # resume interrupted search
 ```
 
-See [Meta-Harness guide](meta-harness.md) for details.
+Details in the [Meta-Harness guide](meta-harness.md).
 
 ---
 
-## Global Options
+## Flags that work everywhere
 
 | Flag | Description |
 |---|---|

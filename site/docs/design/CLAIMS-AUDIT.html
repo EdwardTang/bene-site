@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>BENE 2.0 — Claims Audit (2026-06-11) — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — BENE 2.0 — Claims Audit (2026-06-11)" />
+<title>BENE 2.0 — Claims Audit (2026-06-13) — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — BENE 2.0 — Claims Audit (2026-06-13)" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="../README.html">README</a>
 <a href="../architecture.html">architecture</a>
 <a href="../checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../shared-log.html">shared-log</a>
 <a href="../skills.html">skills</a>
 <a href="../use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="../design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a class="cur" href="../design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="../design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="../design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="../benchmarks/PREREG.html">PREREG</a>
 <a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="../tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,27 +191,28 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="../case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="../infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="../index.html">docs</a> / design/CLAIMS-AUDIT.md</div>
-<h1 id="bene-20-claims-audit-2026-06-11">BENE 2.0 — Claims Audit (2026-06-11)</h1>
+<h1 id="bene-20-claims-audit-2026-06-13">BENE 2.0 — Claims Audit (2026-06-13)</h1>
 <p>Every capability claim in <code>BENE2-DESIGN.md</code>, marked <strong>implemented</strong> (file + test
 reference) or <strong>planned</strong> (tracked, not shipped). Zero false "done" claims —
 this document is the trust pillar applied to ourselves. Suite at audit time:
 <strong>614 tests passing (+3 skipped)</strong> (<code>uv run python -m pytest tests/ -q</code>);
 re-measured after the Round-3 gap-closure work: <strong>699 passing (+3 skipped)</strong>.
-Current (2026-06-12, fully-synced env): <strong>718 passing (+1 skipped, 0 failed)</strong> —
-the +19 over 699 is the 22-test Temporal runtime suite
-(<code>tests/test_runtime_handle.py</code> + <code>tests/test_runtime_invariants.py</code>), which
-collects only when <code>temporalio</code> is installed; pass/skip counts drift per env,
-the invariant is <strong>0 failed</strong>.</p>
+Current (2026-06-13, fully-synced env): <strong>741 passing (+1 skipped, 0 failed)</strong> —
+the count includes the Temporal runtime suite when <code>temporalio</code> is installed
+and the GOO-16 claim-audit milestone tests for runner ContextOS packing, live
+loop guards, scheduled consolidation planning, and the meta-harness evolution
+bridge. Pass/skip counts drift per env; the invariant is <strong>0 failed</strong>.</p>
 <h2 id="pillar-claims">Pillar claims</h2>
 <table>
 <thead>
 <tr>
 <th>Claim (BENE2-DESIGN §2)</th>
 <th>Status</th>
+<th>Verification</th>
 <th>Evidence</th>
 </tr>
 </thead>
@@ -219,201 +220,241 @@ the invariant is <strong>0 failed</strong>.</p>
 <tr>
 <td>Engram substrate: typed kinds, mandatory provenance, content-addressed payloads</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/engrams.py</code> · <code>tests/kernel/test_engrams.py</code> (22)</td>
 </tr>
 <tr>
 <td>Compression ladder w/ append-only promotion + lineage queries</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>EngramStore.promote/lineage</code> · <code>test_lineage_three_generations</code>, <code>test_promote_never_mutates_source</code></td>
 </tr>
 <tr>
 <td>Event bus w/ handler isolation + legacy journal mirror</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/bus.py</code> · <code>tests/kernel/test_bus.py</code> (8)</td>
 </tr>
 <tr>
 <td>Capability registry w/ autonomy metadata + dispatch enforcement</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/capabilities.py</code> · <code>tests/kernel/test_capabilities.py</code> (11)</td>
 </tr>
 <tr>
 <td>Falsifiable probes: sha256 locks, tamper refusal (both directions), admissibility-at-registration, A/R/V verdicts as engrams</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/eval/</code> · <code>tests/kernel/test_eval.py</code> (14)</td>
 </tr>
 <tr>
 <td>Experiments journal + CLI</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>experiment_runs</code> table · <code>bene experiments ls/show</code> · <code>test_experiment_run_logged_per_probe_run</code></td>
 </tr>
 <tr>
 <td>Trust ledger: 4 computed signals + composite, L3+ needs ACCEPT, weighted votes</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/trust.py</code> · <code>tests/kernel/test_trust.py</code> (12)</td>
 </tr>
 <tr>
 <td>Consolidation passes (episodic→semantic→procedural)</td>
 <td><strong>implemented</strong> (mechanism)</td>
+<td><strong>VERIFIED</strong></td>
 <td><code>GranuleStore.consolidate</code>, <code>TraceDistiller</code> · <code>test_memory_os.py</code>, <code>test_evolve.py</code></td>
 </tr>
 <tr>
 <td>Scheduled/nightly consolidation automation (SkillClaw-style)</td>
-<td><strong>planned</strong></td>
-<td>mechanism exists; scheduler/cron wiring not shipped</td>
+<td><strong>partial</strong></td>
+<td><strong>PARTIAL</strong></td>
+<td>deterministic <code>ScheduledConsolidator</code> planner/runner records replay manifests and <code>experiment_runs</code>; external scheduler/cron/CLI/config wiring not shipped (<code>bene/kernel/memory/lifecycle.py</code> · <code>test_scheduled_consolidation_*</code>)</td>
 </tr>
 <tr>
 <td>Skill plasticity: decay / demotion / retirement of failing skills</td>
 <td><strong>partial</strong></td>
+<td><strong>PARTIAL</strong></td>
 <td>search-time outcome weighting + recency decay shipped (Round-3, below); demotion/retirement policy still planned (GAP-AUDIT BENE-4 partially open)</td>
 </tr>
 <tr>
 <td>Outcome-weighted retrieval ranking (BM25 × Wilson lower bound × recency, opt-in <code>rank="weighted"</code>)</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/skills.py</code> · <code>tests/test_skills_weighted.py</code> (Round-3; closes bench rows A1b/A2)</td>
 </tr>
 <tr>
 <td>Continuous-quality outcome signal (<code>record_outcome(…, quality=…)</code> + per-use telemetry)</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/skills.py</code> · <code>tests/test_skills_weighted.py</code> (Round-3; closes bench row A5)</td>
 </tr>
 <tr>
 <td>Critical-step localizer: earliest decisive error over failed trajectories, heuristic-first, optional cached LLM fallback</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/evolve/localize.py</code> · <code>tests/kernel/test_localize.py</code> (Round-3; closes bench row A4)</td>
 </tr>
 <tr>
 <td>Evolution: structured genomes, reflective mutation, Pareto frontier, surrogate prefilter</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/evolve/gepa.py</code> · <code>tests/kernel/test_evolve.py</code> (18)</td>
 </tr>
 <tr>
 <td>Trace→skill distillation: patches, prevalence merge, 3-level hierarchy, full provenance</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/evolve/distill.py</code> · <code>test_distill_provenance_to_every_source_trace</code></td>
 </tr>
 <tr>
 <td>Strategy genes (encode/decode/merge, control-signal-dense)</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/evolve/genes.py</code> · 4 gene tests</td>
 </tr>
 <tr>
 <td>Kill-gated promotion (<code>PromotionBlocked</code>) w/ verifier isolation</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>evolve.promote</code> · <code>test_promotion_blocked_without_accept</code> + 2</td>
 </tr>
 <tr>
 <td>In-episode/continual harness mutation (Continual Harness)</td>
 <td><strong>planned</strong></td>
+<td><strong>UNVERIFIED</strong></td>
 <td>between-generation only today</td>
 </tr>
 <tr>
 <td>metaharness → evolve backend</td>
 <td><strong>partial</strong></td>
-<td><code>adapters.genome_from_candidate</code> bridge implemented + tested; mh_search does not yet drive the kill-gated loop end-to-end</td>
+<td><strong>PARTIAL</strong></td>
+<td><code>mh_search</code> now persists evaluated candidates as tier-4 strategic genome engrams plus <code>/harnesses/&lt;id&gt;/evolve.json</code>; promotion still requires the existing manual probe/ACCEPT flow (<code>bene/metaharness/search.py</code> · <code>test_store_result_bridges_candidate_to_evolve_engram</code>)</td>
 </tr>
 <tr>
 <td>Granules: 4 levels = ladder tiers, associations</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/memory/granules.py</code> · 5 tests</td>
 </tr>
 <tr>
 <td>Adaptive fast/slow retrieval w/ auditable path metadata</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/memory/retrieval.py</code> · <code>test_both_paths_recorded_distinctly</code></td>
 </tr>
 <tr>
 <td>MemGAS entropy-routed multi-granularity retrieval</td>
 <td><strong>planned</strong></td>
+<td><strong>UNVERIFIED</strong></td>
 <td>deterministic familiarity heuristic shipped instead (documented, pluggable)</td>
 </tr>
 <tr>
 <td>ContextOS: 3 strategies, signal routing, budget-capped manifests</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/memory/contextos.py</code> · <code>test_budget_never_exceeded_randomized</code></td>
 </tr>
 <tr>
 <td>Runner uses ContextOS packing (opt-in)</td>
-<td><strong>planned</strong></td>
-<td>ContextOS standalone; <code>ccr/runner.py</code> not yet wired</td>
+<td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
+<td><code>ccr/runner.py</code> packs model messages through <code>ContextOS</code> only when enabled and records manifests in agent state · <code>test_context_os_packing_is_opt_in_for_runner</code></td>
 </tr>
 <tr>
 <td>Pollution detection (3 documented signals) + consolidate-then-restore</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/memory/pollution.py</code> · <code>test_recovery_restores_real_checkpoint</code></td>
 </tr>
 <tr>
 <td>VEA-style evidence re-highlighting before re-retrieval</td>
 <td><strong>planned</strong></td>
+<td><strong>UNVERIFIED</strong></td>
 <td>cited in design; not shipped</td>
 </tr>
 <tr>
 <td>Autonomy ladder L0–L4 enforced, per-domain, L4 human-only, denials → trust engrams</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/harness/autonomy.py</code> · 7 tests</td>
 </tr>
 <tr>
 <td>Agent senses manifest generated from live db + CLI</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/harness/senses.py</code> · <code>bene senses</code> · 3 tests</td>
 </tr>
 <tr>
 <td>Debt sweeper (4 signatures, report engrams) + CLI</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/harness/sweeper.py</code> · <code>bene sweep</code> · 4 tests</td>
 </tr>
 <tr>
 <td>Loop guards (repetition + oscillation, removable middleware)</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/harness/guards.py</code> · 5 tests</td>
 </tr>
 <tr>
 <td>Runner wires loop-guard middleware into the live agent loop</td>
-<td><strong>planned</strong></td>
-<td>guard is standalone; <code>ccr/runner.py</code> hook not shipped</td>
+<td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
+<td><code>ccr/runner.py</code> observes tool calls before execution and injects loop-guard tool observations/intervention engrams · <code>test_loop_guard_blocks_repeated_tool_call</code></td>
 </tr>
 <tr>
 <td>Adapters: memory/skills/shared_log mirror into engrams (explicit attach); detached = byte-identical legacy</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene/kernel/adapters.py</code> · <code>tests/kernel/test_adapters.py</code> (Round-3 adds batched mirrors: ~0.31 ms/write amortized incl. flush, documented durability contract)</td>
 </tr>
 <tr>
 <td>Trust-weighted shared-log tally</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>weighted_tally</code> via adapter · <code>test_weighted_tally_added_when_attached</code></td>
 </tr>
 <tr>
 <td>Spec-as-artifact workflow (proposal→acceptance gating)</td>
 <td><strong>partial</strong></td>
+<td><strong>PARTIAL</strong></td>
 <td>engram kind <code>spec</code>/<code>proposal</code> + mirrors shipped; full SDD gating workflow planned</td>
 </tr>
 <tr>
 <td>Deterministic replay surfaces</td>
-<td><strong>planned</strong></td>
-<td>journal + checkpoints are the substrate; replay tooling not shipped</td>
+<td><strong>partial</strong></td>
+<td><strong>PARTIAL</strong></td>
+<td>journal + checkpoints remain the substrate; scheduled consolidation now emits deterministic replay manifests, but end-to-end replay tooling/CLI is not shipped</td>
 </tr>
 <tr>
 <td><code>bene.yaml</code> <code>kernel:</code> config section (enabled, autonomy defaults, consolidation schedule)</td>
-<td><strong>planned</strong></td>
-<td>no code reads a <code>kernel:</code> key today; kernel tables are created lazily on first kernel command or <code>attach_kernel</code> (sane defaults, no config required)</td>
+<td><strong>partial</strong></td>
+<td><strong>PARTIAL</strong></td>
+<td><code>kernel.context_os</code> and <code>kernel.loop_guard</code> now configure live runner middleware through CLI/MCP entry points and <code>bene setup</code> templates; autonomy defaults and consolidation schedule wiring still planned (<code>bene/config.py</code> · <code>bene/cli/main.py</code> · <code>tests/test_config.py</code> · <code>tests/test_cli_serve.py</code>)</td>
 </tr>
 <tr>
 <td><code>bene demo</code> 5-pillar story, keyless, fresh dir, &lt;60s</td>
 <td><strong>implemented</strong> (0.6s measured)</td>
+<td><strong>VERIFIED</strong></td>
 <td><code>_kernel_story</code> in <code>bene/cli/main.py</code> · <code>test_demo_no_ui_runs_clean</code></td>
 </tr>
 <tr>
 <td>UI engram browser + trust panel</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>/api/engrams</code>, <code>/api/trust/{id}</code> + Engrams/Trust tabs · curl-verified</td>
 </tr>
 <tr>
 <td>First-run CLI guidance</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td><code>bene ls</code> missing-db path · <code>test_ls_first_run_guidance_json</code></td>
 </tr>
 <tr>
 <td>v0.2.0 everywhere</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 <td>pyproject / <code>__init__</code> / CLI / uv.lock greps</td>
 </tr>
 </tbody>
@@ -422,7 +463,7 @@ the invariant is <strong>0 failed</strong>.</p>
 <ul>
 <li><strong>20 kept / 11 kept+</strong> rows: hold by construction — legacy modules untouched, full legacy suite green at every phase commit (the per-phase gate). (#45 UI panels is kept+: legacy UI kept, engram/trust panels added ✓.)</li>
 <li><strong>17 surpassed</strong> rows: #4 (pollution-recovery wrapper ✓), #10 (eval+admissibility ✓), #15/42 (ContextOS ✓), #16 (UI panels ✓), #17 (demo story ✓), #20/37 (granules+adaptive retrieval ✓), #21/38 (procedural engrams w/ provenance ✓; plasticity decay planned), #22/39 (weighted tally ✓), #25/48 (gated promotion + structured genomes ✓; full mh integration partial), #29 (ladder ✓), #32 (senses-from-db ✓), #55 (engram FTS + lineage ✓).</li>
-<li><strong>7 re-derived</strong> rows: #6/7 dream/neuroplasticity → consolidation mechanism ✓, scheduler + decay <strong>planned</strong>; #8/9 failure intelligence/localizer → evidence-chain analysts ✓ (distill), dedicated failure-lookup CLI <strong>planned</strong>; #11 experiments ✓; #12 ISA → probe gate specs ✓; #28 doctor/alerts → senses+sweeper+guards ✓.</li>
+<li><strong>7 re-derived</strong> rows: #6/7 dream/neuroplasticity → consolidation mechanism ✓, scheduled consolidation helper <strong>partial</strong>, external scheduler + demotion/retirement policy <strong>planned</strong>; #8/9 failure intelligence/localizer → evidence-chain analysts ✓ (distill), dedicated failure-lookup CLI <strong>planned</strong>; #11 experiments ✓; #12 ISA → probe gate specs ✓; #28 doctor/alerts → senses+sweeper+guards ✓.</li>
 </ul>
 <h2 id="beyond-both-capabilities-bene2-design-5">Beyond-both capabilities (BENE2-DESIGN §5)</h2>
 <table>
@@ -431,6 +472,7 @@ the invariant is <strong>0 failed</strong>.</p>
 <th>#</th>
 <th>Capability</th>
 <th>Status</th>
+<th>Verification</th>
 </tr>
 </thead>
 <tbody>
@@ -438,41 +480,49 @@ the invariant is <strong>0 failed</strong>.</p>
 <td>1</td>
 <td>Engram ladder w/ mandatory provenance</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>2</td>
 <td>Pollution detection + consolidate-then-recover</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>3</td>
 <td>Enforced autonomy ladder, per-domain</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>4</td>
 <td>Computed trust ledger + weighted consensus</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>5</td>
 <td>Kill-gated promotion</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>6</td>
 <td>Strategy genes + structured genomes</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>7</td>
 <td>Adaptive fast/slow retrieval, auditable</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 <tr>
 <td>8</td>
 <td>Senses generated from live db</td>
 <td><strong>implemented</strong></td>
+<td><strong>VERIFIED</strong></td>
 </tr>
 </tbody>
 </table>

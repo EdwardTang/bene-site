@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Checkpoints, Restore &amp; Diff — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — Checkpoints, Restore &amp; Diff" />
+<title>Checkpoints — undo for agents — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Checkpoints — undo for agents" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="README.html">README</a>
 <a href="architecture.html">architecture</a>
 <a class="cur" href="checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="shared-log.html">shared-log</a>
 <a href="skills.html">skills</a>
 <a href="use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="benchmarks/PREREG.html">PREREG</a>
 <a href="benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,56 +191,49 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="index.html">docs</a> / checkpoints.md</div>
-<h1 id="checkpoints-restore-diff">Checkpoints, Restore &amp; Diff</h1>
-<p>BENE snapshots an agent's complete state — files, KV state, and metadata — at any point. You can restore to any snapshot and diff two snapshots to see exactly what changed.</p>
+<h1 id="checkpoints-undo-for-agents">Checkpoints — undo for agents</h1>
+<p>Checkpoint an agent before risky work, and a failed run costs one restore command instead of a rebuild. bene captures full agent state on demand; rewind to any capture, or diff two.</p>
+<blockquote>
+<p><strong>One call to save, one to rewind, one to diff — all history in one SQLite file on your machine.</strong></p>
+</blockquote>
 <p><img alt="Checkpoints — snapshot, diff, surgical restore" src="demos/bene_02_checkpoints.gif" /></p>
 <hr />
-<h2 id="creating-a-checkpoint">Creating a checkpoint</h2>
+<h2 id="save-a-known-good-state">Save a known-good state</h2>
 <div class="codehilite"><pre><span></span><code><span class="n">cp</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;before-migration&quot;</span><span class="p">)</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoint<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--label<span class="w"> </span><span class="s2">&quot;before-migration&quot;</span>
 </code></pre></div>
 
-<p>A checkpoint captures:</p>
+<p>Each snapshot records:</p>
 <ul>
-<li>All files in the agent's VFS (via content-addressable blob references — no data duplication)</li>
-<li>All KV state (<code>db.set_state(...)</code>)</li>
-<li>Timestamp and optional metadata</li>
+<li>every VFS file, as content-addressable blob references — no duplicate bytes</li>
+<li>every key written through <code>db.set_state(...)</code></li>
+<li>its timestamp, plus any metadata you attach</li>
 </ul>
-<p>Checkpoints are cheap. Because files are stored as deduplicated blobs, a checkpoint only stores references — not copies.</p>
-<h3 id="auto-checkpointing">Auto-checkpointing</h3>
-<p>The <code>ClaudeCodeRunner</code> creates checkpoints automatically every N iterations (default: 10):</p>
+<p>Snapshots write blob pointers, not file copies, so take them freely.</p>
+<h3 id="automatic-snapshots">Automatic snapshots</h3>
+<p><code>ClaudeCodeRunner</code> checkpoints itself every <code>checkpoint_interval</code> iterations (10 by default):</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># bene.yaml</span>
 <span class="nt">ccr</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">checkpoint_interval</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
 </code></pre></div>
 
 <hr />
-<h2 id="listing-checkpoints">Listing checkpoints</h2>
-<div class="codehilite"><pre><span></span><code><span class="n">cps</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">list_checkpoints</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span>
-<span class="c1"># [{&quot;checkpoint_id&quot;: &quot;01K...&quot;, &quot;label&quot;: &quot;before-migration&quot;, &quot;created_at&quot;: &quot;...&quot;}]</span>
-</code></pre></div>
-
-<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
-bene<span class="w"> </span>--json<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
-</code></pre></div>
-
-<hr />
-<h2 id="restoring">Restoring</h2>
-<p>Roll back an agent to a previous snapshot. Every other agent is completely unaffected.</p>
+<h2 id="rewind-a-bad-run">Rewind a bad run</h2>
+<p>Roll back to any capture:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">db</span><span class="o">.</span><span class="n">restore</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">checkpoint_id</span><span class="p">)</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>restore<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--checkpoint<span class="w"> </span>&lt;checkpoint-id&gt;
 </code></pre></div>
 
-<p>Restore is a SQL operation — it rewrites the agent's file and state rows to match the checkpoint. It takes milliseconds regardless of how many files were changed.</p>
-<h3 id="pattern-safe-operations">Pattern: safe operations</h3>
+<p>Restore is pure SQL — bene rewrites the agent's file rows and state rows — so it lands in milliseconds however much changed, touches no other agent, and never leaves your machine.</p>
+<p>The habit worth building: snapshot, attempt, roll back on failure.</p>
 <div class="codehilite"><pre><span></span><code><span class="n">cp</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;pre-migration&quot;</span><span class="p">)</span>
 <span class="k">try</span><span class="p">:</span>
     <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">ccr</span><span class="o">.</span><span class="n">run_agent</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="s2">&quot;Migrate schema to v3&quot;</span><span class="p">)</span>
@@ -249,32 +242,24 @@ bene<span class="w"> </span>--json<span class="w"> </span>checkpoints<span class
     <span class="k">raise</span>
 </code></pre></div>
 
-<h3 id="pattern-ab-compare">Pattern: A/B compare</h3>
-<div class="codehilite"><pre><span></span><code><span class="n">cp_a</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;approach-A&quot;</span><span class="p">)</span>
-<span class="c1"># ... run approach A ...</span>
-<span class="n">cp_b</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;approach-B&quot;</span><span class="p">)</span>
-
-<span class="c1"># Compare</span>
-<span class="n">diff</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">diff_checkpoints</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">cp_a</span><span class="p">,</span> <span class="n">cp_b</span><span class="p">)</span>
-</code></pre></div>
-
 <hr />
-<h2 id="diffing-two-checkpoints">Diffing two checkpoints</h2>
+<h2 id="see-what-changed">See what changed</h2>
+<p>Diff any two captures:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">diff</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">diff_checkpoints</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">checkpoint_id_a</span><span class="p">,</span> <span class="n">checkpoint_id_b</span><span class="p">)</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>diff<span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>--from<span class="w"> </span>&lt;checkpoint-id-A&gt;<span class="w"> </span>--to<span class="w"> </span>&lt;checkpoint-id-B&gt;
 </code></pre></div>
 
-<p>The diff shows:</p>
+<p>Each diff reports:</p>
 <ul>
-<li><strong>Files added</strong> — new paths in checkpoint B</li>
-<li><strong>Files removed</strong> — paths that existed in A but not B</li>
-<li><strong>Files modified</strong> — paths present in both with different content (SHA-256 mismatch)</li>
-<li><strong>State changed</strong> — KV keys that were added, removed, or changed value</li>
-<li><strong>Tool calls between</strong> — calls that happened between the two snapshots</li>
+<li><strong>Files added</strong> — paths that exist only in snapshot B</li>
+<li><strong>Files removed</strong> — there in A, gone in B</li>
+<li><strong>Files modified</strong> — the same path with a different SHA-256 on each side</li>
+<li><strong>State changed</strong> — KV keys gained, dropped, or given new values</li>
+<li><strong>Tool calls between</strong> — calls made between the two captures</li>
 </ul>
-<h3 id="example-output">Example output</h3>
+<p>A typical report:</p>
 <div class="codehilite"><pre><span></span><code>Files added (2):
   /src/auth_v2.py        4.2 KB
   /tests/test_auth.py    1.8 KB
@@ -293,9 +278,29 @@ Tool calls between checkpoints: 12
   8 success, 3 error, 1 running
 </code></pre></div>
 
+<h3 id="compare-two-attempts">Compare two attempts</h3>
+<p>Snapshot each approach, then diff them:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">cp_a</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;approach-A&quot;</span><span class="p">)</span>
+<span class="c1"># ... run approach A ...</span>
+<span class="n">cp_b</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;approach-B&quot;</span><span class="p">)</span>
+
+<span class="c1"># Compare</span>
+<span class="n">diff</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">diff_checkpoints</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">cp_a</span><span class="p">,</span> <span class="n">cp_b</span><span class="p">)</span>
+</code></pre></div>
+
 <hr />
-<h2 id="checkpoint-metadata">Checkpoint metadata</h2>
-<p>Attach notes or arbitrary metadata to a checkpoint:</p>
+<h2 id="find-a-capture">Find a capture</h2>
+<p>List an agent's captures:</p>
+<div class="codehilite"><pre><span></span><code><span class="n">cps</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">list_checkpoints</span><span class="p">(</span><span class="n">agent_id</span><span class="p">)</span>
+<span class="c1"># [{&quot;checkpoint_id&quot;: &quot;01K...&quot;, &quot;label&quot;: &quot;before-migration&quot;, &quot;created_at&quot;: &quot;...&quot;}]</span>
+</code></pre></div>
+
+<div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
+bene<span class="w"> </span>--json<span class="w"> </span>checkpoints<span class="w"> </span>&lt;agent-id&gt;
+</code></pre></div>
+
+<h3 id="annotate-a-snapshot">Annotate a snapshot</h3>
+<p>Labels name a capture; metadata explains it — test results, triggers, notes:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">cp</span> <span class="o">=</span> <span class="n">db</span><span class="o">.</span><span class="n">checkpoint</span><span class="p">(</span><span class="n">agent_id</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="s2">&quot;v2-attempt&quot;</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="p">{</span>
     <span class="s2">&quot;notes&quot;</span><span class="p">:</span> <span class="s2">&quot;Switched to JWT — session-based auth removed&quot;</span><span class="p">,</span>
     <span class="s2">&quot;test_results&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;passed&quot;</span><span class="p">:</span> <span class="mi">14</span><span class="p">,</span> <span class="s2">&quot;failed&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">},</span>
@@ -303,17 +308,17 @@ Tool calls between checkpoints: 12
 <span class="p">})</span>
 </code></pre></div>
 
-<p>Metadata appears in <code>bene checkpoints &lt;agent-id&gt;</code> and in the dashboard's Checkpoints tab.</p>
+<p>It shows up in <code>bene checkpoints &lt;agent-id&gt;</code> and the dashboard's Checkpoints tab.</p>
 <hr />
-<h2 id="how-storage-works">How storage works</h2>
-<p>Files are stored as content-addressable blobs (SHA-256, zstd-compressed). A checkpoint stores blob references, not copies. Two checkpoints that share 95% of the same files cost almost nothing extra in storage.</p>
-<p>Garbage collection removes unreferenced blobs. Run it with:</p>
+<h2 id="what-snapshots-cost">What snapshots cost</h2>
+<p>Almost nothing. File bodies live once in the blob store (SHA-256 keys, zstd compression); a checkpoint is just pointers. Two captures sharing 95% of their files cost barely more than one.</p>
+<p>Reclaim blobs nothing references anymore:</p>
 <div class="codehilite"><pre><span></span><code><span class="n">db</span><span class="o">.</span><span class="n">gc</span><span class="p">()</span>  <span class="c1"># removes blobs not referenced by any file or checkpoint</span>
 </code></pre></div>
 
 <hr />
-<h2 id="export-a-checkpoint">Export a checkpoint</h2>
-<p>To share a specific checkpoint state:</p>
+<h2 id="move-it-to-another-machine">Move it to another machine</h2>
+<p>Exporting an agent carries all its checkpoints in one portable file:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># Export the entire agent (includes all checkpoints)</span>
 bene<span class="w"> </span><span class="nb">export</span><span class="w"> </span>&lt;agent-id&gt;<span class="w"> </span>-o<span class="w"> </span>agent-snapshot.db
 

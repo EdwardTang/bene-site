@@ -1,30 +1,20 @@
-# BENE SQLite Schema Reference
+# Inside bene.db
 
-> Complete reference for the 8 tables that make up the BENE database.
+Open `bene.db` with any SQLite client and you can answer, in plain SQL, every question your agents can raise: what they did, what they wrote, what they remember, and where you can roll them back to. This page maps each of the 8 tables to the question it answers, documents every column, and hands you queries ready to paste.
 
-Schema version: **1** (defined in `bene/schema.py`)
+> **The entire state of your agent fleet is one SQLite file — query it, `cp` it, back it up; nothing leaves your machine.**
 
----
+The schema is at version **1**, defined in `bene/schema.py`.
 
-## Table of Contents
-
-1. [Overview](#overview)
-2. [agents](#agents)
-3. [files](#files)
-4. [blobs](#blobs)
-5. [tool_calls](#tool_calls)
-6. [state](#state)
-7. [events](#events)
-8. [checkpoints](#checkpoints)
-9. [schema_version](#schema_version)
-10. [Relationships](#relationships)
-11. [Index Reference](#index-reference)
+Original anchor map: [Overview](#overview), [agents](#agents), [files](#files), [blobs](#blobs), [tool_calls](#tool_calls), [state](#state), [events](#events), [checkpoints](#checkpoints), [schema_version](#schema_version), [Relationships](#relationships), [Index Reference](#index-reference).
 
 ---
 
-## Overview
+<a id="overview"></a>
 
-BENE stores all data in a single SQLite database file using WAL (Write-Ahead Logging) mode. The schema consists of 8 tables organized around the concept of isolated agents:
+## One file, eight tables
+
+bene keeps everything in a single SQLite database opened in WAL (Write-Ahead Logging) mode. Five tables hang off `agents`; `blobs` holds the bytes that `files` points at:
 
 ```text
 agents  ----<  files         (1:N - each agent has many files)
@@ -36,219 +26,125 @@ agents  ----<  files         (1:N - each agent has many files)
 blobs   <----  files         (1:N - many files can share one blob)
 ```
 
-All timestamps use ISO 8601 format with millisecond precision: `strftime('%Y-%m-%dT%H:%M:%f', 'now')`.
+Two conventions hold everywhere:
 
-All JSON columns (`config`, `metadata`, `input`, `output`, `payload`, `value`, `file_manifest`, `state_snapshot`) store valid JSON text.
-
----
-
-## agents
-
-The agent registry. Each row represents one agent with its lifecycle state.
-
-```sql
-CREATE TABLE IF NOT EXISTS agents (
-    agent_id        TEXT PRIMARY KEY,
-    name            TEXT NOT NULL,
-    parent_id       TEXT REFERENCES agents(agent_id),
-    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
-    status          TEXT NOT NULL DEFAULT 'initialized'
-                    CHECK (status IN ('initialized','running','paused','completed','failed','killed')),
-    config          TEXT NOT NULL DEFAULT '{}',
-    metadata        TEXT NOT NULL DEFAULT '{}',
-    pid             INTEGER,
-    last_heartbeat  TEXT
-);
-```
-
-### Columns
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `agent_id` | TEXT | PRIMARY KEY | ULID-based unique identifier. Time-sortable. |
-| `name` | TEXT | NOT NULL | Human-readable name for the agent (e.g., "test-writer"). |
-| `parent_id` | TEXT | FK -> agents(agent_id), nullable | Parent agent ID for hierarchical agent spawning. NULL for root agents. |
-| `created_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp of agent creation. |
-| `status` | TEXT | NOT NULL, CHECK constraint | Current lifecycle state. One of: `initialized`, `running`, `paused`, `completed`, `failed`, `killed`. |
-| `config` | TEXT | NOT NULL, default `'{}'` | JSON object with agent configuration (e.g., `{"force_model": "deepseek-r1-70b"}`). |
-| `metadata` | TEXT | NOT NULL, default `'{}'` | JSON object with arbitrary metadata. |
-| `pid` | INTEGER | nullable | OS process ID when the agent is running. |
-| `last_heartbeat` | TEXT | nullable | ISO 8601 timestamp of the last heartbeat update. |
-
-### Indexes
-
-| Index | Columns | Purpose |
-|---|---|---|
-| `idx_agents_status` | `status` | Fast filtering by lifecycle state (e.g., list all running agents). |
-| `idx_agents_parent` | `parent_id` | Fast lookup of child agents for a given parent. |
-
-### Example Queries
-
-```sql
--- List all running agents
-SELECT agent_id, name, last_heartbeat
-FROM agents WHERE status = 'running';
-
--- Find agents spawned by a parent
-SELECT agent_id, name, status
-FROM agents WHERE parent_id = '01HXYZ...';
-
--- Agent lifecycle summary
-SELECT status, COUNT(*) as count
-FROM agents GROUP BY status;
-
--- Find stale agents (no heartbeat in 5 minutes)
-SELECT agent_id, name, last_heartbeat
-FROM agents
-WHERE status = 'running'
-AND last_heartbeat < strftime('%Y-%m-%dT%H:%M:%f', 'now', '-5 minutes');
-```
+- **Timestamps** are ISO 8601 text at millisecond precision, produced by `strftime('%Y-%m-%dT%H:%M:%f', 'now')`.
+- **JSON columns** — `config`, `metadata`, `input`, `output`, `payload`, `value`, `file_manifest`, `state_snapshot` — always contain valid JSON text.
 
 ---
 
-## files
+## Pick your question
 
-The virtual filesystem. Each row is a version of a file or directory within an agent's namespace.
+| If you're asking… | Read |
+|---|---|
+| What did this agent actually do? | [events](#events) |
+| Which tools ran, with what input and timing? | [tool_calls](#tool_calls-every-tool-invocation) |
+| Which agents exist, and are they alive? | [agents](#agents-the-roster) |
+| What does an agent remember right now? | [state](#state-per-agent-key-value-memory) |
+| Where can I roll back to? | [checkpoints](#checkpoints-snapshots-you-can-return-to) |
+| What has an agent written? | [files](#files-the-virtual-filesystem) |
+| How are the bytes actually stored? | [blobs](#blobs-deduplicated-content) |
+| Which migrations has this file seen? | [schema_version](#schema_version-the-migration-record) |
+
+---
+
+## events
+
+bene's audit trail. Every move an agent makes — file writes, tool calls, lifecycle transitions, checkpoints — is appended here and never rewritten, so the journal you query is exactly what happened.
+
+![Audit trail — every file write, tool call, and lifecycle transition queryable as SQL](demos/bene_05_audit_trail.gif)
 
 ```sql
-CREATE TABLE IF NOT EXISTS files (
-    file_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+CREATE TABLE IF NOT EXISTS events (
+    event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id        TEXT NOT NULL REFERENCES agents(agent_id),
-    path            TEXT NOT NULL,
-    is_dir          INTEGER NOT NULL DEFAULT 0,
-    content_hash    TEXT,
-    size            INTEGER NOT NULL DEFAULT 0,
-    mode            INTEGER NOT NULL DEFAULT 33188,
-    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
-    modified_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
-    version         INTEGER NOT NULL DEFAULT 1,
-    deleted         INTEGER NOT NULL DEFAULT 0,
-    UNIQUE(agent_id, path, version)
+    event_type      TEXT NOT NULL,
+    payload         TEXT NOT NULL DEFAULT '{}',
+    timestamp       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now'))
 );
 ```
 
-### Columns
+### Column guide
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `file_id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Internal row identifier. |
-| `agent_id` | TEXT | NOT NULL, FK -> agents | The owning agent. All queries are scoped by this. |
-| `path` | TEXT | NOT NULL | POSIX-normalized absolute path (e.g., `/src/main.py`). |
-| `is_dir` | INTEGER | NOT NULL, default 0 | 1 if this entry is a directory, 0 for files. |
-| `content_hash` | TEXT | nullable | SHA-256 hash referencing the `blobs` table. NULL for directories. |
-| `size` | INTEGER | NOT NULL, default 0 | Original (uncompressed) size in bytes. |
-| `mode` | INTEGER | NOT NULL, default 33188 | Unix file mode. 33188 = `0o100644` (regular file, rw-r--r--). |
-| `created_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp of version creation. |
-| `modified_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp of last modification. |
-| `version` | INTEGER | NOT NULL, default 1 | Version number. Increments on each write to the same path. |
-| `deleted` | INTEGER | NOT NULL, default 0 | Soft-delete flag. 1 = deleted (hidden from normal queries but retained for history/checkpoints). |
+| `event_id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Rises monotonically, so it doubles as a global ordering. |
+| `agent_id` | TEXT | NOT NULL, FK -> agents | The agent behind the event. |
+| `event_type` | TEXT | NOT NULL | One of the strings catalogued below. |
+| `payload` | TEXT | NOT NULL, default `'{}'` | Event-specific detail as a JSON object. |
+| `timestamp` | TEXT | NOT NULL, auto-generated | ISO 8601, millisecond precision, written automatically. |
 
-### Unique Constraint
+### Event types
 
-`UNIQUE(agent_id, path, version)` -- Each agent can have only one entry per path per version number.
+Every `event_type` bene emits, with the payload shape each carries:
 
-### Indexes
+| Event Type | Payload Example | Trigger |
+|---|---|---|
+| `agent_spawn` | `{"name": "...", "parent_id": null, "config": {...}}` | Agent created via `spawn()` |
+| `agent_pause` | `{}` | Agent paused |
+| `agent_resume` | `{}` | Agent resumed |
+| `agent_kill` | `{}` | Agent killed |
+| `agent_complete` | `{}` | Agent completed successfully |
+| `agent_fail` | `{"error": "..."}` | Agent failed |
+| `state_change` | `{"field": "status", "from": "initialized", "to": "running"}` | Status transition |
+| `file_read` | `{"path": "/src/app.py"}` | File read from VFS |
+| `file_write` | `{"path": "/src/app.py", "size": 1234, "version": 2}` | File written to VFS |
+| `file_delete` | `{"path": "/tmp/scratch.txt"}` | File deleted from VFS |
+| `tool_call_start` | `{"call_id": "...", "tool_name": "fs_read"}` | Tool execution started |
+| `tool_call_end` | `{"call_id": "...", "status": "success"}` | Tool execution completed |
+| `checkpoint_create` | `{"checkpoint_id": "...", "label": "pre-refactor"}` | Checkpoint created |
+| `checkpoint_restore` | `{"checkpoint_id": "..."}` | Checkpoint restored |
+| `error` | `{"message": "..."}` | Runtime error |
+| `warning` | `{"message": "..."}` | Runtime warning |
 
-| Index | Columns | Filter | Purpose |
-|---|---|---|---|
-| `idx_files_agent_path` | `agent_id, path` | `WHERE deleted = 0` | Fast file lookup by agent + path, excluding deleted files. Partial index. |
-| `idx_files_agent` | `agent_id` | -- | List all files for an agent. |
-
-### Example Queries
+### Paste-ready queries
 
 ```sql
--- List all active files for an agent
-SELECT path, size, version, modified_at
-FROM files
-WHERE agent_id = '01HXYZ...' AND deleted = 0 AND is_dir = 0
-ORDER BY path;
-
--- Get file version history
-SELECT version, content_hash, size, created_at, deleted
-FROM files
-WHERE agent_id = '01HXYZ...' AND path = '/src/app.py'
-ORDER BY version;
-
--- List directory contents (one level deep)
-SELECT path, is_dir, size, modified_at
-FROM files
+-- Full timeline for an agent
+SELECT event_id, event_type, payload, timestamp
+FROM events
 WHERE agent_id = '01HXYZ...'
-AND deleted = 0
-AND path LIKE '/src/%'
-AND path NOT LIKE '/src/%/%'
-AND path != '/src';
+ORDER BY event_id;
 
--- Total storage used per agent
-SELECT agent_id, SUM(size) as total_bytes, COUNT(*) as file_count
-FROM files
-WHERE deleted = 0 AND is_dir = 0
-GROUP BY agent_id
-ORDER BY total_bytes DESC;
+-- What did an agent do in the last hour?
+SELECT event_type, payload, timestamp
+FROM events
+WHERE agent_id = '01HXYZ...'
+AND timestamp > strftime('%Y-%m-%dT%H:%M:%f', 'now', '-1 hour')
+ORDER BY event_id;
+
+-- Count events by type for an agent
+SELECT event_type, COUNT(*) as count
+FROM events
+WHERE agent_id = '01HXYZ...'
+GROUP BY event_type
+ORDER BY count DESC;
+
+-- System-wide activity summary
+SELECT event_type, COUNT(*) as count
+FROM events
+GROUP BY event_type
+ORDER BY count DESC;
+
+-- Find all file writes across all agents
+SELECT e.agent_id, a.name,
+       json_extract(e.payload, '$.path') as file_path,
+       json_extract(e.payload, '$.size') as size,
+       e.timestamp
+FROM events e
+JOIN agents a ON e.agent_id = a.agent_id
+WHERE e.event_type = 'file_write'
+ORDER BY e.timestamp DESC
+LIMIT 20;
 ```
+
+*Indexed by `idx_events_agent_time` (`agent_id, timestamp`) and `idx_events_type` (`event_type`) — see the [index catalog](#index-catalog).*
 
 ---
 
-## blobs
+## tool_calls: every tool invocation
 
-Content-addressable blob store with SHA-256 deduplication and optional zstd compression.
-
-```sql
-CREATE TABLE IF NOT EXISTS blobs (
-    content_hash    TEXT PRIMARY KEY,
-    content         BLOB NOT NULL,
-    compressed      INTEGER NOT NULL DEFAULT 0,
-    ref_count       INTEGER NOT NULL DEFAULT 1
-);
-```
-
-### Columns
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `content_hash` | TEXT | PRIMARY KEY | SHA-256 hex digest of the original (uncompressed) content. |
-| `content` | BLOB | NOT NULL | The stored content. May be zstd-compressed (check `compressed` flag). |
-| `compressed` | INTEGER | NOT NULL, default 0 | 1 if `content` is zstd-compressed, 0 if stored raw. |
-| `ref_count` | INTEGER | NOT NULL, default 1 | Number of file entries referencing this blob. Decremented on file deletion; blob is GC-eligible when <= 0. |
-
-### Design Notes
-
-- **Deduplication**: If two agents write identical file content, only one blob is stored. The `ref_count` is incremented instead.
-- **Compression**: When compression is enabled (default), blobs are compressed with zstandard level 3 before storage. The `compressed` flag indicates whether decompression is needed on retrieval.
-- **Garbage collection**: `BlobStore.gc()` deletes all blobs where `ref_count <= 0`. This is safe because soft-deleted files retain their `content_hash` reference for checkpoint restoration.
-
-### Example Queries
-
-```sql
--- Blob store statistics
-SELECT
-    COUNT(*) as total_blobs,
-    SUM(LENGTH(content)) as total_stored_bytes,
-    SUM(ref_count) as total_references
-FROM blobs;
-
--- Find orphaned blobs (eligible for GC)
-SELECT content_hash, LENGTH(content) as stored_size, ref_count
-FROM blobs
-WHERE ref_count <= 0;
-
--- Largest blobs by stored size
-SELECT content_hash, LENGTH(content) as stored_bytes, ref_count
-FROM blobs
-ORDER BY LENGTH(content) DESC
-LIMIT 10;
-
--- Blobs shared across multiple files
-SELECT content_hash, ref_count
-FROM blobs
-WHERE ref_count > 1
-ORDER BY ref_count DESC;
-```
-
----
-
-## tool_calls
-
-Journal of all tool invocations made by agents during execution.
+Each tool an agent runs is journaled with its input, output, timing, and token spend — so a slow or failing run can be traced call by call, and nested calls reconstructed as a chain.
 
 ```sql
 CREATE TABLE IF NOT EXISTS tool_calls (
@@ -269,33 +165,25 @@ CREATE TABLE IF NOT EXISTS tool_calls (
 );
 ```
 
-### Columns
+### Column guide
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `call_id` | TEXT | PRIMARY KEY | ULID-based unique identifier for the tool call. |
-| `agent_id` | TEXT | NOT NULL, FK -> agents | The agent that made the call. |
-| `tool_name` | TEXT | NOT NULL | Name of the tool (e.g., `fs_read`, `shell_exec`, `fs_write`). |
-| `input` | TEXT | NOT NULL | JSON-serialized input arguments. |
-| `output` | TEXT | nullable | JSON-serialized output. NULL while pending/running. |
-| `status` | TEXT | NOT NULL, CHECK constraint | Call status: `pending`, `running`, `success`, `error`, `timeout`. |
-| `started_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp when the call was logged. |
-| `completed_at` | TEXT | nullable | ISO 8601 timestamp when the call finished. |
-| `duration_ms` | INTEGER | nullable | Execution time in milliseconds (computed on completion). |
-| `token_count` | INTEGER | nullable | Number of tokens consumed by the model call that triggered this tool use. |
-| `cost_usd` | REAL | default 0.0 | Estimated cost in USD (reserved for future use). |
-| `parent_call_id` | TEXT | FK -> tool_calls(call_id), nullable | Links child calls to a parent call for hierarchical tracing. |
-| `error_message` | TEXT | nullable | Error message if status is `error`. |
+| `call_id` | TEXT | PRIMARY KEY | ULID, unique per invocation. |
+| `agent_id` | TEXT | NOT NULL, FK -> agents | The calling agent. |
+| `tool_name` | TEXT | NOT NULL | Which tool ran (e.g., `fs_read`, `shell_exec`, `fs_write`). |
+| `input` | TEXT | NOT NULL | Arguments, serialized as JSON. |
+| `output` | TEXT | nullable | Result as JSON; stays NULL until the call finishes. |
+| `status` | TEXT | NOT NULL, CHECK constraint | One of `pending`, `running`, `success`, `error`, `timeout`. |
+| `started_at` | TEXT | NOT NULL, auto-generated | Set when the call is logged. |
+| `completed_at` | TEXT | nullable | Filled in at finish time. |
+| `duration_ms` | INTEGER | nullable | Wall-clock milliseconds, computed on completion. |
+| `token_count` | INTEGER | nullable | Tokens consumed by the model call that triggered this tool use. |
+| `cost_usd` | REAL | default 0.0 | USD estimate; reserved for future use. |
+| `parent_call_id` | TEXT | FK -> tool_calls(call_id), nullable | Points at the parent call, so nested calls form a traceable chain. |
+| `error_message` | TEXT | nullable | Populated when status is `error`. |
 
-### Indexes
-
-| Index | Columns | Purpose |
-|---|---|---|
-| `idx_tool_calls_agent` | `agent_id, started_at` | Chronological tool call history per agent. |
-| `idx_tool_calls_tool` | `tool_name` | Filter by tool type across all agents. |
-| `idx_tool_calls_status` | `status` | Find pending, failed, or timed-out calls. |
-
-### Example Queries
+### Paste-ready queries
 
 ```sql
 -- Recent tool calls for an agent
@@ -337,11 +225,72 @@ WITH RECURSIVE chain AS (
 SELECT * FROM chain ORDER BY depth;
 ```
 
+*Indexed by `idx_tool_calls_agent` (`agent_id, started_at`), `idx_tool_calls_tool` (`tool_name`), and `idx_tool_calls_status` (`status`) — see the [index catalog](#index-catalog).*
+
 ---
 
-## state
+## agents: the roster
 
-Key-value store for agent runtime state. Supports any JSON-serializable value.
+One row per agent: who exists, who spawned whom, and which lifecycle state each one is in right now.
+
+```sql
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id        TEXT PRIMARY KEY,
+    name            TEXT NOT NULL,
+    parent_id       TEXT REFERENCES agents(agent_id),
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+    status          TEXT NOT NULL DEFAULT 'initialized'
+                    CHECK (status IN ('initialized','running','paused','completed','failed','killed')),
+    config          TEXT NOT NULL DEFAULT '{}',
+    metadata        TEXT NOT NULL DEFAULT '{}',
+    pid             INTEGER,
+    last_heartbeat  TEXT
+);
+```
+
+### Column guide
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `agent_id` | TEXT | PRIMARY KEY | ULID — unique and sortable by creation time. |
+| `name` | TEXT | NOT NULL | A label you choose (e.g., "test-writer"). |
+| `parent_id` | TEXT | FK -> agents(agent_id), nullable | Set when another agent spawned this one; NULL at the root. |
+| `created_at` | TEXT | NOT NULL, auto-generated | Stamped at spawn, ISO 8601. |
+| `status` | TEXT | NOT NULL, CHECK constraint | One of `initialized`, `running`, `paused`, `completed`, `failed`, `killed`. |
+| `config` | TEXT | NOT NULL, default `'{}'` | JSON settings for the agent (e.g., `{"force_model": "deepseek-r1-70b"}`). |
+| `metadata` | TEXT | NOT NULL, default `'{}'` | Free-form JSON, yours to fill. |
+| `pid` | INTEGER | nullable | OS process ID while the agent runs. |
+| `last_heartbeat` | TEXT | nullable | Most recent heartbeat, ISO 8601. |
+
+### Paste-ready queries
+
+```sql
+-- List all running agents
+SELECT agent_id, name, last_heartbeat
+FROM agents WHERE status = 'running';
+
+-- Find agents spawned by a parent
+SELECT agent_id, name, status
+FROM agents WHERE parent_id = '01HXYZ...';
+
+-- Agent lifecycle summary
+SELECT status, COUNT(*) as count
+FROM agents GROUP BY status;
+
+-- Find stale agents (no heartbeat in 5 minutes)
+SELECT agent_id, name, last_heartbeat
+FROM agents
+WHERE status = 'running'
+AND last_heartbeat < strftime('%Y-%m-%dT%H:%M:%f', 'now', '-5 minutes');
+```
+
+*Indexed by `idx_agents_status` (`status`) and `idx_agents_parent` (`parent_id`) — see the [index catalog](#index-catalog).*
+
+---
+
+## state: per-agent key-value memory
+
+What an agent currently knows, as queryable rows: each agent gets its own key-value namespace, and any JSON-serializable value fits.
 
 ```sql
 CREATE TABLE IF NOT EXISTS state (
@@ -353,22 +302,22 @@ CREATE TABLE IF NOT EXISTS state (
 );
 ```
 
-### Columns
+### Column guide
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `agent_id` | TEXT | NOT NULL, FK -> agents, part of PK | The owning agent. |
-| `key` | TEXT | NOT NULL, part of PK | State key name (e.g., `conversation`, `iteration`, `progress`). |
-| `value` | TEXT | NOT NULL | JSON-serialized value. Can be string, number, array, or object. |
-| `updated_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp of the last update. |
+| `agent_id` | TEXT | NOT NULL, FK -> agents, part of PK | Owner — first half of the primary key. |
+| `key` | TEXT | NOT NULL, part of PK | Entry name (e.g., `conversation`, `iteration`, `progress`). |
+| `value` | TEXT | NOT NULL | JSON text: string, number, array, or object. |
+| `updated_at` | TEXT | NOT NULL, auto-generated | Refreshed on every write. |
 
-### Design Notes
+### Behavior notes
 
-- **Composite primary key**: `(agent_id, key)` ensures key uniqueness per agent and enables upsert via `ON CONFLICT`.
-- **Upsert semantics**: `set_state()` uses `INSERT ... ON CONFLICT DO UPDATE`, so setting an existing key replaces its value atomically.
-- **CCR state**: The CCR loop stores `conversation`, `iteration`, `task`, and `result` as state keys, making the agent's full conversation history queryable.
+- The composite primary key `(agent_id, key)` keeps keys unique per agent and is what makes `ON CONFLICT` upserts possible.
+- `set_state()` runs `INSERT ... ON CONFLICT DO UPDATE`, so re-setting an existing key swaps in the new value atomically.
+- The CCR loop persists `conversation`, `iteration`, `task`, and `result` here — which puts an agent's entire conversation history one SELECT away.
 
-### Example Queries
+### Paste-ready queries
 
 ```sql
 -- Get all state for an agent
@@ -397,106 +346,9 @@ ORDER BY agent_count DESC;
 
 ---
 
-## events
+## checkpoints: snapshots you can return to
 
-Append-only event journal for complete audit trails.
-
-![Audit trail — every file write, tool call, and lifecycle transition queryable as SQL](demos/bene_05_audit_trail.gif)
-
-```sql
-CREATE TABLE IF NOT EXISTS events (
-    event_id        INTEGER PRIMARY KEY AUTOINCREMENT,
-    agent_id        TEXT NOT NULL REFERENCES agents(agent_id),
-    event_type      TEXT NOT NULL,
-    payload         TEXT NOT NULL DEFAULT '{}',
-    timestamp       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now'))
-);
-```
-
-### Columns
-
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `event_id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Globally ordered, monotonically increasing event identifier. |
-| `agent_id` | TEXT | NOT NULL, FK -> agents | The agent that triggered the event. |
-| `event_type` | TEXT | NOT NULL | Event type string (see table below). |
-| `payload` | TEXT | NOT NULL, default `'{}'` | JSON object with event-specific data. |
-| `timestamp` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp with millisecond precision. |
-
-### Standard Event Types
-
-| Event Type | Payload Example | Trigger |
-|---|---|---|
-| `agent_spawn` | `{"name": "...", "parent_id": null, "config": {...}}` | Agent created via `spawn()` |
-| `agent_pause` | `{}` | Agent paused |
-| `agent_resume` | `{}` | Agent resumed |
-| `agent_kill` | `{}` | Agent killed |
-| `agent_complete` | `{}` | Agent completed successfully |
-| `agent_fail` | `{"error": "..."}` | Agent failed |
-| `state_change` | `{"field": "status", "from": "initialized", "to": "running"}` | Status transition |
-| `file_read` | `{"path": "/src/app.py"}` | File read from VFS |
-| `file_write` | `{"path": "/src/app.py", "size": 1234, "version": 2}` | File written to VFS |
-| `file_delete` | `{"path": "/tmp/scratch.txt"}` | File deleted from VFS |
-| `tool_call_start` | `{"call_id": "...", "tool_name": "fs_read"}` | Tool execution started |
-| `tool_call_end` | `{"call_id": "...", "status": "success"}` | Tool execution completed |
-| `checkpoint_create` | `{"checkpoint_id": "...", "label": "pre-refactor"}` | Checkpoint created |
-| `checkpoint_restore` | `{"checkpoint_id": "..."}` | Checkpoint restored |
-| `error` | `{"message": "..."}` | Runtime error |
-| `warning` | `{"message": "..."}` | Runtime warning |
-
-### Indexes
-
-| Index | Columns | Purpose |
-|---|---|---|
-| `idx_events_agent_time` | `agent_id, timestamp` | Chronological event history per agent. |
-| `idx_events_type` | `event_type` | Filter events by type across all agents. |
-
-### Example Queries
-
-```sql
--- Full timeline for an agent
-SELECT event_id, event_type, payload, timestamp
-FROM events
-WHERE agent_id = '01HXYZ...'
-ORDER BY event_id;
-
--- What did an agent do in the last hour?
-SELECT event_type, payload, timestamp
-FROM events
-WHERE agent_id = '01HXYZ...'
-AND timestamp > strftime('%Y-%m-%dT%H:%M:%f', 'now', '-1 hour')
-ORDER BY event_id;
-
--- Count events by type for an agent
-SELECT event_type, COUNT(*) as count
-FROM events
-WHERE agent_id = '01HXYZ...'
-GROUP BY event_type
-ORDER BY count DESC;
-
--- System-wide activity summary
-SELECT event_type, COUNT(*) as count
-FROM events
-GROUP BY event_type
-ORDER BY count DESC;
-
--- Find all file writes across all agents
-SELECT e.agent_id, a.name,
-       json_extract(e.payload, '$.path') as file_path,
-       json_extract(e.payload, '$.size') as size,
-       e.timestamp
-FROM events e
-JOIN agents a ON e.agent_id = a.agent_id
-WHERE e.event_type = 'file_write'
-ORDER BY e.timestamp DESC
-LIMIT 20;
-```
-
----
-
-## checkpoints
-
-Point-in-time snapshots of an agent's file manifest and state.
+A checkpoint freezes an agent's files and state at one moment, so a bad turn never has to be permanent: restore, diff, and keep going.
 
 ```sql
 CREATE TABLE IF NOT EXISTS checkpoints (
@@ -511,26 +363,20 @@ CREATE TABLE IF NOT EXISTS checkpoints (
 );
 ```
 
-### Columns
+### Column guide
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `checkpoint_id` | TEXT | PRIMARY KEY | ULID-based unique identifier. |
-| `agent_id` | TEXT | NOT NULL, FK -> agents | The agent this checkpoint belongs to. |
-| `label` | TEXT | nullable | Optional human-readable label (e.g., `"pre-refactor"`, `"auto-iter-10"`). |
-| `created_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp of checkpoint creation. |
-| `event_id` | INTEGER | FK -> events(event_id), nullable | The event_id at the time of checkpoint creation. Used as a watermark for diffing. |
+| `checkpoint_id` | TEXT | PRIMARY KEY | ULID. |
+| `agent_id` | TEXT | NOT NULL, FK -> agents | Whose snapshot this is. |
+| `label` | TEXT | nullable | Optional tag (e.g., `"pre-refactor"`, `"auto-iter-10"`). |
+| `created_at` | TEXT | NOT NULL, auto-generated | Stamped at creation, ISO 8601. |
+| `event_id` | INTEGER | FK -> events(event_id), nullable | Watermark into the event stream at snapshot time; diffs anchor on it. |
 | `file_manifest` | TEXT | NOT NULL | JSON array of file entries: `[{"path": "...", "content_hash": "...", "version": N}, ...]`. |
-| `state_snapshot` | TEXT | NOT NULL | JSON object of all KV state at checkpoint time: `{"key1": value1, "key2": value2, ...}`. |
-| `metadata` | TEXT | NOT NULL, default `'{}'` | JSON object for arbitrary checkpoint metadata. |
+| `state_snapshot` | TEXT | NOT NULL | Every KV pair at snapshot time: `{"key1": value1, "key2": value2, ...}`. |
+| `metadata` | TEXT | NOT NULL, default `'{}'` | Extra JSON, yours to use. |
 
-### Indexes
-
-| Index | Columns | Purpose |
-|---|---|---|
-| `idx_checkpoints_agent` | `agent_id, created_at` | Chronological checkpoint listing per agent. |
-
-### Example Queries
+### Paste-ready queries
 
 ```sql
 -- List checkpoints for an agent
@@ -564,11 +410,146 @@ FROM checkpoints, json_each(file_manifest)
 WHERE checkpoint_id = '01HABC...';
 ```
 
+*Indexed by `idx_checkpoints_agent` (`agent_id, created_at`) — see the [index catalog](#index-catalog).*
+
 ---
 
-## schema_version
+## files: the virtual filesystem
 
-Tracks applied schema migrations.
+Every write an agent makes becomes a new versioned row inside that agent's own namespace — earlier versions stay queryable, and a soft delete hides a path without destroying its history.
+
+```sql
+CREATE TABLE IF NOT EXISTS files (
+    file_id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    agent_id        TEXT NOT NULL REFERENCES agents(agent_id),
+    path            TEXT NOT NULL,
+    is_dir          INTEGER NOT NULL DEFAULT 0,
+    content_hash    TEXT,
+    size            INTEGER NOT NULL DEFAULT 0,
+    mode            INTEGER NOT NULL DEFAULT 33188,
+    created_at      TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+    modified_at     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+    version         INTEGER NOT NULL DEFAULT 1,
+    deleted         INTEGER NOT NULL DEFAULT 0,
+    UNIQUE(agent_id, path, version)
+);
+```
+
+### Column guide
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `file_id` | INTEGER | PRIMARY KEY AUTOINCREMENT | Internal row id. |
+| `agent_id` | TEXT | NOT NULL, FK -> agents | Namespace owner; every lookup filters on it. |
+| `path` | TEXT | NOT NULL | Absolute and POSIX-normalized (e.g., `/src/main.py`). |
+| `is_dir` | INTEGER | NOT NULL, default 0 | 1 marks a directory. |
+| `content_hash` | TEXT | nullable | SHA-256 key into `blobs`; NULL for directories. |
+| `size` | INTEGER | NOT NULL, default 0 | Bytes before compression. |
+| `mode` | INTEGER | NOT NULL, default 33188 | Unix mode; 33188 = `0o100644` (regular file, rw-r--r--). |
+| `created_at` | TEXT | NOT NULL, auto-generated | When this version appeared. |
+| `modified_at` | TEXT | NOT NULL, auto-generated | Last touch. |
+| `version` | INTEGER | NOT NULL, default 1 | Bumped on every write to the same path. |
+| `deleted` | INTEGER | NOT NULL, default 0 | 1 = soft-deleted: hidden from listings, kept for history and checkpoint restore. |
+
+The constraint `UNIQUE(agent_id, path, version)` keeps versions distinct — one row per agent, per path, per version number.
+
+### Paste-ready queries
+
+```sql
+-- List all active files for an agent
+SELECT path, size, version, modified_at
+FROM files
+WHERE agent_id = '01HXYZ...' AND deleted = 0 AND is_dir = 0
+ORDER BY path;
+
+-- Get file version history
+SELECT version, content_hash, size, created_at, deleted
+FROM files
+WHERE agent_id = '01HXYZ...' AND path = '/src/app.py'
+ORDER BY version;
+
+-- List directory contents (one level deep)
+SELECT path, is_dir, size, modified_at
+FROM files
+WHERE agent_id = '01HXYZ...'
+AND deleted = 0
+AND path LIKE '/src/%'
+AND path NOT LIKE '/src/%/%'
+AND path != '/src';
+
+-- Total storage used per agent
+SELECT agent_id, SUM(size) as total_bytes, COUNT(*) as file_count
+FROM files
+WHERE deleted = 0 AND is_dir = 0
+GROUP BY agent_id
+ORDER BY total_bytes DESC;
+```
+
+*Indexed by `idx_files_agent_path` (`agent_id, path`, partial: `WHERE deleted = 0`) and `idx_files_agent` (`agent_id`) — see the [index catalog](#index-catalog).*
+
+---
+
+## blobs: deduplicated content
+
+File bytes are stored once, keyed by their SHA-256 — when two agents write the same content, only one blob lands on disk, compressed by default.
+
+```sql
+CREATE TABLE IF NOT EXISTS blobs (
+    content_hash    TEXT PRIMARY KEY,
+    content         BLOB NOT NULL,
+    compressed      INTEGER NOT NULL DEFAULT 0,
+    ref_count       INTEGER NOT NULL DEFAULT 1
+);
+```
+
+### Column guide
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `content_hash` | TEXT | PRIMARY KEY | SHA-256 hex digest of the uncompressed bytes. |
+| `content` | BLOB | NOT NULL | The bytes — zstd-compressed when the flag says so. |
+| `compressed` | INTEGER | NOT NULL, default 0 | 1 = stored zstd-compressed, 0 = raw. |
+| `ref_count` | INTEGER | NOT NULL, default 1 | How many file rows point here; drops when files are deleted, and at <= 0 the blob can be collected. |
+
+### Behavior notes
+
+- **Dedup.** A second write of identical content stores nothing new — `ref_count` goes up instead.
+- **Compression.** On by default: bytes pass through zstandard level 3 before storage, and the `compressed` flag tells readers whether to decompress on the way out.
+- **Garbage collection.** `BlobStore.gc()` removes every row with `ref_count <= 0`. That is safe because soft-deleted files keep their `content_hash`, so checkpoints can still restore them.
+
+### Paste-ready queries
+
+```sql
+-- Blob store statistics
+SELECT
+    COUNT(*) as total_blobs,
+    SUM(LENGTH(content)) as total_stored_bytes,
+    SUM(ref_count) as total_references
+FROM blobs;
+
+-- Find orphaned blobs (eligible for GC)
+SELECT content_hash, LENGTH(content) as stored_size, ref_count
+FROM blobs
+WHERE ref_count <= 0;
+
+-- Largest blobs by stored size
+SELECT content_hash, LENGTH(content) as stored_bytes, ref_count
+FROM blobs
+ORDER BY LENGTH(content) DESC
+LIMIT 10;
+
+-- Blobs shared across multiple files
+SELECT content_hash, ref_count
+FROM blobs
+WHERE ref_count > 1
+ORDER BY ref_count DESC;
+```
+
+---
+
+## schema_version: the migration record
+
+A one-row-per-migration ledger, so any copy of `bene.db` can prove which schema it carries.
 
 ```sql
 CREATE TABLE IF NOT EXISTS schema_version (
@@ -577,20 +558,20 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 ```
 
-### Columns
+### Column guide
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `version` | INTEGER | PRIMARY KEY | Schema version number. Current: 1. |
-| `applied_at` | TEXT | NOT NULL, auto-generated | ISO 8601 timestamp when this version was applied. |
+| `version` | INTEGER | PRIMARY KEY | The migration number. Current: 1. |
+| `applied_at` | TEXT | NOT NULL, auto-generated | When that migration ran. |
 
-### Design Notes
+### Migration mechanics
 
-- On first initialization, version 1 is inserted.
-- On subsequent opens, if the database version is behind the code's `SCHEMA_VERSION`, incremental migrations are applied via `_apply_migrations()`.
-- Future migrations will be added as `if from_version < N:` blocks in `bene/schema.py`.
+- First initialization inserts version 1.
+- On later opens, a database that trails the code's `SCHEMA_VERSION` is brought forward by incremental migrations through `_apply_migrations()`.
+- Future steps land as `if from_version < N:` blocks in `bene/schema.py`.
 
-### Example Queries
+### Paste-ready queries
 
 ```sql
 -- Check current schema version
@@ -602,7 +583,11 @@ SELECT version, applied_at FROM schema_version ORDER BY version;
 
 ---
 
-## Relationships
+<a id="relationships"></a>
+
+## How the tables join up
+
+Every relationship in the schema, in one view:
 
 ```text
 agents.agent_id    ----<  files.agent_id           (one agent, many files)
@@ -616,13 +601,15 @@ tool_calls.call_id <---   tool_calls.parent_call_id (self-referencing call chain
 events.event_id    <---   checkpoints.event_id     (checkpoint watermark into event stream)
 ```
 
-### Foreign Key Enforcement
-
-Foreign keys are enforced via `PRAGMA foreign_keys=ON`, which is set on every connection. This prevents orphaned rows (e.g., creating a file for a non-existent agent).
+These links are not decorative. Every connection sets `PRAGMA foreign_keys=ON`, so SQLite itself refuses orphaned rows — a file can never belong to an agent that does not exist.
 
 ---
 
-## Index Reference
+<a id="index-reference"></a>
+
+## Index catalog
+
+Each index that ships with the schema, and the query shape it serves:
 
 | Table | Index Name | Columns | Partial? | Purpose |
 |---|---|---|---|---|

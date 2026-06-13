@@ -1,25 +1,28 @@
-# BENE Deployment Guide
+# Deploying BENE
 
-> Prerequisites, installation, vLLM setup, configuration, and production deployment.
+This page takes you from a bare machine to production: install BENE, stand up a model endpoint, run both as self-restarting services, and know what to check when something breaks.
 
----
+> **Everything BENE knows lives in one SQLite file — back it up with `cp`; nothing leaves your machine unless you point it at a remote endpoint.**
 
-## Table of Contents
-
-1. [Prerequisites](#prerequisites)
-2. [Installation from Source](#installation-from-source)
-3. [vLLM Setup](#vllm-setup)
-4. [Configuration Walkthrough](#configuration-walkthrough)
-5. [Running as a Service (systemd)](#running-as-a-service-systemd)
-6. [Docker Deployment](#docker-deployment)
-7. [Performance Tuning](#performance-tuning)
-8. [Troubleshooting](#troubleshooting)
+Original anchor map: [Prerequisites](#prerequisites), [Installation from Source](#installation-from-source), [vLLM Setup](#vllm-setup), [Configuration Walkthrough](#configuration-walkthrough), [Running as a Service (systemd)](#running-as-a-service-systemd), [Docker Deployment](#docker-deployment), [Performance Tuning](#performance-tuning), [Troubleshooting](#troubleshooting).
 
 ---
 
-## Prerequisites
+<a id="installation-from-source"></a>
 
-### Required
+## Install in three commands
+
+```bash
+git clone https://github.com/good-night-oppie/bene.git
+cd bene
+uv sync
+```
+
+`uv sync` builds a local `.venv` with every dependency in place.
+
+<a id="prerequisites"></a>
+
+### What the machine needs first
 
 | Requirement | Minimum | Recommended |
 |---|---|---|
@@ -28,7 +31,7 @@
 | SQLite | 3.35+ (WAL2 support) | system default |
 | OS | Linux, macOS, Windows | Linux (for Tier 2 isolation) |
 
-### Optional (for LLM agent execution)
+For local LLM agent execution, add:
 
 | Requirement | Purpose |
 |---|---|
@@ -38,7 +41,7 @@
 | fusepy | Tier 2 FUSE isolation (Linux only) |
 | uvicorn + starlette | SSE transport for MCP server |
 
-### Install uv
+Missing `uv`? One line fixes that:
 
 ```bash
 # macOS / Linux
@@ -51,37 +54,23 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 uv --version
 ```
 
----
+### Optional extras
 
-## Installation from Source
-
-### Clone and install
-
-```bash
-git clone https://github.com/good-night-oppie/bene.git
-cd bene
-uv sync
-```
-
-This creates a `.venv` virtual environment and installs all dependencies.
-
-### Install with development tools
+The `dev` extra brings pytest, pytest-asyncio, pytest-cov, and ruff:
 
 ```bash
 uv sync --extra dev
 ```
 
-This adds pytest, pytest-asyncio, pytest-cov, and ruff.
-
-### Install with FUSE support (Linux only)
+For Tier 2 FUSE isolation (Linux only), pull in `fusepy`:
 
 ```bash
 uv sync --extra fuse
 ```
 
-This adds the `fusepy` package for Tier 2 FUSE-based isolation.
+### Prove it works
 
-### Verify installation
+Three checks: CLI, tests, and an in-memory round trip:
 
 ```bash
 # CLI works
@@ -102,84 +91,25 @@ print('OK')
 "
 ```
 
-### Install as a global tool
+### Skip the `uv run` prefix
 
-To make the `bene` command available system-wide:
+To put the bare `bene` command on your PATH, without `uv run`:
 
 ```bash
 uv tool install -e .
 ```
 
-After this, `bene` is available in your PATH without `uv run`.
-
 ---
 
-## vLLM Setup
+<a id="vllm-setup"></a>
 
-BENE uses local vLLM instances for LLM inference. Each model tier runs as a separate vLLM server process.
+## Bring up a model endpoint
 
-### Model tier recommendations
+Any OpenAI-compatible endpoint serves BENE. The reference setup is local vLLM — one server process per model tier — but a single GPU is a fine starting point.
 
-| Tier | Example Model | Context | vLLM Port | Use Case |
-|---|---|---|---|---|
-| Small (7B) | Qwen/Qwen2.5-Coder-7B-Instruct | 32K | 8000 | Trivial tasks, classification, routing |
-| Medium (32B) | Qwen/Qwen2.5-Coder-32B-Instruct | 128K | 8001 | Moderate coding, test writing |
-| Large (70B) | deepseek-ai/DeepSeek-R1-70B | 128K | 8002 | Complex reasoning, architecture, planning |
+### Start with one model
 
-### Starting vLLM instances
-
-**Small model (7B) -- classification and trivial tasks:**
-
-```bash
-vllm serve Qwen/Qwen2.5-Coder-7B-Instruct \
-  --port 8000 \
-  --max-model-len 32768 \
-  --gpu-memory-utilization 0.85 \
-  --tensor-parallel-size 1
-```
-
-**Medium model (32B) -- moderate tasks:**
-
-```bash
-vllm serve Qwen/Qwen2.5-Coder-32B-Instruct \
-  --port 8001 \
-  --max-model-len 131072 \
-  --gpu-memory-utilization 0.90 \
-  --tensor-parallel-size 2
-```
-
-**Large model (70B) -- complex and critical tasks:**
-
-```bash
-vllm serve deepseek-ai/DeepSeek-R1-70B \
-  --port 8002 \
-  --max-model-len 131072 \
-  --gpu-memory-utilization 0.90 \
-  --tensor-parallel-size 4
-```
-
-### GPU memory guidelines
-
-| Model Size | Minimum VRAM | Recommended | Tensor Parallel |
-|---|---|---|---|
-| 7B | 16 GB (1x GPU) | 24 GB | 1 |
-| 32B | 48 GB (2x GPU) | 80 GB | 2 |
-| 70B | 160 GB (4x GPU) | 320 GB | 4-8 |
-
-### Verify vLLM is running
-
-```bash
-# Check each endpoint
-curl http://localhost:8000/v1/models
-curl http://localhost:8001/v1/models
-curl http://localhost:8002/v1/models
-```
-
-Each should return a JSON response listing the served model.
-
-### Using a single model
-
-If you only have one GPU or one model, configure all tiers to point to the same endpoint:
+One GPU, one model? Map every complexity level onto a single endpoint:
 
 ```yaml
 models:
@@ -189,9 +119,68 @@ models:
     use_for: [trivial, moderate, complex, critical]
 ```
 
-### Using remote endpoints
+### Or run the full three-tier stack
 
-Any OpenAI-compatible endpoint works, including remote servers:
+The tier router shines when cheap tasks land on cheap models:
+
+| Tier | Example Model | Context | vLLM Port | Use Case |
+|---|---|---|---|---|
+| Small (7B) | Qwen/Qwen2.5-Coder-7B-Instruct | 32K | 8000 | Trivial tasks, classification, routing |
+| Medium (32B) | Qwen/Qwen2.5-Coder-32B-Instruct | 128K | 8001 | Moderate coding, test writing |
+| Large (70B) | deepseek-ai/DeepSeek-R1-70B | 128K | 8002 | Complex reasoning, architecture, planning |
+
+7B — the routing and trivial-task tier:
+
+```bash
+vllm serve Qwen/Qwen2.5-Coder-7B-Instruct \
+  --port 8000 \
+  --max-model-len 32768 \
+  --gpu-memory-utilization 0.85 \
+  --tensor-parallel-size 1
+```
+
+32B — everyday coding work:
+
+```bash
+vllm serve Qwen/Qwen2.5-Coder-32B-Instruct \
+  --port 8001 \
+  --max-model-len 131072 \
+  --gpu-memory-utilization 0.90 \
+  --tensor-parallel-size 2
+```
+
+70B — reasoning, architecture, and anything critical:
+
+```bash
+vllm serve deepseek-ai/DeepSeek-R1-70B \
+  --port 8002 \
+  --max-model-len 131072 \
+  --gpu-memory-utilization 0.90 \
+  --tensor-parallel-size 4
+```
+
+### How much VRAM each tier wants
+
+| Model Size | Minimum VRAM | Recommended | Tensor Parallel |
+|---|---|---|---|
+| 7B | 16 GB (1x GPU) | 24 GB | 1 |
+| 32B | 48 GB (2x GPU) | 80 GB | 2 |
+| 70B | 160 GB (4x GPU) | 320 GB | 4-8 |
+
+### Confirm the servers answer
+
+```bash
+# Check each endpoint
+curl http://localhost:8000/v1/models
+curl http://localhost:8001/v1/models
+curl http://localhost:8002/v1/models
+```
+
+A healthy server replies with JSON naming the model it serves.
+
+### No local GPU? Point at a remote server
+
+A remote endpoint drops in the same way — only the URL changes:
 
 ```yaml
 models:
@@ -203,15 +192,17 @@ models:
 
 ---
 
-## Configuration Walkthrough
+<a id="configuration-walkthrough"></a>
 
-BENE is configured via `bene.yaml`. Start by copying the example:
+## Configure bene.yaml
+
+Copy the shipped example and edit from there:
 
 ```bash
 cp bene.yaml.example bene.yaml
 ```
 
-### Full configuration reference
+### The whole file, annotated
 
 ```yaml
 # ── Database Settings ────────────────────────────────────────
@@ -282,36 +273,29 @@ logging:
   file: ./bene.log             # Log file path
 ```
 
-### Key configuration decisions
+### Four decisions that matter
 
-**Compression** (`database.compression`):
+**`database.compression`** — `zstd` (the default) squeezes every blob at level 3: good ratio, minimal CPU cost. Switch to `none` only when the workload is write-heavy on a CPU-starved host.
 
-- `zstd` (default): Compresses blobs at level 3. Good compression ratio with minimal CPU overhead. Recommended for most use cases.
-- `none`: Store blobs uncompressed. Use if your workload is write-heavy and CPU-constrained.
+**`isolation.mode`** — three levels, each a checkable boundary:
 
-**Isolation mode** (`isolation.mode`):
+- `logical` (the default) scopes every agent by SQL alone — costs nothing, runs everywhere.
+- `fuse` mounts a per-agent VFS; needs Linux plus fusepy. Pick it when agents launch arbitrary processes that expect real paths on disk.
+- `namespace` adds full Linux namespaces with optional cgroups; needs Linux plus root. Use it for workloads you do not trust.
 
-- `logical` (default): SQL-scoped isolation. Zero overhead. Works on all platforms.
-- `fuse`: FUSE-mounted VFS per agent. Requires Linux + fusepy. Use when agents need to run arbitrary processes that expect a real filesystem.
-- `namespace`: Full Linux namespace isolation with optional cgroups. Requires Linux + root. Use for untrusted agent workloads.
+**`router.classifier_model`** — point this at your smallest, fastest model. The classification prompt is short, capped at `max_tokens=10`, so even a 7B answers fast and accurately. Omit it and BENE uses the heuristic classifier instead: pure regex scoring, zero LLM calls.
 
-**Classifier model** (`router.classifier_model`):
-
-- Set this to your smallest/fastest model. Classification uses a short prompt with `max_tokens=10`, so even a 7B model is fast and accurate.
-- If omitted, the heuristic classifier is used instead (no LLM call, pure regex scoring).
-
-**Context compression** (`router.context_compression`):
-
-- When enabled, long conversations are compressed before sending to the model by truncating tool outputs and dropping old messages. This prevents context overflow errors.
-- Targets 85% of the model's `max_context` to leave room for the response.
+**`router.context_compression`** — turn it on and BENE trims long conversations before each model call, truncating tool outputs and dropping the oldest messages, so context-overflow errors stop happening. Trimming aims at 85% of the model's `max_context`, keeping headroom for the reply.
 
 ---
 
-## Running as a Service (systemd)
+<a id="running-as-a-service-systemd"></a>
 
-### MCP server service
+## Keep it running with systemd
 
-Create `/etc/systemd/system/bene-mcp.service`:
+### The BENE MCP service
+
+Drop this unit at `/etc/systemd/system/bene-mcp.service`:
 
 ```ini
 [Unit]
@@ -339,9 +323,11 @@ ProtectHome=true
 WantedBy=multi-user.target
 ```
 
-### vLLM model services
+The hardening block makes trust checkable: no privilege escalation, read-only OS, writes confined to `/var/lib/bene`.
 
-Create a service for each model tier. Example for the 7B model (`/etc/systemd/system/vllm-7b.service`):
+### One unit per model tier
+
+Here is the 7B server as `/etc/systemd/system/vllm-7b.service`:
 
 ```ini
 [Unit]
@@ -361,9 +347,9 @@ Environment=CUDA_VISIBLE_DEVICES=0
 WantedBy=multi-user.target
 ```
 
-Repeat for 32B (port 8001, `CUDA_VISIBLE_DEVICES=1,2`) and 70B (port 8002, `CUDA_VISIBLE_DEVICES=3,4,5,6`).
+Two more units complete the stack: the 32B on port 8001 with `CUDA_VISIBLE_DEVICES=1,2`, and the 70B on port 8002 with `CUDA_VISIBLE_DEVICES=3,4,5,6`.
 
-### Enable and start
+### Bring everything up
 
 ```bash
 # Create user and directories
@@ -386,9 +372,13 @@ sudo journalctl -u bene-mcp -f
 
 ---
 
-## Docker Deployment
+<a id="docker-deployment"></a>
 
-### Dockerfile
+## Keep it running with Docker
+
+The image below serves MCP over SSE and persists the database to a volume.
+
+### The image
 
 ```dockerfile
 FROM python:3.12-slim
@@ -416,7 +406,7 @@ EXPOSE 3100
 VOLUME ["/data"]
 ```
 
-### docker-compose.yml
+### Compose: BENE plus a 7B model
 
 ```yaml
 services:
@@ -453,7 +443,7 @@ volumes:
   bene-data:
 ```
 
-### Build and run
+### Launch and poke at it
 
 ```bash
 docker compose up -d
@@ -465,9 +455,9 @@ docker compose logs -f bene
 docker compose exec bene uv run bene ls --db /data/bene.db
 ```
 
-### Configuration for Docker networking
+### One networking gotcha
 
-Update `bene.yaml` model endpoints to use Docker service names:
+Inside the compose network, `localhost` points at the wrong container. Address models by service name in `bene.yaml`:
 
 ```yaml
 models:
@@ -479,144 +469,9 @@ models:
 
 ---
 
-## Performance Tuning
+## Verify the deployment is healthy
 
-### SQLite tuning
-
-The default SQLite PRAGMAs are set in `Bene.__init__()`:
-
-```python
-conn.execute("PRAGMA journal_mode=WAL")     # Concurrent reads
-conn.execute("PRAGMA foreign_keys=ON")       # Referential integrity
-conn.execute("PRAGMA busy_timeout=5000")     # 5s lock retry
-```
-
-For high-concurrency workloads, consider adding to the connection setup (via a custom `Bene` subclass or configuration):
-
-```sql
-PRAGMA synchronous=NORMAL;       -- Faster writes (slight durability risk)
-PRAGMA cache_size=-64000;        -- 64MB page cache (default is 2MB)
-PRAGMA mmap_size=268435456;      -- 256MB memory-mapped I/O
-PRAGMA temp_store=MEMORY;        -- In-memory temp tables
-```
-
-### Database file placement
-
-- Use a **local SSD** for the `.db` file. Network filesystems (NFS, SMB) do not support SQLite WAL mode correctly.
-- Avoid placing the database on a tmpfs/ramfs unless you accept data loss on reboot.
-- If using Docker, mount a named volume or bind-mount to a local SSD path.
-
-### Blob compression trade-offs
-
-| Setting | Write Speed | Read Speed | Storage | When to Use |
-|---|---|---|---|---|
-| `zstd` | Slightly slower | Slightly slower | 40-70% smaller | Default, most workloads |
-| `none` | Fastest | Fastest | Largest | CPU-constrained, small files |
-
-### Concurrency settings
-
-- `ccr.max_parallel_agents`: Controls the asyncio semaphore. Set this based on available GPU memory and vLLM throughput. Each concurrent agent maintains its own conversation in memory.
-- `database.busy_timeout_ms`: Increase if you see `database is locked` errors under heavy write contention. Values of 10000-30000 are safe.
-- vLLM `--max-num-seqs`: Controls how many requests vLLM processes concurrently. Align with `max_parallel_agents`.
-
-### Garbage collection
-
-Orphaned blobs accumulate when files are overwritten or deleted. Run garbage collection periodically:
-
-```python
-from bene import Bene
-
-afs = Bene("bene.db")
-removed = afs.blobs.gc()
-print(f"Removed {removed} orphaned blobs")
-afs.close()
-```
-
-Or via SQL:
-
-```bash
-bene query "SELECT COUNT(*) as orphaned FROM blobs WHERE ref_count <= 0"
-```
-
-The `gc_interval_minutes` configuration controls automatic GC scheduling (planned for future implementation).
-
----
-
-## Troubleshooting
-
-### "database is locked"
-
-**Cause:** Multiple writers competing for the write lock, and the busy timeout was exceeded.
-
-**Solutions:**
-
-1. Increase `busy_timeout_ms` in `bene.yaml` (e.g., 15000 or 30000).
-2. Verify WAL mode is active: `bene query "PRAGMA journal_mode"` should return `wal`.
-3. Ensure the `.db` file is on a local filesystem, not NFS/SMB.
-4. Reduce `max_parallel_agents` to lower write contention.
-
-### "Agent not found: <id>"
-
-**Cause:** The agent ID does not exist in the database.
-
-**Solutions:**
-
-1. List available agents: `bene ls`
-2. Check for typos -- agent IDs are ULIDs (26 characters).
-3. The agent may have been exported or the database file may have changed.
-
-### vLLM connection refused
-
-**Cause:** The vLLM server is not running or not listening on the expected port.
-
-**Solutions:**
-
-1. Verify vLLM is running: `curl http://localhost:8000/v1/models`
-2. Check the port matches `bene.yaml` configuration.
-3. If using Docker, ensure service names resolve correctly (use `http://vllm-7b:8000/v1` not `localhost`).
-4. Check vLLM logs for GPU memory errors or model loading failures.
-
-### FUSE mount fails
-
-**Cause:** FUSE isolation requires Linux and the fusepy package.
-
-**Solutions:**
-
-1. Verify you are on Linux: `uname -s`
-2. Install fusepy: `uv sync --extra fuse`
-3. Ensure FUSE kernel module is loaded: `lsmod | grep fuse`
-4. Check mount permissions -- may require `user_allow_other` in `/etc/fuse.conf`.
-5. On non-Linux platforms, use `isolation.mode: logical`.
-
-### "Only SELECT queries are allowed via query()"
-
-**Cause:** The `query()` method and `agent_query` MCP tool only allow read-only SQL.
-
-**Solution:** This is by design. Use the Python API directly for write operations. The query interface is for debugging, monitoring, and auditing.
-
-### Out of context window errors
-
-**Cause:** The conversation history exceeds the model's context window.
-
-**Solutions:**
-
-1. Enable context compression: `router.context_compression: true`
-2. Reduce `ccr.max_iterations` to prevent very long conversations.
-3. Increase `ccr.checkpoint_interval` to reduce auto-checkpoint overhead in the conversation.
-4. Use a model with a larger context window for complex tasks.
-
-### High memory usage
-
-**Cause:** Many concurrent agents or large blob store.
-
-**Solutions:**
-
-1. Reduce `ccr.max_parallel_agents`.
-2. Run blob garbage collection: `afs.blobs.gc()`
-3. Export completed agents to separate databases: `bene export <agent_id> -o archive.db`
-4. Increase SQLite page cache with `PRAGMA cache_size` for read performance, but this increases memory.
-
-### Checking database health
+Because the entire state is one SQLite file, health checking is plain SQL — no dashboards required:
 
 ```bash
 # Schema version
@@ -639,3 +494,134 @@ bene query "PRAGMA journal_mode"
 # Integrity check
 bene query "PRAGMA integrity_check"
 ```
+
+The query interface is deliberately read-only, so a health check can never mutate state.
+
+---
+
+<a id="performance-tuning"></a>
+
+## Tune for throughput
+
+### SQLite pragmas
+
+`Bene.__init__()` applies these on every connection:
+
+```python
+conn.execute("PRAGMA journal_mode=WAL")     # Concurrent reads
+conn.execute("PRAGMA foreign_keys=ON")       # Referential integrity
+conn.execute("PRAGMA busy_timeout=5000")     # 5s lock retry
+```
+
+Pushing serious concurrency? Layer these on top, via a custom `Bene` subclass or your connection setup:
+
+```sql
+PRAGMA synchronous=NORMAL;       -- Faster writes (slight durability risk)
+PRAGMA cache_size=-64000;        -- 64MB page cache (default is 2MB)
+PRAGMA mmap_size=268435456;      -- 256MB memory-mapped I/O
+PRAGMA temp_store=MEMORY;        -- In-memory temp tables
+```
+
+### Where the `.db` file lives matters
+
+- Put it on a **local SSD**. WAL mode breaks on network filesystems — NFS and SMB are out.
+- A tmpfs/ramfs is fine only if losing everything on reboot is acceptable to you.
+- Under Docker, use a named volume or a bind mount backed by local SSD.
+
+### Compression: speed vs. space
+
+| Setting | Write Speed | Read Speed | Storage | When to Use |
+|---|---|---|---|---|
+| `zstd` | Slightly slower | Slightly slower | 40-70% smaller | Default, most workloads |
+| `none` | Fastest | Fastest | Largest | CPU-constrained, small files |
+
+### Three concurrency dials
+
+- `ccr.max_parallel_agents` sizes the asyncio semaphore. Budget it against GPU memory and vLLM throughput — every running agent keeps its full conversation in RAM.
+- `database.busy_timeout_ms` should grow when `database is locked` shows up under write pressure; anything from 10000 to 30000 is safe.
+- vLLM's `--max-num-seqs` caps in-flight requests on the model side. Keep it aligned with `max_parallel_agents` so neither side queues on the other.
+
+### Reclaim space from dead blobs
+
+Overwritten and deleted files leave orphaned blobs. Sweep them periodically:
+
+```python
+from bene import Bene
+
+afs = Bene("bene.db")
+removed = afs.blobs.gc()
+print(f"Removed {removed} orphaned blobs")
+afs.close()
+```
+
+To see how much is waiting to be reclaimed:
+
+```bash
+bene query "SELECT COUNT(*) as orphaned FROM blobs WHERE ref_count <= 0"
+```
+
+`gc_interval_minutes` is in the config today, but automatic GC scheduling is planned, not yet implemented — until it ships, you run GC yourself.
+
+---
+
+<a id="troubleshooting"></a>
+
+## Fix the common failures
+
+### vLLM connection refused
+
+No server is listening where BENE expects one.
+
+1. Hit the endpoint directly: `curl http://localhost:8000/v1/models`
+2. Confirm the port agrees with what `bene.yaml` says.
+3. Inside Docker, swap `localhost` for the compose service name — `http://vllm-7b:8000/v1`.
+4. Read the vLLM logs for GPU out-of-memory or model-load failures.
+
+### "database is locked"
+
+Too many writers fought over the write lock for longer than the busy timeout.
+
+1. Raise `busy_timeout_ms` in `bene.yaml` — 15000 or 30000 are reasonable.
+2. Confirm WAL is on — `bene query "PRAGMA journal_mode"` must answer `wal`.
+3. Make sure the `.db` sits on local disk, never NFS/SMB.
+4. Drop `max_parallel_agents` to ease write contention.
+
+### Out of context window errors
+
+A conversation outgrew the model it was talking to.
+
+1. Turn on trimming: `router.context_compression: true`
+2. Lower `ccr.max_iterations` so conversations cannot run forever.
+3. Raise `ccr.checkpoint_interval` — fewer auto-checkpoints means less overhead inside the conversation.
+4. Route long, complex tasks to a larger-context model.
+
+### High memory usage
+
+Too many live agents, or an unswept blob store.
+
+1. Lower `ccr.max_parallel_agents`.
+2. Sweep orphaned blobs: `afs.blobs.gc()`
+3. Move finished agents into archive databases: `bene export <agent_id> -o archive.db`
+4. Be aware that a bigger `PRAGMA cache_size` buys read speed at the price of RAM.
+
+### FUSE mount fails
+
+Tier 2 isolation has hard requirements: Linux plus the fusepy package.
+
+1. Confirm the platform: `uname -s`
+2. Add the extra: `uv sync --extra fuse`
+3. Check the kernel module is present: `lsmod | grep fuse`
+4. Mount permission errors may need `user_allow_other` in `/etc/fuse.conf`.
+5. Anywhere that is not Linux, fall back to `isolation.mode: logical`.
+
+### "Agent not found: <id>"
+
+The ID you passed has no row in this database.
+
+1. See what exists: `bene ls`
+2. Agent IDs are 26-character ULIDs — typos are easy.
+3. Consider whether the agent was exported, or whether you opened a different `.db` file.
+
+### "Only SELECT queries are allowed via query()"
+
+Working as designed: `query()` and the `agent_query` MCP tool accept read-only SQL only. Writes go through the Python API; the query surface exists for debugging, monitoring, and auditing.

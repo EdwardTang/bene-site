@@ -1,24 +1,62 @@
-# Meta-Harness: Automated Harness Optimization on BENE
+# Meta-Harness: Search Your Way to a Better Harness
 
-> Your LLM is only as good as the code wrapping it. Meta-Harness automatically searches for the best harness — the prompt template, retrieval strategy, and memory management — by letting an AI proposer learn from full execution traces.
+Hand bene a labeled dataset and one or more starting harnesses, then walk away: an AI proposer studies every execution trace, writes improved harness code, and keeps only what measurably scores higher on your data.
 
-Based on [Meta-Harness (arXiv:2603.28052)](https://yoonholee.com/meta-harness/) by Lee, Nair, Zhang, Lee, Khattab, and Finn (Stanford/KRAFTON/MIT). Original code: [stanford-iris-lab/meta-harness-tbench2-artifact](https://github.com/stanford-iris-lab/meta-harness-tbench2-artifact).
+> **One command replaces "tweak the prompt and rerun" with a measured, resumable, fully recorded search.**
 
 ![Meta-Harness: classifier accuracy 45%→87% in 10 iterations](demos/bene_uc04_meta_harness_classifier.gif)
 
+bene implements the technique from the [Meta-Harness paper (arXiv:2603.28052)](https://yoonholee.com/meta-harness/); full citation and the reference artifact are listed under [Sources and worked examples](#sources-and-worked-examples). In bene's lore this is the breeding program — patient, multi-generation selection — applied to harness code.
+
 ---
 
-## What Problem Does This Solve?
+## Why a search beats hand-tuning
 
-You have an LLM doing a task — classifying tickets, solving math problems, writing code. The model is fixed. But the **harness** — the code that decides what to put in the prompt, which examples to retrieve, what context to include — makes a **6x performance difference** on the same model.
+Your model is frozen. What you control is the harness: the code choosing what goes into the prompt, which examples get retrieved, how much context rides along. Across harnesses, the same model shows a **6x** spread in task performance.
 
-Currently, you optimize harnesses by hand: try a prompt, check results, adjust, repeat. Meta-Harness automates this entire loop.
+The usual way to claw back that 6x is artisanal — edit a prompt, eyeball the output, edit again. Meta-Harness turns that craft loop into a closed, automated one.
 
-## How It Works — Step by Step
+---
 
-Here's what actually happens when you run a Meta-Harness search, using a real example: optimizing a support ticket classifier.
+## Launch your first search
 
-### Step 1: You Define Your Task
+![Meta-Harness CLI — bene mh search, frontier progress, knowledge compounding](demos/bene_06_meta_harness.gif)
+
+**Text classification** — synthetic data for a smoke run, or your own CSV:
+
+```bash
+# With synthetic data (testing)
+bene mh search -b text_classify -n 20 -k 3
+
+# With your own dataset (CSV with text,label columns)
+bene mh search -b text_classify -n 20 -k 3 \
+  --dataset /path/to/tickets.csv
+```
+
+**Math with retrieval** — problems plus a corpus to retrieve from:
+
+```bash
+bene mh search -b math_rag -n 20 -k 3 \
+  --dataset /path/to/problems.jsonl \
+  --corpus /path/to/corpus.jsonl
+```
+
+**Agentic coding** — tune the harness around a coding agent:
+
+```bash
+bene mh search -b agentic_coding -n 10 -k 2 \
+  --dataset /path/to/tasks.jsonl
+```
+
+`-n` caps the iterations, `-k` the candidates proposed per iteration. The complete flag list lives in [Every flag, one place](#every-flag-one-place).
+
+---
+
+## A search from start to finish
+
+The clearest way to see the machinery is to follow one concrete run: teaching a classifier to route support tickets.
+
+### 1. Your data
 
 ```python
 # Your data — labeled support tickets
@@ -30,11 +68,11 @@ tickets = [
 ]
 ```
 
-### Step 2: You Provide Seed Harnesses
+### 2. Your seeds
 
-These are your starting points — different approaches to the same task. Meta-Harness needs at least one, but more gives a better starting signal.
+Seeds are your opening bids — distinct first attempts at the task. One is the minimum; several give the proposer contrast to learn from.
 
-**Seed 1 — Zero-shot** (simplest possible):
+**Seed 1 — Zero-shot** (the bare minimum):
 
 ```python
 def run(problem):
@@ -44,7 +82,7 @@ def run(problem):
     }
 ```
 
-**Seed 2 — Few-shot** (include recent examples):
+**Seed 2 — Few-shot** (recent examples inlined):
 
 ```python
 def run(problem):
@@ -56,7 +94,7 @@ def run(problem):
     }
 ```
 
-**Seed 3 — Retrieval** (find similar tickets):
+**Seed 3 — Retrieval** (nearest tickets by overlap):
 
 ```python
 def run(problem):
@@ -68,17 +106,17 @@ def run(problem):
     ...
 ```
 
-### Step 3: BENE Runs the Search Loop
+### 3. The loop
 
 ```bash
 bene mh search -b support_tickets -n 10 -k 2
 ```
 
-Here's what happens inside:
+What that single command sets in motion:
 
-#### Iteration 0 — Evaluate Seeds
+#### Iteration 0 — scoring the seeds
 
-BENE spawns 3 agents (one per seed), each in its own isolated VFS:
+Three evaluator agents come up, one per seed, each walled inside its own VFS:
 
 ```text
 Agent: harness-01HXY1A...    (zero-shot seed)
@@ -97,7 +135,7 @@ Agent: harness-01HXY1C...    (retrieval seed)
   /evaluation/per_problem.jsonl
 ```
 
-All results are stored in the **search archive** — a dedicated BENE agent's VFS:
+Everything lands in the **search archive**, which is itself the VFS of a dedicated agent:
 
 ```text
 Search Agent VFS:
@@ -110,39 +148,39 @@ Search Agent VFS:
   /pareto/frontier.json     ← retrieval seed is best so far
 ```
 
-Each harness directory contains:
+Per harness directory:
 
-- **source.py** — the harness source code
-- **scores.json** — aggregate scores (accuracy, context_cost, etc.)
-- **trace.jsonl** — the full execution trace with richer fields: input preview, expected answer, prompt preview, prediction, correct boolean, and context token count per problem
-- **per_problem.jsonl** — per-problem results stored separately for detailed analysis
-- **metadata.json** — iteration, parent harness, rationale
+- **source.py** — the candidate's code
+- **scores.json** — the aggregates (accuracy, context_cost, etc.)
+- **trace.jsonl** — a complete run record, with rich per-problem fields: an input preview, the expected answer, a prompt preview, the prediction, a correct boolean, and the context token count
+- **per_problem.jsonl** — itemized results, kept apart for fine-grained analysis
+- **metadata.json** — iteration number, parent harness, rationale
 
-The **trace.jsonl** files are the critical ingredient: the paper's ablation shows that giving the proposer access to raw traces (vs. just scores or summaries) improves accuracy by 15+ points.
+Those trace files carry the search. In the paper's ablation, a proposer that reads raw traces beats one fed only scores or summaries by 15+ accuracy points.
 
-#### Iteration 1 — Proposer Studies the Archive
+#### Iteration 1 — the proposer reads everything
 
-BENE spawns a **proposer agent** — an LLM that can read the entire search archive through tools:
+Next, bene starts a **proposer agent**: an LLM holding tools that open the whole archive.
 
-- `mh_ls_archive("/harnesses")` → lists all 3 harness directories
-- `mh_read_archive("/pareto/frontier.json")` → sees retrieval is winning
-- `mh_read_archive("/harnesses/01HXY1C.../trace.jsonl")` → reads every problem attempt
-- `mh_read_archive("/harnesses/01HXY1A.../trace.jsonl")` → reads zero-shot failures
-- `mh_grep_archive("word overlap")` → searches across ALL files in the archive for a pattern
+- `mh_ls_archive("/harnesses")` → enumerates the 3 harness directories
+- `mh_read_archive("/pareto/frontier.json")` → confirms retrieval leads
+- `mh_read_archive("/harnesses/01HXY1C.../trace.jsonl")` → every attempt, problem by problem
+- `mh_read_archive("/harnesses/01HXY1A.../trace.jsonl")` → where zero-shot went wrong
+- `mh_grep_archive("word overlap")` → one regex, matched against the full archive
 
-The proposer notices: *"The retrieval harness gets 70% accuracy but fails on tickets where the wording is unusual — 'mysterious charge on my statement' doesn't match 'charged twice' by word overlap. The few-shot harness fails when recent examples don't include the right category."*
+From the traces, a diagnosis forms: retrieval tops the board at 70% yet whiffs whenever phrasing drifts — "mysterious charge on my statement" shares no tokens with "charged twice", so overlap scoring finds nothing. Few-shot, meanwhile, stumbles whenever the last few examples happen to skip the needed category.
 
-It proposes 2 new harnesses:
+Two fixes get drafted:
 
-**Candidate 1** — Semantic grouping: cluster examples by label, include one from each.
-**Candidate 2** — Two-stage: make a draft classification, then retrieve examples for the draft label to verify.
+**Candidate 1 — group by meaning.** Cluster the labeled pool per category; show one exemplar from each.
+**Candidate 2 — draft, then check.** Classify once, retrieve examples matching that draft label, confirm or revise.
 
-Both are submitted via `mh_submit_harness(source_code, rationale)` and go through **two-stage validation** before evaluation:
+`mh_submit_harness(source_code, rationale)` accepts both, but nothing touches the benchmark until it clears **two-stage validation**:
 
-1. **AST check** — verifies the harness has a top-level `run()` function (class-method harnesses are rejected; the function must be a module-level `def run(problem)`)
-2. **Smoke test** — imports the module and calls `run()` with a sample problem to catch runtime errors early
+1. **AST check** — the module must define `run()` at the top level, as `def run(problem)`; harnesses written as class methods are refused
+2. **Smoke test** — the module is imported and `run()` invoked on a sample problem, so runtime crashes surface before a full evaluation is spent
 
-Only harnesses that pass both stages proceed to full evaluation.
+A candidate that fails either gate never runs.
 
 ```text
 Search Archive after iteration 1:
@@ -155,14 +193,14 @@ Search Archive after iteration 1:
   /pareto/frontier.json  ← updated with new best
 ```
 
-#### Iteration 2 — Learning From Success AND Failure
+#### Iteration 2 — mining the winner's failures
 
-The proposer reads the traces for the two-stage verifier (the new best) and notices it fails on **ambiguous tickets** — "I want to downgrade my plan" could be account or billing. It also reads the semantic grouping traces and sees that including a contrastive example (two similar tickets with different labels) helps.
+Reading the new leader's traces exposes its soft spot: **ambiguity**. "I want to downgrade my plan" is defensible as account *or* billing. The semantic-grouping traces add a second clue — showing two near-identical tickets that carry different labels (a contrastive pair) sharpens the call.
 
-It proposes:
+So the next proposals:
 
-**Candidate 3** — Two-stage + contrastive examples: verify with similar tickets from DIFFERENT categories.
-**Candidate 4** — Adds a label primer: lists all categories with one-line descriptions before classifying.
+**Candidate 3 — contrast the verification.** During the check stage, pull tickets that look similar but live in *different* categories.
+**Candidate 4 — prime the labels.** Open the prompt with every category and a one-line description of each.
 
 ```text
 After iteration 2:
@@ -171,24 +209,26 @@ After iteration 2:
   Pareto frontier: [Candidate 3 (best acc), Candidate 4 (best cost)]
 ```
 
-#### Iterations 3-10 — Refinement
+#### Iterations 3-10 — compounding refinement
 
-Each iteration, the proposer has access to ALL prior harnesses and traces. It can:
+From here on, every iteration gives the proposer the full history. Its typical moves:
 
-- Read the source code of the top-3 harnesses to understand what works
-- Read traces of failures to understand what doesn't
-- Combine ideas from different successful harnesses
-- Make targeted fixes for specific failure modes (not rewrites)
+- pull up the top-3 sources and spot the shared ingredients
+- walk failure traces to learn what still breaks
+- splice winning ideas from separate lineages
+- patch one failure mode at a time rather than rewriting wholesale
 
-The proposer prompt is paper-aligned with key strategies:
+Its prompt encodes three habits lifted from the paper:
 
-- **Additive changes after regressions** — after consecutive regressions, the proposer switches to purely additive changes (add new capability without modifying existing code), which is less risky
-- **Isolate variables** — each proposed harness changes one thing at a time so the proposer can attribute improvements correctly
-- **Cross-reference iterations** — the proposer explicitly compares results across iterations to identify which changes helped and which hurt
+- **Go additive after losing streaks** — consecutive regressions flip the proposer into add-only mode: new capability, existing code untouched, less risk
+- **Change one variable** — each candidate isolates a single difference, so credit assignment stays clean
+- **Compare across iterations** — results from earlier rounds get cross-referenced to separate the changes that helped from the ones that hurt
 
-The default `candidates_per_iteration` is **2** (not 3), matching the paper's finding that fewer, more focused candidates per iteration produce better results than many unfocused ones.
+bene defaults `candidates_per_iteration` to **2** rather than 3; the paper measured that fewer, sharper proposals per iteration beat a wider spray.
 
-### Step 4: You Get the Results
+### 4. The scoreboard
+
+Ten iterations later, the loop reports:
 
 ```text
 Meta-Harness Search Complete
@@ -201,13 +241,13 @@ Meta-Harness Search Complete
   Best context_cost: 35.0000 (harness 01HXY1G...)
 ```
 
-Inspect the winning harness:
+Pull up the winner:
 
 ```bash
 bene mh inspect 01HXY... 01HXY1F... --db support-tickets.db
 ```
 
-Query anything about the search:
+And because the whole search sits in SQLite, your questions don't stop at the summary:
 
 ```sql
 -- Which harnesses improved over their parents?
@@ -224,25 +264,25 @@ SELECT SUM(token_count) FROM tool_calls;
 
 ---
 
-## How BENE Makes This Better Than Vanilla Meta-Harness
+## One file, fully auditable
 
-The paper's reference implementation uses a flat filesystem. BENE provides:
+The paper's reference code writes to a flat filesystem. bene runs the same algorithm on top of its VFS engine, and every claim below is one you can check yourself:
 
-**Isolation**: Each harness runs in its own VFS. A buggy harness can't corrupt the archive or other harnesses.
+**Isolation.** Candidate code executes inside a private VFS. A buggy harness cannot reach the archive or a sibling's files.
 
-**Checkpoints**: The search is checkpointed before each iteration. If the proposer or an evaluation crashes, restore and resume.
+**Checkpoints.** The search state is checkpointed ahead of each iteration. A crashed proposer or evaluation rolls back and continues.
 
-**Audit trail**: Every file read, write, tool call, and state change is logged. You can reconstruct exactly what the proposer looked at and why.
+**Audit trail.** Each read, each write, each tool call and state change lands in the event journal — you can reconstruct what the proposer examined, and why.
 
-**SQL queries**: Instead of grepping through files, query the entire search with SQL. "Which harnesses used retrieval?" "How many tokens per iteration?" "What was the accuracy trajectory?"
+**SQL.** Skip the grepping; the entire history answers structured questions. Which candidates used retrieval? Token spend per iteration? The accuracy trajectory, round by round?
 
-**Portability**: The entire search — every harness, every trace, every proposer conversation — is one `.db` file. Send it to a teammate.
+**Portability.** The complete search — code, traces, proposer conversations — lives in one local `.db` file. Hand that single file to a teammate and they have everything.
 
 ---
 
-## Proposer Tools
+## What the proposer can touch
 
-The proposer agent has access to four archive tools for reading the search history:
+Four archive tools — and only these — define the proposer's reach:
 
 | Tool | Description |
 |---|---|
@@ -251,47 +291,15 @@ The proposer agent has access to four archive tools for reading the search histo
 | `mh_grep_archive(pattern)` | Search across ALL files in the archive for a regex pattern — useful for finding which harnesses use a specific technique or which traces contain a failure mode |
 | `mh_submit_harness(source, rationale)` | Submit a new harness candidate (goes through two-stage validation) |
 
-The `mh_grep_archive` tool is especially valuable in later iterations when the archive contains many harnesses. Instead of reading every trace file, the proposer can search for specific patterns (e.g., `"word overlap"`, `"KeyError"`, `"timeout"`) to quickly identify relevant failure modes across the entire search history.
+Once the archive fills with harnesses in later iterations, `mh_grep_archive` earns its keep: a single regex — `"word overlap"`, `"KeyError"`, `"timeout"` — sweeps every stored file at once, surfacing a failure mode without paging through trace files one by one.
 
 ---
 
-## Running the Benchmarks
+## Recover and resume
 
-![Meta-Harness CLI — bene mh search, frontier progress, knowledge compounding](demos/bene_06_meta_harness.gif)
+A crash, a timeout, or a Ctrl-C does not cost you the search. Every evaluation, trace, and the Pareto frontier already live in the `.db` file, so picking up at the last finished iteration is one command.
 
-### Text Classification
-
-```bash
-# With synthetic data (testing)
-bene mh search -b text_classify -n 20 -k 3
-
-# With your own dataset (CSV with text,label columns)
-bene mh search -b text_classify -n 20 -k 3 \
-  --dataset /path/to/tickets.csv
-```
-
-### Math Reasoning
-
-```bash
-bene mh search -b math_rag -n 20 -k 3 \
-  --dataset /path/to/problems.jsonl \
-  --corpus /path/to/corpus.jsonl
-```
-
-### Agentic Coding
-
-```bash
-bene mh search -b agentic_coding -n 10 -k 2 \
-  --dataset /path/to/tasks.jsonl
-```
-
----
-
-## Resume Interrupted Searches
-
-If a Meta-Harness search is interrupted (crash, timeout, manual stop), you can resume it from the last completed iteration. All prior harness evaluations, traces, and Pareto frontier state are preserved in the `.db` file.
-
-### CLI
+### From the CLI
 
 ```bash
 # Resume from last completed iteration
@@ -301,7 +309,7 @@ bene mh resume <search-agent-id>
 bene mh status <search-agent-id>
 ```
 
-### Python API
+### From Python
 
 ```python
 from bene import Bene
@@ -317,9 +325,9 @@ result = await search.resume(agent_id="01HXY...")
 print(result.summary())
 ```
 
-### MCP Tool
+### Over MCP
 
-The `mh_resume` tool is available via the MCP server (18 tools total):
+The MCP server (37 tools total) also exposes `mh_resume`, which takes a single argument:
 
 ```json
 {
@@ -327,13 +335,211 @@ The `mh_resume` tool is available via the MCP server (18 tools total):
 }
 ```
 
-Resume reconstructs the search state from the archive stored in the search agent's VFS, determines the last completed iteration, and continues from there with the same configuration (benchmark, candidates per iteration, objectives).
+On resume, bene rebuilds search state out of the archive in the search agent's VFS, finds the last iteration that completed, and proceeds under the original configuration — same benchmark, same candidate count, same objectives.
 
 ---
 
-## Paper Benchmarks
+## Any provider can propose (v0.4.1)
 
-BENE includes loaders for three published research benchmarks used in the Meta-Harness paper. These download datasets from HuggingFace and cache them locally for offline use.
+Some providers — `claude --print` among them — never emit structured tool calls, which puts `mh_submit_harness` out of their reach. bene compensates without being told to: if a proposer turn ends with zero tool submissions, the reply text is scanned for ```python blocks containing `def run()`, and each valid block enters the pipeline as a candidate, subject to the same full validation.
+
+Text-only or tool-capable, the proposer works either way. There is nothing to configure.
+
+---
+
+## Keep the digest small (v0.4.0)
+
+Each round, the proposer must absorb every prior harness, score, and trace. Done naively, that is 5-10 tool calls per iteration — and a provider like `claude --print` replays the full conversation on every call, which is how timeouts happen.
+
+So bene pre-assembles a structured **archive digest** built on three strategies, compressing each data type on its own terms:
+
+| Data type | Strategy | What happens |
+|---|---|---|
+| Scores, metadata | Lossless | Kept as-is (small, 100% signal) |
+| Source code | Lossless (levels 0-7), stripped (8-10) | Proposer always sees the code |
+| Per-problem results | Structured extraction | Error patterns + N failure samples |
+| Traces | Filtered | Only errors/failures kept, correct problems dropped |
+| Proposer conversation | Progressive summarization | Old turns summarized, recent kept verbatim |
+
+Measured quality, using 6 diagnostic questions a proposer should be able to answer from the digest alone:
+
+```text
+Level  0 │ 5292 chars ( 22% saved) │ quality=100% │ 6/6 questions answerable
+Level  3 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable
+Level  5 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable  ← default
+Level  7 │ 3024 chars ( 56% saved) │ quality=100% │ 6/6 questions answerable
+Level 10 │ 2512 chars ( 63% saved) │ quality=100% │ 6/6 questions answerable
+```
+
+No level loses signal. Pulling error patterns out into explicit structure turns out to feed the proposer *better* than the raw dumps did.
+
+Set the level globally in `bene.yaml`:
+
+```yaml
+search:
+  compaction_level: 5  # 0 (full data) to 10 (maximum compression)
+```
+
+or for a single search:
+
+```python
+config = SearchConfig(benchmark="text_classify", compaction_level=7)
+```
+
+---
+
+## Compaction across five domains (v0.4.1)
+
+The default level (5), tested beyond classification:
+
+| Domain | Context saved | Quality retained |
+|---|---|---|
+| Classification | 52% | 100% |
+| Code Generation | 31% | 100% |
+| Research / RAG | 28% | 100% |
+| Tool Calling | 30% | 100% |
+| ML Training | 28% | 100% |
+
+Push to level 10 and two domains pay for it: code generation falls to 70% quality (the exact error strings vanish) and research/RAG to 78%, while classification, tool calling, and ML training hold their 100%.
+
+---
+
+## CORAL: getting unstuck (v0.6.0)
+
+![CORAL co-evolution — N independent search agents share Pareto frontiers and skills](demos/bene_07_coral_coevolution.gif)
+
+Left running long enough, any iterative search starts to circle: the proposer settles into a local optimum and keeps shipping variations of the same idea. CORAL ([arXiv:2604.01658](https://arxiv.org/abs/2604.01658)) attacks that plateau on three fronts, and bene implements all three.
+
+### Front 1 — detect stagnation, force a pivot
+
+Once `stagnation_threshold` consecutive iterations close without a new best (default 3), the next digest arrives carrying a banner:
+
+```text
+╔══════════════════════════════════════════════════════════════════╗
+║  PIVOT REQUIRED  —  stagnant=4  best=0.74                        ║
+║                                                                  ║
+║  Exhausted approaches:                                           ║
+║    • Role-playing (engineer/reviewer) — ceiling at 0.74          ║
+║    • Few-shot examples — 1-4 per class, diminishing returns       ║
+║    • CoT with contrast — matched best but did not improve         ║
+║                                                                  ║
+║  Required: propose an orthogonal direction.                      ║
+╚══════════════════════════════════════════════════════════════════╝
+```
+
+Another role-playing variant is no longer on the menu; once the digest says `PIVOT REQUIRED`, the proposer has to switch families of approach.
+
+Tune the thresholds in `bene.yaml`:
+
+```yaml
+search:
+  stagnation_threshold: 4    # default 3 — pivot fires after N non-improving iters
+  consolidation_every: 6     # default 5 — skills heartbeat every K iters
+```
+
+or per search:
+
+```python
+config = SearchConfig(
+    benchmark="code_review",
+    stagnation_threshold=4,
+    consolidation_interval=6,
+)
+```
+
+### Front 2 — memory in three layers
+
+Three structured directories join the search archive:
+
+| Directory | Contents | Purpose |
+|---|---|---|
+| `/attempts/` | `{id, scores, status}` per harness | Fast proposer scanning without loading full source |
+| `/notes/` | Per-iteration markdown observations | Injected into next digest so proposer builds on its own reasoning |
+| `/skills/` | Reusable patterns distilled from notes | Persisted to knowledge agent — available as seeds for future searches |
+
+A skill can be written through MCP mid-session:
+
+```python
+# From Claude Code during a search session
+mh_write_skill(
+    search_agent_id=search_id,
+    name="two_step_decomposition",
+    description="Split classification: 'correctness problem?' then severity routing",
+    code_template="""
+STEP 1 — Extract: correctness (yes/no), impact (high/medium/low)
+STEP 2 — Route: correctness=yes+high → BLOCKER, correctness=yes → IMPORTANT, etc.
+"""
+)
+```
+
+Today's distilled skill becomes tomorrow's seed. `bene mh knowledge <benchmark>` lists everything accumulated so far.
+
+### Front 3 — several searchers, one hub
+
+Instead of a lone searcher, spawn a population on the same benchmark, each starting somewhere different and trading discoveries through a hub:
+
+```bash
+# Launch co-evolution (MCP tool or Python API)
+mh_spawn_coevolution(benchmark="code_review", n_agents=3)
+```
+
+Per agent, the cycle is: run your own proposer loop; every `hub_sync_interval` iterations (default 2), sync with the hub; import peers' best harnesses and skills into your own archive; let the imports show up in your Pareto frontier and your next digest.
+
+```text
+Hub VFS:
+  /best_per_agent/agent_0/   ← best from each agent
+  /best_per_agent/agent_1/
+  /best_per_agent/agent_2/
+  /shared_skills/            ← skills any agent has written
+  /shared_attempts/          ← compact summaries from all agents
+```
+
+In the CORAL paper, co-evolving agents improved **3-10×** more often than a single searcher. 36% of cross-agent attempts extended a peer's work directly — and those improved 17% of the time, against 9% overall.
+
+### Status and skills from the CLI
+
+```bash
+# Check stagnation state of a running search
+bene mh status <search-agent-id>
+# → stagnant_iterations: 3, last_pivot_at: iter 7
+
+# View accumulated skills for a benchmark
+bene mh knowledge code_review
+
+# Write a skill from CLI
+bene mh write-skill <search-agent-id> --name "two_step" --description "..."
+```
+
+### The demo, decoded
+
+A single 15-iteration code-review search (48%→83%) exercises every front:
+
+- Iterations 1-7 — role-play and few-shot variants stall at 0.74
+- Iteration 7 — `stagnant_iters=4` trips the CORAL pivot
+- Iteration 8 — a two-step decomposition clears the ceiling (+0.04)
+- Iteration 10 — the consolidation heartbeat files skills to the knowledge agent
+- Iteration 10 — two_step_attr_merged lands the final 0.83
+
+**$0.14, 12 minutes, 35-point improvement.**
+
+---
+
+## Discoveries that carry forward (v0.4.0)
+
+A finished search no longer takes its lessons to the grave. Winning harnesses get filed under a persistent "bene-knowledge" agent, and the next search on that benchmark loads those discoveries as extra seeds — automatically.
+
+```bash
+bene mh knowledge       # view discoveries by benchmark
+bene mh lint <id>       # health-check a search archive
+bene search "TF-IDF"    # full-text search across all agents
+bene index <agent-id>   # build navigable /index.md
+```
+
+---
+
+## Benchmarks from the paper
+
+Three published datasets used in the Meta-Harness paper ship with loaders. The first run downloads from HuggingFace; after that, the copy in `~/.cache/bene/datasets/` serves every run offline.
 
 | Benchmark | Loader | Task | Source |
 |---|---|---|---|
@@ -341,7 +547,7 @@ BENE includes loaders for three published research benchmarks used in the Meta-H
 | `symptom2disease` | `load_symptom2disease()` | Medical symptom-to-disease mapping | HuggingFace |
 | `uspto_50k` | `load_uspto50k()` | Chemical reaction classification | HuggingFace |
 
-### CLI
+### From the CLI
 
 ```bash
 # Run a search with a paper benchmark
@@ -350,7 +556,7 @@ bene mh search -b symptom2disease -n 20 -k 3
 bene mh search -b uspto_50k -n 20 -k 3
 ```
 
-### Python API
+### From Python
 
 ```python
 from bene.metaharness.benchmarks.paper_datasets import (
@@ -374,89 +580,39 @@ search = MetaHarnessSearch(db, router, bench, SearchConfig(
 result = await search.run()
 ```
 
-Datasets are downloaded on first use and cached in `~/.cache/bene/datasets/`. Subsequent runs use the local cache.
-
 ---
 
-## Smart Context Compaction (v0.4.0)
-
-The proposer needs to read all prior harnesses, scores, and traces before proposing improvements. Without compaction, this means 5-10 tool calls per iteration — each replaying the full conversation via `claude --print`, causing timeouts.
-
-BENE pre-builds a structured **archive digest** using three strategies:
-
-| Data type | Strategy | What happens |
-|---|---|---|
-| Scores, metadata | Lossless | Kept as-is (small, 100% signal) |
-| Source code | Lossless (levels 0-7), stripped (8-10) | Proposer always sees the code |
-| Per-problem results | Structured extraction | Error patterns + N failure samples |
-| Traces | Filtered | Only errors/failures kept, correct problems dropped |
-| Proposer conversation | Progressive summarization | Old turns summarized, recent kept verbatim |
-
-**Quality evaluation results** (tested with 6 diagnostic questions):
-
-```text
-Level  0 │ 5292 chars ( 22% saved) │ quality=100% │ 6/6 questions answerable
-Level  3 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable
-Level  5 │ 3672 chars ( 46% saved) │ quality=100% │ 6/6 questions answerable  ← default
-Level  7 │ 3024 chars ( 56% saved) │ quality=100% │ 6/6 questions answerable
-Level 10 │ 2512 chars ( 63% saved) │ quality=100% │ 6/6 questions answerable
-```
-
-Zero quality loss at any level. Structured extraction surfaces patterns explicitly — it's actually *better* than raw data for the proposer.
-
-Configure in `bene.yaml`:
-
-```yaml
-search:
-  compaction_level: 5  # 0 (full data) to 10 (maximum compression)
-```
-
-Or per-search:
+## Drive it from Python
 
 ```python
-config = SearchConfig(benchmark="text_classify", compaction_level=7)
+from bene import Bene
+from bene.metaharness import SearchConfig
+from bene.metaharness.search import MetaHarnessSearch
+from bene.metaharness.benchmarks import get_benchmark
+from bene.router import TierRouter
+
+db = Bene("search.db")
+router = TierRouter.from_config("bene.yaml")
+
+config = SearchConfig(
+    benchmark="text_classify",
+    max_iterations=20,
+    candidates_per_iteration=3,
+    objectives=["+accuracy", "-context_cost"],
+)
+
+bench = get_benchmark("text_classify", dataset_path="my_data.csv")
+search = MetaHarnessSearch(db, router, bench, config)
+result = await search.run()
+
+print(result.summary())
+for point in result.frontier.points:
+    print(f"  {point.harness_id}: {point.scores}")
 ```
 
 ---
 
-## Knowledge Compounding (v0.4.0)
-
-Knowledge now compounds across searches instead of resetting. When a search completes, winning harnesses are filed to a persistent "bene-knowledge" agent. New searches automatically load prior discoveries as seeds.
-
-```bash
-bene mh knowledge       # view discoveries by benchmark
-bene mh lint <id>       # health-check a search archive
-bene search "TF-IDF"    # full-text search across all agents
-bene index <agent-id>   # build navigable /index.md
-```
-
----
-
-## Text Extraction Fallback (v0.4.1)
-
-Some providers (like `claude --print`) don't support structured tool calling. The proposer can't invoke `mh_submit_harness` via tool-use — it just writes plain text.
-
-BENE handles this automatically: after the proposer runs, if no tool-call submissions were made, it scans the response for ```python blocks containing `def run()`. Valid blocks are extracted as harness candidates with full validation.
-
-This means the proposer works with any provider — text-only or tool-capable. No configuration needed.
-
----
-
-## Multi-Domain Compaction Results (v0.4.1)
-
-Compaction quality tested across 5 domains at the default level (5):
-
-- **Classification** — 52% context saved, 100% quality retained
-- **Code Generation** — 31% saved, 100% quality
-- **Research / RAG** — 28% saved, 100% quality
-- **Tool Calling** — 30% saved, 100% quality
-- **ML Training** — 28% saved, 100% quality
-
-At maximum compaction (level 10): code generation drops to 70% quality (specific error messages lost), research/RAG to 78%. Classification, tool calling, and ML hold at 100%.
-
----
-
-## CLI Reference
+## Every flag, one place
 
 ```bash
 # Start a search
@@ -489,183 +645,24 @@ bene mh knowledge
 
 ---
 
-## Python API
+## Sources and worked examples
 
-```python
-from bene import Bene
-from bene.metaharness import SearchConfig
-from bene.metaharness.search import MetaHarnessSearch
-from bene.metaharness.benchmarks import get_benchmark
-from bene.router import TierRouter
-
-db = Bene("search.db")
-router = TierRouter.from_config("bene.yaml")
-
-config = SearchConfig(
-    benchmark="text_classify",
-    max_iterations=20,
-    candidates_per_iteration=3,
-    objectives=["+accuracy", "-context_cost"],
-)
-
-bench = get_benchmark("text_classify", dataset_path="my_data.csv")
-search = MetaHarnessSearch(db, router, bench, config)
-result = await search.run()
-
-print(result.summary())
-for point in result.frontier.points:
-    print(f"  {point.harness_id}: {point.scores}")
-```
-
----
-
-## References
-
-- **Paper:** [Meta-Harness: Optimal LLM Harness Design through Evolutionary Search](https://yoonholee.com/meta-harness/) (arXiv:2603.28052)
+- **The paper:** [Meta-Harness: Optimal LLM Harness Design through Evolutionary Search](https://yoonholee.com/meta-harness/) (arXiv:2603.28052)
 - **Original code:** [stanford-iris-lab/meta-harness-tbench2-artifact](https://github.com/stanford-iris-lab/meta-harness-tbench2-artifact)
 - **Authors:** Yoonho Lee, Roshen Nair, Qizheng Zhang, Kangwook Lee, Omar Khattab, Chelsea Finn (Stanford / KRAFTON / MIT)
 
-### Examples
+### Worked examples
 
 ![Building a custom benchmark — define data, seeds, and scorer; then `bene mh search`](demos/bene_08_custom_benchmark.gif)
 
 **Technical:**
 
-- [Support ticket classifier](../examples/meta_harness_support_tickets.py) — Full walkthrough with custom dataset and benchmark
-- [Math retrieval optimization](../examples/meta_harness_math.py) — Find the best retrieval strategy for math problem solving
-- [Agentic coding optimization](../examples/meta_harness_coding.py) — Optimize a coding agent harness
+- [Support ticket classifier](../examples/meta_harness_support_tickets.py) — the walkthrough above as runnable code, custom dataset and benchmark included
+- [Math retrieval optimization](../examples/meta_harness_math.py) — which retrieval strategy serves math solving best
+- [Agentic coding optimization](../examples/meta_harness_coding.py) — tune the harness around a coding agent
 
-**Business:**
+**Business workflows:**
 
-- [Customer Lifetime Value (CLV/LTV)](../examples/meta_harness_clv_prediction.py) — Optimize CLV predictions with segment-aware prompting and churn-first reasoning
-- [CRM Campaign Messages](../examples/meta_harness_crm_campaigns.py) — Find the best tone, CTA, and personalization strategy per customer segment
-- [Fraud Detection](../examples/meta_harness_fraud_detection.py) — Improve fraud recall and precision with red-flag checklists and contrastive examples
-
----
-
-## CORAL: Stagnation Detection + Multi-Agent Co-Evolution (v0.6.0)
-
-![CORAL co-evolution — N independent search agents share Pareto frontiers and skills](demos/bene_07_coral_coevolution.gif)
-
-The core weakness of iterative search: plateau stagnation. The proposer converges on local optima and keeps generating variations without exploring new directions.
-
-CORAL ([arXiv:2604.01658](https://arxiv.org/abs/2604.01658)) addresses this with three integrated mechanisms.
-
-### Tier 1 — Stagnation Detection + Pivot Prompts
-
-After `stagnation_threshold` consecutive non-improving iterations (default 3), BENE injects a `PIVOT REQUIRED` block into the next digest:
-
-```text
-╔══════════════════════════════════════════════════════════════════╗
-║  PIVOT REQUIRED  —  stagnant=4  best=0.74                        ║
-║                                                                  ║
-║  Exhausted approaches:                                           ║
-║    • Role-playing (engineer/reviewer) — ceiling at 0.74          ║
-║    • Few-shot examples — 1-4 per class, diminishing returns       ║
-║    • CoT with contrast — matched best but did not improve         ║
-║                                                                  ║
-║  Required: propose an orthogonal direction.                      ║
-╚══════════════════════════════════════════════════════════════════╝
-```
-
-The proposer cannot submit another role-playing variant. It must change the fundamental approach.
-
-Configure in `bene.yaml`:
-
-```yaml
-search:
-  stagnation_threshold: 4    # default 3 — pivot fires after N non-improving iters
-  consolidation_every: 6     # default 5 — skills heartbeat every K iters
-```
-
-Or in `SearchConfig`:
-
-```python
-config = SearchConfig(
-    benchmark="code_review",
-    stagnation_threshold=4,
-    consolidation_interval=6,
-)
-```
-
-### Tier 2 — Three-Tier Memory
-
-The search archive gains three structured directories:
-
-| Directory | Contents | Purpose |
-|---|---|---|
-| `/attempts/` | `{id, scores, status}` per harness | Fast proposer scanning without loading full source |
-| `/notes/` | Per-iteration markdown observations | Injected into next digest so proposer builds on its own reasoning |
-| `/skills/` | Reusable patterns distilled from notes | Persisted to knowledge agent — available as seeds for future searches |
-
-Writing skills via MCP:
-
-```python
-# From Claude Code during a search session
-mh_write_skill(
-    search_agent_id=search_id,
-    name="two_step_decomposition",
-    description="Split classification: 'correctness problem?' then severity routing",
-    code_template="""
-STEP 1 — Extract: correctness (yes/no), impact (high/medium/low)
-STEP 2 — Route: correctness=yes+high → BLOCKER, correctness=yes → IMPORTANT, etc.
-"""
-)
-```
-
-Skills written today compound into seeds for tomorrow's search. `bene mh knowledge <benchmark>` shows all accumulated skills.
-
-### Tier 3 — Concurrent Multi-Agent Co-Evolution
-
-Multiple search agents explore the same benchmark from different starting points, sharing discoveries via a central hub:
-
-```bash
-# Launch co-evolution (MCP tool or Python API)
-mh_spawn_coevolution(benchmark="code_review", n_agents=3)
-```
-
-Each agent:
-
-1. Runs independently with its own proposer loop
-2. Auto-syncs with the hub every `hub_sync_interval` iterations (default 2)
-3. Pulls other agents' best harnesses + skills into its own archive
-4. Cross-agent harnesses appear in its Pareto frontier and next digest
-
-Hub structure:
-
-```text
-Hub VFS:
-  /best_per_agent/agent_0/   ← best from each agent
-  /best_per_agent/agent_1/
-  /best_per_agent/agent_2/
-  /shared_skills/            ← skills any agent has written
-  /shared_attempts/          ← compact summaries from all agents
-```
-
-CORAL paper results: **3-10× higher improvement rates** vs single-agent search. 36% of cross-agent attempts build directly on another agent's work, at 17% improvement rate vs 9% overall.
-
-### CLI
-
-```bash
-# Check stagnation state of a running search
-bene mh status <search-agent-id>
-# → stagnant_iterations: 3, last_pivot_at: iter 7
-
-# View accumulated skills for a benchmark
-bene mh knowledge code_review
-
-# Write a skill from CLI
-bene mh write-skill <search-agent-id> --name "two_step" --description "..."
-```
-
-### Full Demo
-
-The code review 48%→83% demo shows all three CORAL tiers in a single 15-iteration search:
-
-- Iters 1-7: role-playing + few-shot approaches plateau at 0.74
-- Iter 7: `stagnant_iters=4` → CORAL pivot injected
-- Iter 8: two-step decomposition breaks plateau (+0.04)
-- Iter 10: consolidation heartbeat → skills written to knowledge agent
-- Iter 10: two_step_attr_merged → 0.83 final score
-
-**$0.14, 12 minutes, 35-point improvement.**
+- [Customer Lifetime Value (CLV/LTV)](../examples/meta_harness_clv_prediction.py) — segment-aware prompting and churn-first reasoning for CLV prediction
+- [CRM Campaign Messages](../examples/meta_harness_crm_campaigns.py) — tone, CTA, and personalization tuned for each segment of customers
+- [Fraud Detection](../examples/meta_harness_fraud_detection.py) — red-flag checklists and contrastive examples in service of recall and precision

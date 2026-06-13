@@ -1,12 +1,14 @@
 # BENE Documentation
 
-**Breeding-program Evolutionary Nexus for Engrams** — runtime infrastructure for multi-agent AI.
+Run a swarm of AI agents on your own machine, watch every move, and roll back anything they break.
 
-Every agent gets an isolated filesystem, automatic checkpointing, a full audit trail, and a live dashboard — all in a single SQLite file.
+> **Every agent's files, every event, every checkpoint — one SQLite file you can `cp`. Nothing hides in a cloud.**
+
+BENE (Breeding-program Evolutionary Nexus for Engrams) gives each agent a private filesystem, automatic checkpoints, a live dashboard, and an audit trail you can query.
 
 ---
 
-## Get started
+## From clone to demo
 
 ```bash
 git clone https://github.com/good-night-oppie/bene.git && cd bene
@@ -17,49 +19,64 @@ bene demo        # see it in action — no API keys needed
 
 ---
 
-## Philosophy
+## Drive it from your editor
 
-| | |
-|---|---|
-| [Design Philosophy](philosophy.md) | Why BENE integrates research rather than inventing solutions, integration criteria, what's next |
+After `bene setup`, Claude Code, Cursor, and other MCP clients can drive BENE in plain language:
 
----
+```text
+with bene, review my payments module — security agent and test-writing agent in parallel
+```
 
-## Guides
+```text
+with bene, refactor auth.py — implement, test, and document in parallel
+```
 
-| Guide | What it covers |
-|---|---|
-| [Dashboard](dashboard.md) | Gantt timeline, agent inspector, live events, multi-project |
-| [Checkpoints](checkpoints.md) | Snapshot, restore, diff, auto-checkpointing, storage |
-| [Use Cases](use-cases.md) | Code review swarm, parallel refactor, self-healing, post-mortem, incident response, ML research |
-| [MCP Integration](mcp-integration.md) | Claude Code / Cursor setup, all 25 MCP tools |
-| [Meta-Harness](meta-harness.md) | Automated prompt/strategy optimization search |
-| [CLI Reference](cli-reference.md) | Every command, every flag |
-| [Cross-Agent Memory](memory.md) | FTS5 searchable memory across agents and sessions |
-| [Skill Library](skills.md) | FTS5 cross-agent procedural skill templates with usage tracking |
-| [Shared Log](shared-log.md) | LogAct intent/vote/decide coordination protocol |
+```text
+with bene, show me all agents that failed in the last run and what errors they hit
+```
+
+Client setup and the full 25 MCP tools: [MCP Integration](mcp-integration.md).
 
 ---
 
-## Reference
+## How it works
 
-| Reference | What it covers |
-|---|---|
-| [Schema](schema.md) | All 10 SQLite tables, columns, indexes |
-| [Architecture](architecture.md) | Internal subsystems, data flow, design decisions |
-| [Deployment](deployment.md) | vLLM setup, production config, Docker |
+**Virtual filesystem (VFS)** — each agent works in a private filesystem stored inside the database. No agent can read another's files: isolation is a SQL predicate (`WHERE agent_id = ?`), not a convention.
+
+**Checkpoint** — one agent's files plus KV state, frozen at a chosen moment. Restore in milliseconds; diffing two shows what changed. More in [Checkpoints](checkpoints.md).
+
+**Audit trail** — reads, writes, tool calls, state changes, lifecycle events: each lands in the `events` table as one append-only row, queryable in SQL. Layout: [Schema](schema.md).
+
+**Tier router** — the Difficulty-Aware Routing by Tier router matches each task to a model tier: trivial work runs on a local 7B, hard work on a 70B or Claude. Internals: [Architecture](architecture.md).
+
+**Single `.db` file** — no server, no cloud account. One SQLite file to `cp` for backup, open in any SQLite tool, or hand to a teammate.
 
 ---
 
-## Tutorials
+## Pick a guide by job
 
-**Component-deep tutorials**:
+| When you want to… | Guide | What you get |
+|---|---|---|
+| Watch live | [Dashboard](dashboard.md) | Gantt timeline of agent activity, per-agent inspector, live events, multi-project views |
+| Script it | [CLI Reference](cli-reference.md) | Every command and every flag, documented |
+| Undo mistakes | [Checkpoints](checkpoints.md) | Snapshot and restore, diff two checkpoints, auto-checkpointing, storage behavior |
+| Share memory | [Cross-Agent Memory](memory.md) | FTS5-searchable memory shared across agents and sessions |
+| Reuse skills | [Skill Library](skills.md) | Shared procedural skill templates, FTS5-searchable, usage-tracked |
+| Coordinate decisions | [Shared Log](shared-log.md) | LogAct protocol: declare intent, vote, decide |
+| Tune the harness | [Meta-Harness](meta-harness.md) | Automated search over prompts and strategies |
+| Borrow a pattern | [Use Cases](use-cases.md) | Code-review swarms, parallel refactors, self-healing agents, post-mortems, incident response, ML research |
 
-| Tutorial | What it covers |
+---
+
+## Proof: tutorials and case studies
+
+**Component-deep**:
+
+| Tutorial | Focus |
 |---|---|
 | [t11 — Local Agents with vLLM](tutorials/t11-local-agents-vllm.md) | Zero-cost, auditable local multi-agent stack — vLLM + Tier + Claude Code MCP |
 
-**End-to-end walkthroughs** (each is a complete operational scenario):
+**Full walkthroughs** (complete operational stories):
 
 | Tutorial | Scenario |
 |---|---|
@@ -83,47 +100,29 @@ bene demo        # see it in action — no API keys needed
 
 ---
 
-## Use with AI coding tools
+## Example scripts
 
-After `bene setup`, BENE is available as an MCP tool in Claude Code, Cursor, and other compatible clients. Just describe what you want:
+In [`examples/`](../examples/) at the repo root:
 
-```text
-with bene, review my payments module — security agent and test-writing agent in parallel
-```
-
-```text
-with bene, refactor auth.py — implement, test, and document in parallel
-```
-
-```text
-with bene, show me all agents that failed in the last run and what errors they hit
-```
-
-See [MCP Integration](mcp-integration.md) for setup details.
+- `library_basics.py` — VFS operations, no LLMs involved
+- `code_review_swarm.py` — 4 review agents in parallel
+- `parallel_refactor.py` — implement, test, document simultaneously
+- `self_healing_agent.py` — checkpoint, auto-restore on a failed run
+- `autonomous_research_lab.py` — N hypothesis agents, results compared in SQL
+- `meta_harness_*.py` — prompt and strategy optimization, automated
 
 ---
 
-## Key concepts
+## Look it up
 
-**Virtual filesystem (VFS)** — each agent has its own isolated filesystem inside the SQLite database. Agents cannot access each other's files. Operations are enforced at the SQL level (`WHERE agent_id = ?`), not by convention.
-
-**Checkpoint** — a snapshot of an agent's files and KV state at a point in time. Restore to any checkpoint in milliseconds. Diff two checkpoints to see exactly what changed. See [Checkpoints](checkpoints.md).
-
-**Audit trail** — every file read, write, tool call, state change, and lifecycle event is recorded as an append-only row in the `events` table. Query with SQL. See [Schema](schema.md).
-
-**Tier router** — the Difficulty-Aware Routing by Tier router classifies task complexity and routes to the right model tier. Trivial → local 7B. Complex → 70B or Claude. See [Architecture](architecture.md).
-
-**Single `.db` file** — the entire runtime is one SQLite file. Copy it to back up. Open it in any SQLite client. Send it to a teammate. No cloud, no server.
+| Reference | What you get |
+|---|---|
+| [Schema](schema.md) | The 10 SQLite tables — every column, every index |
+| [Architecture](architecture.md) | Subsystems, data movement, design-decision reasoning |
+| [Deployment](deployment.md) | Setting up vLLM, production config, Docker |
 
 ---
 
-## Examples
+## Why it's built this way
 
-See [`examples/`](../examples/) in the repository root:
-
-- `library_basics.py` — VFS operations without LLMs
-- `code_review_swarm.py` — 4 parallel review agents
-- `parallel_refactor.py` — implement + test + document simultaneously
-- `self_healing_agent.py` — checkpoint + auto-restore on failure
-- `autonomous_research_lab.py` — N hypothesis agents with SQL result comparison
-- `meta_harness_*.py` — automated prompt/strategy optimization
+[Design Philosophy](philosophy.md) explains why BENE adopts published research instead of inventing its own, what qualifies a technique for integration, and what comes next.

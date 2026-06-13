@@ -199,5 +199,5 @@ No row is blank. Tally: 20 kept / 11 kept+ / 7 re-derived / 17 surpassed.
 ## 7. Versioning & migration
 
 - v2 tables are additive (`CREATE TABLE IF NOT EXISTS`, no ALTER on legacy tables); a 0.1.0 db opens unchanged under 2.0 (phase-4 back-compat test checksums legacy schema before/after kernel init).
-- Kernel tables are created lazily on first kernel command or `attach_kernel` (sane defaults, no config required); a `bene.yaml` `kernel:` section (autonomy defaults, consolidation schedule) is planned — see CLAIMS-AUDIT.
+- Kernel tables are created lazily on first kernel command or `attach_kernel` (sane defaults, no config required); a `bene.yaml` `kernel:` section now wires runner ContextOS and loop-guard middleware, while autonomy defaults and consolidation schedule wiring remain planned — see CLAIMS-AUDIT.
 - Version: 0.2.0 — shipped 2026-06-11 (phases 4–10 complete). Port plan with per-module keep/adapt/supersede and phase numbers: KERNEL-SPEC §4.

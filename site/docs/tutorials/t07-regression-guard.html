@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>How BENE AI Agents Caught an 8% Model Regression Before It Left CI — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — How BENE AI Agents Caught an 8% Model Regression Before It Left CI" />
+<title>Swap Models Without Shipping Regressions — BENE docs</title>
+<meta name="description" content="BENE 0.2.0 documentation — Swap Models Without Shipping Regressions" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>
 :root { --bg:#FAF6F0; --surface:#F2EAD9; --border:#E0D4BC; --ink:#1F1A14; --mute:#5C5448; --accent:#C2541B; --gold:#A0531C; --term-bg:#0E0B16; --term-fg:#E8DCC2; }
@@ -149,7 +149,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
 <div class="wrap">
-<aside class="sb"><h4>Guides</h4>
+<aside class="sb"><h4>Start, operate, recover</h4>
 <a href="../README.html">README</a>
 <a href="../architecture.html">architecture</a>
 <a href="../checkpoints.html">checkpoints</a>
@@ -166,18 +166,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../shared-log.html">shared-log</a>
 <a href="../skills.html">skills</a>
 <a href="../use-cases.html">use-cases</a>
-<h4>Design</h4>
+<h4>Design and claims</h4>
 <a href="../design/BENE2-DESIGN.html">BENE2-DESIGN</a>
 <a href="../design/CLAIMS-AUDIT.html">CLAIMS-AUDIT</a>
 <a href="../design/DESIGN-RATIONALE.html">DESIGN-RATIONALE</a>
 <a href="../design/KERNEL-SPEC.html">KERNEL-SPEC</a>
-<h4>Research</h4>
+<h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
-<h4>Benchmarks</h4>
+<h4>Benchmarks and gates</h4>
 <a href="../benchmarks/PREREG.html">PREREG</a>
 <a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
-<h4>Tutorials</h4>
+<h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
 <a href="../tutorials/t02-e2e-self-healing.html">t02-e2e-self-healing</a>
@@ -191,27 +191,21 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <a href="../tutorials/t11-local-agents-vllm.html">t11-local-agents-vllm</a>
 <h4>Case studies</h4>
 <a href="../case-studies/cs02-ci-self-healing-refactor-swarm.html">cs02-ci-self-healing-refactor-swarm</a>
-<h4>Infra</h4>
+<h4>Infrastructure</h4>
 <a href="../infra/DNS.html">DNS</a></aside>
 <main>
 <div class="crumbs"><a href="../index.html">docs</a> / tutorials/t07-regression-guard.md</div>
-<h1 id="how-bene-ai-agents-caught-an-8-model-regression-before-it-left-ci">How BENE AI Agents Caught an 8% Model Regression Before It Left CI</h1>
+<h1 id="swap-models-without-shipping-regressions">Swap Models Without Shipping Regressions</h1>
 <p><em>MLOps</em></p>
-<p><em>A model swap dropped code_review accuracy from 0.83 to 0.76. BENE AI agents ran 5 benchmarks, detected the regression, blocked the deploy, and ran a targeted Meta-Harness re-optimization that restored 0.83 — all in CI, no human in the loop.</em></p>
-<hr />
-<p>Model updates are invisible. You swap <code>claude-sonnet-4-5</code> for <code>claude-sonnet-4-6</code> and assume it's better. It usually is — except on the one benchmark that matters most to your users.</p>
-<p>Most teams find out from user reports. BENE catches it in CI, in 12 minutes, before the deploy leaves the gate.</p>
-<hr />
+<p>You should be able to upgrade your model the way you upgrade a library: change one line, let the tests decide. This tutorial builds that — a bene regression guard in CI that replays your benchmark suite against every candidate model and refuses to deploy anything that scores worse than your baseline where it counts.</p>
+<blockquote>
+<p><strong>One CI job, 12 minutes: five benchmarks replayed against the new model, and any score that falls more than 5% blocks the deploy on its own.</strong></p>
+</blockquote>
 <p><img alt="BENE regression guard demo — 5 benchmarks, code_review regresses 8.4%, CI gate blocks deploy, Meta-Harness re-optimizes" src="../demos/bene_uc_regression.gif" /></p>
-<p><em>Regression suite runs on model swap. code_review drops 8.4%. CI gate triggers. Meta-Harness re-optimizes in 5 iterations. Deploy approved Monday.</em></p>
-<hr />
-<h2 id="the-problem-with-implicit-model-trust">The Problem With Implicit Model Trust</h2>
-<p>Models change silently. A new model version has different RLHF fine-tuning, different instruction following characteristics, different strengths and weaknesses across task types. Your prompt harness was optimized for the old model's behavior. It may or may not transfer.</p>
-<p>The dangerous assumption: "the new model is better, so our product is automatically better." Sometimes that's true. Sometimes the new model is better overall but regresses on your specific task because your harness exploited quirks of the old model's output format.</p>
-<p>Most teams find this regression from user reports, support tickets, or a 3am alert. BENE finds it in CI.</p>
-<hr />
-<h2 id="the-regression-suite-5-benchmarks">The Regression Suite — 5 Benchmarks</h2>
-<p>Before any model swap reaches production, run all benchmarks against the new model and diff vs the baseline checkpoint taken with the old model:</p>
+<p><em>One upgrade, end to end: the suite replays, <code>code_review</code> falls 8.4%, the gate holds the deploy, a five-iteration search recovers the score, and the swap ships Monday.</em></p>
+<p>You'll follow one real upgrade — <code>claude-sonnet-4-5</code> to <code>claude-sonnet-4-6</code> — from green pipeline to blocked deploy to restored baseline, with no person watching any step of it.</p>
+<h2 id="one-job-in-your-pipeline">One job in your pipeline</h2>
+<p>The whole guard is a single CI step. Spawn an agent pinned to the candidate model and anchored to the checkpoint your current model produced, replay the benchmarks, then query the score deltas:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1"># .github/workflows/model-regression.yml</span>
 <span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Run regression suite</span>
 <span class="w">  </span><span class="nt">run</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">|</span>
@@ -231,10 +225,21 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <span class="w">    </span><span class="no">|| (echo &quot;REGRESSION DETECTED — deploy blocked&quot; &amp;&amp; exit 1)</span>
 </code></pre></div>
 
-<p>If any benchmark regresses more than 5%, CI fails. The deploy is blocked.</p>
-<hr />
-<h2 id="results-two-regressions-found">Results — Two Regressions Found</h2>
-<p>The regression suite runs in 12 minutes:</p>
+<p>Three commands, one contract. <code>bene spawn</code> creates the agent with <code>baseline-v45</code> as its reference point; <code>bene run</code> executes the five benchmarks; the <code>--json query</code> pulls every benchmark whose delta fell past -5.0. A non-empty result makes <code>jq -e</code> fail, the step exits 1, and nothing deploys.</p>
+<p>Everything these runs produce — scores, checkpoints, traces — lives in <code>bene.db</code>, one local SQLite file you can cp, diff, and archive. Nothing leaves your machine.</p>
+<h2 id="the-whole-loop-up-front">The whole loop, up front</h2>
+<p>Six moves, repeated on every upgrade:</p>
+<ol>
+<li><strong>Swap</strong> — point the config at the candidate model.</li>
+<li><strong>Replay</strong> — run the full suite and diff each score against the baseline checkpoint.</li>
+<li><strong>Gate</strong> — let CI kill the build when any delta crosses the threshold.</li>
+<li><strong>Repair</strong> — aim a short, seeded meta-harness search at whichever benchmark fell.</li>
+<li><strong>Re-baseline</strong> — checkpoint the repaired harness with the new model as tomorrow's reference.</li>
+<li><strong>Ship</strong> — deploy once the gate is green.</li>
+</ol>
+<p>The rest of this tutorial walks one swap through all six.</p>
+<h2 id="a-real-swap-scored">A real swap, scored</h2>
+<p>12 minutes after the pipeline started, every benchmark had a verdict:</p>
 <div class="codehilite"><pre><span></span><code>Benchmark      v4-5  v4-6  Delta   Status
 -------------  ----  ----  ------  -------------------
 text_classify  0.87  0.87   0.0%   NO CHANGE
@@ -244,10 +249,21 @@ sentiment      0.83  0.81  -2.4%   REGRESSION
 code_review    0.83  0.76  -8.4%   CRITICAL REGRESSION  ← blocked
 </code></pre></div>
 
-<p>Two regressions. <code>sentiment</code> is within tolerable range (-2.4%). <code>code_review</code> is not — 8.4% is a CRITICAL regression on a benchmark that directly maps to user-visible quality.</p>
-<p>The model improves overall. But it regresses on the task that matters most to this team's product. Shipping would have been a mistake.</p>
-<hr />
-<h2 id="deep-dive-why-code-review-regressed">Deep Dive — Why Code Review Regressed</h2>
+<p>Read the right-hand column first. Three benchmarks held or improved — <code>tool_calling</code> up 3.4%, <code>math_qa</code> up 2.7%, <code>text_classify</code> flat. Two fell. <code>sentiment</code> lost 2.4%, inside this team's tolerance. <code>code_review</code> lost 8.4% — far past the gate, and on the capability their users feel most directly. On aggregate the new model wins; in production it would have lost, because aggregate isn't what users touch.</p>
+<p>The gate's verdict came back as one JSON row:</p>
+<div class="codehilite"><pre><span></span><code><span class="p">[{</span><span class="nt">&quot;benchmark&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;code_review&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;baseline_score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.83</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;new_score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.76</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;delta_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-8.4</span><span class="p">}]</span>
+
+<span class="err">#</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">cri</span><span class="kc">t</span><span class="err">ical</span><span class="w"> </span><span class="err">regressio</span><span class="kc">n</span><span class="w"> </span><span class="kc">f</span><span class="err">ou</span><span class="kc">n</span><span class="err">d</span>
+<span class="err">#</span><span class="w"> </span><span class="err">CI</span><span class="w"> </span><span class="err">ga</span><span class="kc">te</span><span class="p">:</span><span class="w"> </span><span class="err">FAILED</span>
+<span class="err">#</span><span class="w"> </span><span class="err">Deploy</span><span class="p">:</span><span class="w"> </span><span class="err">BLOCKED</span>
+</code></pre></div>
+
+<p>Non-empty result, non-zero exit, held deploy — plus a notification naming the exact benchmark that failed. The -5.0 cutoff is yours to tune per task: tighter where a mistake is expensive, looser where day-to-day wobble is normal. What matters is that nobody has to remember it; the gate fires whether or not anyone is paying attention.</p>
+<h2 id="ask-the-diff-why">Ask the diff why</h2>
+<p>A blocked deploy is half the story. The other half is what changed. <code>bene diff</code> compares the two runs and writes the failure analysis:</p>
 <div class="codehilite"><pre><span></span><code>bene diff baseline-v45 regression-check-v46 /results/code_review_failures.md
 
 ## code_review regression analysis: 0.83 → 0.76 (-8.4%)
@@ -273,24 +289,9 @@ The two-step_attr_merged strategy from the original search
 may transfer better to v4-6&#39;s reasoning style.
 </code></pre></div>
 
-<p>The harness optimized for v4-5 doesn't transfer perfectly to v4-6. This is expected — different RLHF tuning produces different instruction-following behavior. The fix isn't a model rollback; it's a harness re-optimization.</p>
-<hr />
-<h2 id="deploy-blocked-the-ci-gate">Deploy Blocked — The CI Gate</h2>
-<div class="codehilite"><pre><span></span><code><span class="p">[{</span><span class="nt">&quot;benchmark&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;code_review&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;baseline_score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.83</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;new_score&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.76</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;delta_pct&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">-8.4</span><span class="p">}]</span>
-
-<span class="err">#</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="err">cri</span><span class="kc">t</span><span class="err">ical</span><span class="w"> </span><span class="err">regressio</span><span class="kc">n</span><span class="w"> </span><span class="kc">f</span><span class="err">ou</span><span class="kc">n</span><span class="err">d</span>
-<span class="err">#</span><span class="w"> </span><span class="err">CI</span><span class="w"> </span><span class="err">ga</span><span class="kc">te</span><span class="p">:</span><span class="w"> </span><span class="err">FAILED</span>
-<span class="err">#</span><span class="w"> </span><span class="err">Deploy</span><span class="p">:</span><span class="w"> </span><span class="err">BLOCKED</span>
-</code></pre></div>
-
-<p>One row returned. One critical regression. CI exits non-zero. The deploy is blocked. The team gets a notification with the regression report and the exact benchmark that failed.</p>
-<p><strong>The 5% threshold is configurable.</strong> Set it tighter for safety-critical tasks, looser for tasks where minor fluctuation is acceptable. The important thing is that it's automatic — no human has to remember to check before deploying.</p>
-<hr />
-<h2 id="remediation-re-run-meta-harness-5-iterations">Remediation — Re-run Meta-Harness (5 Iterations)</h2>
-<p>The regression report already identified the fix: re-optimize the <code>code_review</code> harness for v4-6. Quick targeted search:</p>
+<p>The BLOCKER/IMPORTANT confusion rate more than doubled, 14% to 31% — and nothing is wrong with the model. The old harness leaned on v4-5's habit of treating "must fix" phrasing as an automatic BLOCKER; v4-6 reasons about severity instead of pattern-matching it. Different RLHF, different reflexes. So the remedy isn't rolling the model back — it's re-tuning the harness to the model you actually want to run.</p>
+<h2 id="win-the-points-back">Win the points back</h2>
+<p>The diff already nominated a starting strategy, so the search doesn't begin cold. Seed it from the old frontier and give it five iterations on the one benchmark that fell:</p>
 <div class="codehilite"><pre><span></span><code>bene<span class="w"> </span>mh<span class="w"> </span>search<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>-b<span class="w"> </span>code_review<span class="w"> </span><span class="se">\</span>
 <span class="w">  </span>--model<span class="w"> </span>claude-sonnet-4-6<span class="w"> </span><span class="se">\</span>
@@ -311,32 +312,20 @@ may transfer better to v4-6&#39;s reasoning style.
 Best: blocker_severity_v46  acc=0.83  (baseline fully restored)
 </code></pre></div>
 
-<p>5 iterations. 0.83 restored on v4-6. The fix: the two-step approach still works, but needs an explicit severity rubric calibrated to v4-6's more nuanced reasoning. The harness update is small — one section of the system prompt.</p>
-<hr />
-<h2 id="the-loop">The Loop</h2>
-<p>This is the full MLOps loop that BENE makes systematic:</p>
-<ol>
-<li><strong>Model update</strong> — swap to new model version in config</li>
-<li><strong>Regression suite</strong> — run all 5 benchmarks, diff vs baseline checkpoint</li>
-<li><strong>CI gate</strong> — block deploy if any benchmark regresses more than threshold</li>
-<li><strong>Re-optimize harness</strong> — targeted Meta-Harness search on the regressed benchmarks</li>
-<li><strong>Update baseline checkpoint</strong> — the new harness + new model becomes the new baseline</li>
-<li><strong>Deploy approved</strong> — ship with confidence</li>
-</ol>
-<p>No surprises. No user reports. No 3am incidents. Every model update goes through the same gate, and the gate is automated.</p>
-<hr />
-<p>The 8% regression would have shipped on a Friday. Users would have filed support tickets over the weekend about code reviews suddenly downgrading severity. The on-call engineer would have spent Sunday debugging a harness mismatch.</p>
-<p>It didn't ship. The harness was updated, tested against v4-6, and deployed Monday morning with the regression eliminated. That's what a regression guard is for.</p>
+<p>Iteration 4 lands <code>blocker_severity_v46</code> at 0.83 — the old number, on the new model. The two-step structure survived the swap; what it needed was an explicit severity rubric written for how v4-6 reasons. The edit itself is small: a single added section of system prompt.</p>
+<h2 id="the-trap-this-retires">The trap this retires</h2>
+<p>The dangerous sentence in any model upgrade is "the new one is better, so the product gets better for free." Often true. Not reliably true — a model can improve on average while losing exactly the behavior your harness depended on, because that harness was shaped around the old model's quirks. Without a gate, the loss surfaces as weekend tickets or a 3am page. With one, it surfaces as a red CI run.</p>
+<p>Play this swap forward unguarded: it ships Friday afternoon; by Saturday, tickets arrive about reviews that quietly downgrade severity; Sunday belongs to the on-call engineer, debugging what is really a harness mismatch. Guarded, the same swap waited, picked up a re-tuned harness verified against v4-6, and went out clean Monday morning. That is the entire job of a regression guard.</p>
 <h2 id="related">Related</h2>
 <ul>
-<li><a href="../README.html">README</a> — BENE overview and full doc index</li>
-<li><a href="../use-cases.html">Use Cases</a> — more real-world patterns</li>
-<li><a href="../meta-harness.html">Component guide: Meta-Harness</a></li>
-<li><a href="../use-cases.html#model-regression-guard">Use case: Model Regression Guard</a></li>
-<li><a href="t01-bene-meta-harness.html">Tutorial: t01 — Meta-Harness from 48% to 83%</a></li>
+<li><a href="../README.html">README</a> — project overview and where every doc lives</li>
+<li><a href="../use-cases.html">Use Cases</a> — other patterns from production deployments</li>
+<li><a href="../meta-harness.html">Component guide: Meta-Harness</a> — how the search itself works</li>
+<li><a href="../use-cases.html#model-regression-guard">Use case: Model Regression Guard</a> — the condensed form of this pattern</li>
+<li><a href="t01-bene-meta-harness.html">Tutorial: t01 — Meta-Harness from 48% to 83%</a> — where the <code>baseline-v45</code> frontier came from</li>
 </ul>
 <hr />
-<p><em>BENE is MIT-licensed and runs entirely locally. No data leaves your machine.</em></p>
+<p><em>bene is MIT-licensed. Everything in this tutorial ran locally — nothing leaves your machine.</em></p>
 <p><em>GitHub: <a href="https://github.com/good-night-oppie/bene">github.com/good-night-oppie/bene</a></em></p>
 <div class="src">source: <a href="https://github.com/EdwardTang/bene-site/blob/main/docs/tutorials/t07-regression-guard.md" target="_blank" rel="noopener noreferrer">docs/tutorials/t07-regression-guard.md</a> · generated by site/build-docs.py — edit the .md, not this file</div>
 </main>
