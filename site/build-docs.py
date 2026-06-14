@@ -3,7 +3,8 @@
 
 Deterministic and idempotent — the generated tree is a pure function of docs/.
 Run:  uv run --with markdown --with pygments python site/build-docs.py
-Then sync site/ to the deploy copies as usual (3-copy discipline).
+Then sync site/ to the deploy copies (4-copy chain; see
+[[bene-site-deploy-pipeline]]).
 
 Template matches the landing's light theme: warm off-white canvas, ink text,
 one amber accent, dark terminal code blocks. VHS demo GIFs are injected on the
@@ -15,12 +16,24 @@ from __future__ import annotations
 import html
 import re
 import shutil
+import sys
 from pathlib import Path
 
 import markdown
 from pygments.formatters import HtmlFormatter
 
 ROOT = Path(__file__).resolve().parent.parent  # bene-main
+# Wrong-tree sentinel: if this script gets copied into a non-bene-main checkout
+# (e.g. the agentdex-cli sync copy) and someone runs it, ROOT.parent.parent
+# resolves to that wrong repo and DOCS/OUT clobber its committed site/docs/
+# in place with a sparse, wrong-source build. The bene/ subpackage existence
+# is the cheapest invariant for "I am in bene-main".
+if not (ROOT / "bene").is_dir():
+    sys.exit(
+        f"build-docs.py: ROOT={ROOT} has no bene/ subpackage — this script "
+        "must run from a bene-main checkout. (Sync copies in agentdex-cli "
+        "etc. ship the file but are not the canonical source-of-truth.)"
+    )
 DOCS = ROOT / "docs"
 OUT = ROOT / "site" / "docs"
 GITHUB_BLOB = "https://github.com/EdwardTang/bene-site/blob/main/docs"
@@ -65,7 +78,6 @@ a:hover { color:var(--accent); }
 .top a.nav { color:var(--mute); text-decoration:none; font-size:14px; }
 .top a.nav:hover { color:var(--accent); }
 .wrap { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:260px minmax(0,1fr); gap:40px; }
-@media (max-width: 860px) { .wrap { grid-template-columns:1fr; } aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-bottom:16px; } }
 aside.sb { position:sticky; top:80px; align-self:start; max-height:calc(100vh - 100px); overflow-y:auto; font-size:13.5px; border-left:1px solid var(--border); padding-left:16px; }
 .sb h4 { margin:18px 0 6px; font:600 11px/1 "JetBrains Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
 .sb a { display:block; padding:3px 0; color:var(--mute); text-decoration:none; }
@@ -98,6 +110,20 @@ footer.ft .in { max-width:1200px; margin:0 auto; padding:24px; font:13px "JetBra
 .idx-group ul { list-style:none; padding:0; margin:.4em 0; }
 .idx-group li { padding:6px 0; border-bottom:1px dashed var(--border); }
 .idx-group .path { font:11.5px "JetBrains Mono",monospace; color:var(--mute); margin-left:8px; }
+/* Mobile overrides — kept at the end so source order beats base rules.
+   Earlier this rule sat between base rules and got overridden by a later
+   `aside.sb { position:sticky }`, leaving the sidebar stuck on top of
+   main content on phones. */
+@media (max-width: 860px) {
+  .wrap { grid-template-columns:1fr; gap:24px; padding:16px; }
+  aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-left:0; padding-bottom:16px; font-size:13px; }
+  .sb h4 { margin:12px 0 4px; }
+  main { max-width:none; }
+  main h1 { font-size:1.6rem; }
+  main h2 { font-size:1.2rem; }
+  main h3 { font-size:1.05rem; }
+  .top-in { padding:0 16px; gap:14px; }
+}
 """
 
 MD_EXTS = ["tables", "fenced_code", "codehilite", "toc", "sane_lists"]
@@ -117,11 +143,26 @@ def title_of(md_text: str, rel: Path) -> str:
 
 def rewrite_links(body: str) -> str:
     # href="...md" or href="...md#anchor" -> .html (internal relative links only)
-    return re.sub(
+    body = re.sub(
         r'(href=")(?!https?://)([^"]+?)\.md(#[^"]*)?(")',
         lambda m: m.group(1) + m.group(2) + ".html" + (m.group(3) or "") + m.group(4),
         body,
     )
+    # Markdown <img> tags reference assets (demos/*.gif, hero-v04.png, etc.) that
+    # are not part of the doc tree shipped to the site. Without a fallback they
+    # render as broken-image icons across 20+ pages. Hide them silently.
+    def _inject_onerror(m: re.Match) -> str:
+        tag = m.group(0)
+        if "onerror=" in tag:
+            return tag
+        return re.sub(
+            r"\s*/?>$",
+            " onerror=\"this.style.display='none'\" />",
+            tag,
+            count=1,
+        )
+    body = re.sub(r"<img\b[^>]*>", _inject_onerror, body)
+    return body
 
 
 def sidebar(cur_rel: Path, depth: int) -> str:
@@ -163,6 +204,8 @@ def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool =
     pre = "../" * depth
     landing = pre + "../index.html"
     idx = pre + "index.html"
+    skill = pre + "../SKILL.md"
+    llms = pre + "../llms.txt"
     gh = f"{GITHUB_BLOB}/{rel.as_posix()}"
     mermaid = MERMAID_JS if needs_mermaid else ""
     crumbs = (
@@ -194,8 +237,38 @@ def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool =
   <a class="brand" href="{landing}">BENE</a>
   <a class="nav" href="{landing}">Landing</a>
   <a class="nav" href="{idx}">Docs index</a>
+  <a class="nav" href="{skill}" target="_blank" rel="noopener noreferrer" title="Hand BENE to your agent in one URL">SKILL.md ↗</a>
+  <button class="nav copy-llms" data-llms-url="{llms}" title="Copy the llms.txt site map (an LLM-friendly index pointing at SKILL.md + every doc). Paste it into your agent's context.">Copy llms.txt</button>
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
 </div></div>
+<script>
+(function() {{
+  document.querySelectorAll('button.copy-llms').forEach(function(btn) {{
+    var original = btn.textContent;
+    btn.addEventListener('click', function() {{
+      var url = btn.getAttribute('data-llms-url');
+      fetch(url, {{ cache: 'no-cache' }})
+        .then(function(r) {{ if (!r.ok) throw new Error('fetch ' + r.status); return r.text(); }})
+        .then(function(text) {{
+          if (navigator.clipboard && navigator.clipboard.writeText) {{
+            return navigator.clipboard.writeText(text).then(function() {{
+              btn.textContent = '✓ copied';
+              setTimeout(function() {{ btn.textContent = original; }}, 2200);
+            }});
+          }}
+          window.open(url, '_blank', 'noopener,noreferrer');
+          btn.textContent = '↗ opened';
+          setTimeout(function() {{ btn.textContent = original; }}, 2200);
+        }})
+        .catch(function() {{
+          window.open(url, '_blank', 'noopener,noreferrer');
+          btn.textContent = '↗ opened';
+          setTimeout(function() {{ btn.textContent = original; }}, 2200);
+        }});
+    }});
+  }});
+}})();
+</script>
 <div class="wrap">
 <aside class="sb">{sidebar(rel, depth)}</aside>
 <main>
@@ -224,6 +297,14 @@ def build() -> None:
     # docs/assets (logo/banner pngs referenced by some pages)
     if (DOCS / "assets").exists():
         shutil.copytree(DOCS / "assets", OUT / "assets")
+
+    # examples/ (15+ docs link to ../examples/*.py and ../../examples/*.py — those
+    # resolve to site/examples/ when served, so mirror the dir here)
+    if (ROOT / "examples").exists():
+        examples_out = OUT.parent / "examples"
+        if examples_out.exists():
+            shutil.rmtree(examples_out)
+        shutil.copytree(ROOT / "examples", examples_out)
 
     entries: list[tuple[Path, str]] = []
     for src in all_docs():
