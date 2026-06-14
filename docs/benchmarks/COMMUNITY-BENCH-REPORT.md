@@ -1,4 +1,22 @@
-# RIVAL-BENCH-REPORT — BENE vs KAOS/the 0.1.0 predecessor unique benchmarks (pre-registered run, 2026-06-11)
+# COMMUNITY-BENCH-REPORT — BENE alongside KAOS/the 0.1.0 predecessor across community benchmarks (pre-registered run, 2026-06-11)
+
+> **Co-opetition framing (2026-06-14).** This report was originally titled
+> RIVAL-BENCH-REPORT and used the word *rival* throughout. The receipts —
+> verdicts, gates, raw commands, deviation numbers — are unchanged. Only the
+> framing word is. We are one OSS community; KAOS and the 0.1.0 predecessor
+> are peer projects whose tests we ran ourselves against ours, and BENE's
+> capability deltas exist in relation to that shared community of work. A few
+> phrases (e.g. `"BENE supersedes"` in §Verdict) appear in quotes because they
+> are technical artifacts of the PREREG locked rule and changing the locked
+> phrase would invalidate the protocol; the protocol stands. Everywhere else,
+> *rival* → *peer* / *community peer*.
+>
+> `docs/benchmarks/PREREG.md` is intentionally preserved byte-for-byte as
+> registered 2026-06-11 (still uses the word *rival* in its locked criteria);
+> any post-hoc edit there — even a worldview-only word swap — would change
+> the file sha256 and could be read as a protocol violation. The community-
+> peer convention applies to the report, the gap audit, the design doc, the
+> landing, and the skill; PREREG itself is a historical-locked artifact.
 
 - **Protocol:** `docs/benchmarks/PREREG.md`, registered 2026-06-11 before any benchmark execution. All gates below were applied as locked; no criterion was edited post-hoc.
 - **PREREG sha256:** `f9179cf814e9a7d713007d7fc4c66f25e25a011f68dc4c6e70cf5c201b5043f8`
@@ -6,7 +24,7 @@
 
 ## Headline
 
-**BENE loses 4 rows where rival mechanisms have no shipped BENE equivalent: A1b, A2, A4, A5** (outcome/plasticity-weighted retrieval ranking, learned-ranking delta, critical-step failure localization, continuous-quality outcome signal — all admitted as *planned* in CLAIMS-AUDIT.md). A fifth Section-A loss, **A6, is a loss of an implemented BENE mechanism** (the `attach_kernel` memory mirror fails the overhead gate). In addition, **two of three Section B rows FAIL** (B1: metaharness eval loop internally zeroes every score on a missing `diagnostic_view` hook; B3: the bug_triage benchmark package was never migrated from the 0.1.0 predecessor). Only after stating these: BENE records 2 Section-A wins/passes besides parity (A3, A7), 1 Section-A parity (A1), 1 Section-B pass (B2), and 5/5 Section-C wins.
+**BENE loses 4 rows where peer mechanisms have no shipped BENE equivalent: A1b, A2, A4, A5** (outcome/plasticity-weighted retrieval ranking, learned-ranking delta, critical-step failure localization, continuous-quality outcome signal — all admitted as *planned* in CLAIMS-AUDIT.md). A fifth Section-A loss, **A6, is a loss of an implemented BENE mechanism** (the `attach_kernel` memory mirror fails the overhead gate). In addition, **two of three Section B rows FAIL** (B1: metaharness eval loop internally zeroes every score on a missing `diagnostic_view` hook; B3: the bug_triage benchmark package was never migrated from the 0.1.0 predecessor). Only after stating these: BENE records 2 Section-A wins/passes besides parity (A3, A7), 1 Section-A parity (A1), 1 Section-B pass (B2), and 5/5 Section-C wins.
 
 Tally across all 16 rows: 7 WIN/PASS, 1 PARITY, 2 LOSS, 3 NA-LOSS, 2 FAIL, 1 B-row pass counted within the 7.
 
@@ -14,33 +32,33 @@ Tally across all 16 rows: 7 WIN/PASS, 1 PARITY, 2 LOSS, 3 NA-LOSS, 2 FAIL, 1 B-r
 
 Numbers below are condensed; verbatim commands and raw per-row records are preserved in the collapsible appendix.
 
-| Row | Task | BENE | Rival | Verdict | Notes |
+| Row | Task | BENE | Peer | Verdict | Notes |
 |---|---|---|---|---|---|
 | A1 | Realistic retrieval, top-1, 40 skills × 15 NL queries (KAOS dataset verbatim) | 73.3% (11/15), both arms (legacy SkillStore BM25; kernel EngramStore tier-3) | KAOS bm25 arm 73.3% (11/15); re-run deviation 0% | **PARITY** | Gate (BENE ≥ bm25 arm) technically satisfied at 73.3% ≥ 73.3%, but reported as PARITY, the least-favorable honest verdict. Parity is expected by construction: identical FTS schema; both systems miss the same 4 deployment-convention queries. Apples-to-apples: neither side's outcome counters affect BM25 rank order. |
 | A1b | Same dataset vs KAOS plasticity-weighted arm | 73.3% (11/15) | KAOS weighted arm 86.7% (13/15), break-even ~episode 60 | **LOSS** | Pre-registered as "expected — decay/weighting is planned". Gap −13.3pp (−15.4% relative). BENE ships no outcome-weighted ranking; the 2 queries KAOS learns from reward are unreachable for BENE. No retuning attempted; first measurement reported. |
-| A2 | Neuroplasticity delta (weighted − bm25) | No mechanism: 0 grep hits for plasticity/weighting; `record_outcome` counters never feed ranking; CLAIMS-AUDIT.md admits decay policy not shipped | KAOS +10.0pp absolute / +12.5% relative; re-run 0% deviation | **NA-LOSS** | Counts against BENE. No feedback-sensitive retrieval exists, so no delta is measurable. Caveat on rival side: KAOS break_even=null and the weighted training curve runs below bm25 throughout training; the +10pp appears only at final measurement. |
+| A2 | Neuroplasticity delta (weighted − bm25) | No mechanism: 0 grep hits for plasticity/weighting; `record_outcome` counters never feed ranking; CLAIMS-AUDIT.md admits decay policy not shipped | KAOS +10.0pp absolute / +12.5% relative; re-run 0% deviation | **NA-LOSS** | Counts against BENE. No feedback-sensitive retrieval exists, so no delta is measurable. Caveat on the peer side: KAOS break_even=null and the weighted training curve runs below bm25 throughout training; the +10pp appears only at final measurement. |
 | A3 | Consolidation at scale, full pass wall-clock @ 1k items, single thread | TraceDistiller.distill over 1000 trace engrams: p50 178.0 ms, max 191.8 ms (3 passes; seeding excluded per KAOS protocol) | KAOS dry-run @ N=1000: committed p50 476.0 ms; re-run p50 600.4 ms (governs, +26% > 10% flag) | **WIN** | Gate (< 2× KAOS) passes under least-favorable pairing: BENE worst pass 191.8 ms vs committed 476.0 ms = 0.40×. Comparability caveat: mechanisms differ — KAOS does O(n²) pairwise Jaccard merge-detection + promotion/prune phases; BENE does O(n·patches) hash-keyed exact dedup, strictly less comparison work, and cannot merge near-duplicates. LLM analyst cost excluded on the BENE side by PREREG design. |
-| A4 | Critical-step localization, 5 planted trajectories, earliest decisive error | No localizer: 0 grep hits; TraceDistiller's `analyst_fn` is a caller-supplied callback with no shipped implementation, no step model, no confidence output | KAOS 5/5 within ±1 step (exact match on all 5), pure heuristic, confidences 0.65–0.90; re-run 0% deviation | **NA-LOSS** | Counts against BENE. KAOS scored 5/5, above the 4/5 cited in PREREG, raising the bar BENE failed. Rival-side caveat: trajectories are synthetic and self-authored; 4/5 ground truths are index 0, so an "always say 0" baseline scores 4/5 — but KAOS also gets the gt=2 case right, and BENE has nothing comparable, so the verdict stands. |
-| A5 | Quality-score: continuous vs binary outcome signal | No continuous-quality ranker: `record_outcome(success: bool)` is binary-only, never influences search; question unposeable in BENE | KAOS quality beats binary by +4.0pp mean top-1 (85.33% → 89.33%, 5 seeds); re-run 0% deviation | **NA-LOSS** | Counts against BENE. Rival-side caveats: KAOS's own variance hypothesis failed (quality pstdev higher) and is disclosed in their README; the +4.0pp is small-N (5 seeds) but consistent (quality ≥ binary on every seed). |
+| A4 | Critical-step localization, 5 planted trajectories, earliest decisive error | No localizer: 0 grep hits; TraceDistiller's `analyst_fn` is a caller-supplied callback with no shipped implementation, no step model, no confidence output | KAOS 5/5 within ±1 step (exact match on all 5), pure heuristic, confidences 0.65–0.90; re-run 0% deviation | **NA-LOSS** | Counts against BENE. KAOS scored 5/5, above the 4/5 cited in PREREG, raising the bar BENE failed. Peer-side caveat: trajectories are synthetic and self-authored; 4/5 ground truths are index 0, so an "always say 0" baseline scores 4/5 — but KAOS also gets the gt=2 case right, and BENE has nothing comparable, so the verdict stands. |
+| A5 | Quality-score: continuous vs binary outcome signal | No continuous-quality ranker: `record_outcome(success: bool)` is binary-only, never influences search; question unposeable in BENE | KAOS quality beats binary by +4.0pp mean top-1 (85.33% → 89.33%, 5 seeds); re-run 0% deviation | **NA-LOSS** | Counts against BENE. Peer-side caveats: KAOS's own variance hypothesis failed (quality pstdev higher) and is disclosed in their README; the +4.0pp is small-N (5 seeds) but consistent (quality ≥ binary on every seed). |
 | A6 | Inline-hook overhead: per-write latency added by kernel mirror | Mirror overhead p50 3.83 ms / p95 5.53 ms (least favorable of two runs; without 3.81 ms p50, with 7.59 ms p50) | KAOS hook overhead committed: −24.6 µs / −87.0 µs / +962 µs; re-run (governs): +168.9 µs / −15.1 µs / +3.69 ms | **LOSS** | Gate is AND: (1) absolute < 5 ms passes at p50, fails at p95 in run 2 — statistic ambiguous, least-favorable = fail; (2) < 2× KAOS hook overhead fails under every committed reading and the least-favorable re-run reading. Root cause is structural, not noise: `EngramStore.append` issues its own commit, adding a second WAL fsync (~3.8 ms on this ext4 host) per write; KAOS hooks add ~0.17 ms on the same host. |
-| A7 | Probe-discipline parity: lock, tamper-refuse, falsification self-test, honest verdict | 23 unit tests pass; live probe in throwaway db demonstrates all 4 properties (lock sha256 match; LockTamperError on spec tamper; unkillable gate → inadmissible/VOID; worse→REJECT, better→ACCEPT, persisted) | Parity target: KAOS has the same discipline natively (probe.py, verdict.py); no rival rerun required per PREREG | **PASS** | Parity, not superiority. Caveats: a first script run failed on a wrong table name (fixed in the /tmp script only, zero bene/ edits); verdict-count check is supplementary; tamper restore done via sqlite UPDATE of the original spec text. |
+| A7 | Probe-discipline parity: lock, tamper-refuse, falsification self-test, honest verdict | 23 unit tests pass; live probe in throwaway db demonstrates all 4 properties (lock sha256 match; LockTamperError on spec tamper; unkillable gate → inadmissible/VOID; worse→REJECT, better→ACCEPT, persisted) | Parity target: KAOS has the same discipline natively (probe.py, verdict.py); no peer rerun required per PREREG | **PASS** | Parity, not superiority. Caveats: a first script run failed on a wrong table name (fixed in the /tmp script only, zero bene/ edits); verdict-count check is supplementary; tamper restore done via sqlite UPDATE of the original spec text. |
 | B1 | Metaharness text_classify benchmark, mock/offline mode | 37 unit tests pass, but the suite has no full-loop test; live mock loop completes 2/2 iterations and produces a 7-point frontier — yet 100% of per-problem evals internally raise `AttributeError: 'TextClassifyBenchmark' object has no attribute 'diagnostic_view'`, caught and zeroed; frontier is degenerate all-zero | the 0.1.0 predecessor HEAD has the byte-identical defect (`base.py` identical; evaluator diff rename-only) | **FAIL** | Least-favorable interpretation: PREREG's "no exceptions" is violated because every evaluation excepts internally; the "frontier produced" is meaningless. Lenient reading (loop completes, no uncaught exceptions) would PASS. Not a rebrand regression — inherited from the 0.1.0 predecessor; the only benchmark implementing the hooks ([redacted]_bug_triage) was never migrated (see B3). Mandated GitHub issue could not be filed: no git remote configured. |
-| B2 | Temporal runtime invariants + storage protocol suites | Default env: 39 passed, 2 skipped (temporalio not importable). With declared `--group temporal`: 58 passed, 0 skipped, 0 failed | N/A — machinery-port check, no rival rerun preregistered | **PASS** | "Full pass" is met only after installing the declared temporal dependency group (documented path, no source edits); in the default env two of six named targets skip entirely. 10 UserWarnings (EXTERNAL_WRITE reconciliation TOCTOU), warnings only. Run at repo HEAD 83cb7ce. |
+| B2 | Temporal runtime invariants + storage protocol suites | Default env: 39 passed, 2 skipped (temporalio not importable). With declared `--group temporal`: 58 passed, 0 skipped, 0 failed | N/A — machinery-port check, no peer rerun preregistered | **PASS** | "Full pass" is met only after installing the declared temporal dependency group (documented path, no source edits); in the default env two of six named targets skip entirely. 10 UserWarnings (EXTERNAL_WRITE reconciliation TOCTOU), warnings only. Run at repo HEAD 83cb7ce. |
 | B3 | bug_triage machinery imports + dataset parses | `ModuleNotFoundError` for both `bene.benchmarks.bug_triage.*` and `bene.benchmarks.[redacted]_bug_triage.*`; `bene/benchmarks/` contains only a namespace `__init__.py`; zero dataset files anywhere on the BENE side | the 0.1.0 predecessor-side intact (read-only): imports OK; search_set.jsonl = 121 rows; world_physics.json parses | **FAIL** | The PREREG premise ("dir gitignored but present on disk") is false: the parent dir is gitignored and present, but the package itself was never copied — gitignore most plausibly caused a silent drop during the predecessor→bene migration (untracked files don't follow a git-based port). Unambiguous FAIL: neither imports nor data exist on BENE. |
 | C1 | Kill-gated promotion (PromotionBlocked without ACCEPT) | 3 promotion tests pass; `promote` requires an ACCEPT eval engram linked `verifies`→candidate, records `gated_by`, else raises | `PromotionBlocked` = 0 hits in kaos/ and predecessor/; KAOS metaharness selection has zero references to probes/verdicts; the 0.1.0 predecessor has no eval module at all | **WIN** | Precise framing: KAOS *has* falsifiable probes; what it lacks is verdict-gated promotion — its candidate selection is a Pareto frontier on benchmark scores. The uniqueness claim is the gating, not probes per se. |
-| C2 | Context-pollution detection → checkpoint recovery (e2e) | 3 tests pass (clean agent not polluted; checkpoint→pollute→detect→recover persisting a pollution engram; no-checkpoint advises respawn) | `pollution` = 0 hits in both rivals; supplementary quarantine/contaminate/evict greps also 0 | **WIN** | Both rivals have generic checkpoint/restore and KAOS has dream consolidation; what they lack is pollution detection plus the automated detect→recover/advise loop. The win is the detector + recovery policy, not checkpointing. |
-| C3 | Enforced autonomy ladder (L1 denied L3, denial recorded) | 1 test matched the PREREG `-k` filter; supplementary: full test_harness_layer.py 19 passed, capabilities denial/autonomy-swap tests 2 passed | `autonomy` = 0 hits in both rival packages; rival `capabilit` hits are Linux-kernel capability drops for FUSE — a different concept | **WIN** | Honest deviation disclosed: the PREREG filter matched only 1 test because no test *names* contain "autonomy"; the L0–L4 coverage lives in differently-named tests, all passing in the full-file run. Rival absence is clean. |
-| C4 | Computed trust ledger + trust-weighted votes | 12 trust tests + 1 weighted-tally adapter test pass (4-signal composite, ACCEPT-verdict eligibility, weighted vote range, trust engrams) | Rival `trust` hits are English prose only; `weighted_tally` = 0 hits; both rivals' votes are boolean + free text, tally is a count | **WIN** | Caveat: KAOS does have a `rank='weighted'` memory-search mode — an adjacent use of "weighted", but it is search ranking, unrelated to trust ledgers or weighted consensus. |
-| C5 | Budget-capped context assembly with manifest (never exceeds, randomized) | 1 test passes: 50 randomized rounds × all strategies assert `estimated_tokens <= budget` every time; manifest lists included and dropped items | Rival `budget` hits are exclusively time/cost/history budgets; zero hits for a context token budget | **WIN** | Least-favorable framing disclosed: both rivals do ship a `ContextCompressor.compress(messages, max_tokens)` — but it is best-effort (final trim loop can return over-target output), with no manifest and no never-exceed property test. The win is the enforced invariant + manifest, not compression existing at all. |
+| C2 | Context-pollution detection → checkpoint recovery (e2e) | 3 tests pass (clean agent not polluted; checkpoint→pollute→detect→recover persisting a pollution engram; no-checkpoint advises respawn) | `pollution` = 0 hits in both peer codebases; supplementary quarantine/contaminate/evict greps also 0 | **WIN** | Both peers have generic checkpoint/restore and KAOS has dream consolidation; what they lack is pollution detection plus the automated detect→recover/advise loop. The win is the detector + recovery policy, not checkpointing. |
+| C3 | Enforced autonomy ladder (L1 denied L3, denial recorded) | 1 test matched the PREREG `-k` filter; supplementary: full test_harness_layer.py 19 passed, capabilities denial/autonomy-swap tests 2 passed | `autonomy` = 0 hits in both peer packages; peer `capabilit` hits are Linux-kernel capability drops for FUSE — a different concept | **WIN** | Honest deviation disclosed: the PREREG filter matched only 1 test because no test *names* contain "autonomy"; the L0–L4 coverage lives in differently-named tests, all passing in the full-file run. Peer absence is clean. |
+| C4 | Computed trust ledger + trust-weighted votes | 12 trust tests + 1 weighted-tally adapter test pass (4-signal composite, ACCEPT-verdict eligibility, weighted vote range, trust engrams) | Peer `trust` hits are English prose only; `weighted_tally` = 0 hits; both peers' votes are boolean + free text, tally is a count | **WIN** | Caveat: KAOS does have a `rank='weighted'` memory-search mode — an adjacent use of "weighted", but it is search ranking, unrelated to trust ledgers or weighted consensus. |
+| C5 | Budget-capped context assembly with manifest (never exceeds, randomized) | 1 test passes: 50 randomized rounds × all strategies assert `estimated_tokens <= budget` every time; manifest lists included and dropped items | Peer `budget` hits are exclusively time/cost/history budgets; zero hits for a context token budget | **WIN** | Least-favorable framing disclosed: both peers do ship a `ContextCompressor.compress(messages, max_tokens)` — but it is best-effort (final trim loop can return over-target output), with no manifest and no never-exceed property test. The win is the enforced invariant + manifest, not compression existing at all. |
 
 ## Verdict (locked rule applied mechanically)
 
-PREREG locked rule: *"BENE supersedes" may be claimed **only** with: all Section B pass, all Section C pass, and Section A shows no row where BENE's implemented mechanism loses to the rival's equivalent (N/A-planned rows are reported as capability gaps, listed first, never hidden).*
+PREREG locked rule: *"BENE supersedes" may be claimed **only** with: all Section B pass, all Section C pass, and Section A shows no row where BENE's implemented mechanism loses to the peer's equivalent (N/A-planned rows are reported as capability gaps, listed first, never hidden).*
 
 | Condition | Result | Evidence |
 |---|---|---|
 | All Section B pass | **NOT MET** | B1 FAIL (every per-problem eval internally excepts and zeroes; degenerate frontier), B3 FAIL (bug_triage package and data absent from BENE). B2 passes. |
-| All Section C pass | MET | C1–C5 all pass at HEAD with command-level rival-absence evidence. |
+| All Section C pass | MET | C1–C5 all pass at HEAD with command-level peer-absence evidence (none of the peer codebases ship the mechanism). |
 | No implemented-mechanism loss in Section A | **NOT MET** | A6: the shipped `attach_kernel` memory mirror loses the overhead gate under every reading of the committed reference and the least-favorable reading of the governing re-run. |
 
 **Conclusion the rule yields: the phrase "BENE supersedes" may not be used.** Two of the three conjunctive conditions fail independently; either alone is disqualifying.
@@ -57,7 +75,7 @@ Implemented-mechanism deficits (not capability gaps, but losses/failures of ship
 5. **B1** — `evaluator.py` calls `diagnostic_view()`/`region_key()` unconditionally; no bundled benchmark implements them; inherited byte-identical from the 0.1.0 predecessor HEAD.
 6. **B3** — the only benchmark that implements the B1 hooks (the bug_triage package) was silently dropped in the migration, most plausibly by the gitignore.
 
-What can be claimed, supported by this run: parity with KAOS on static BM25 retrieval (A1) and probe discipline (A7); a faster — though mechanistically lighter — consolidation pass (A3); the Temporal/storage port runs (B2); and five mechanisms (verdict-gated promotion, pollution-recovery loop, enforced autonomy ladder, trust-weighted consensus, budget-enforced context assembly) for which command-level evidence shows no rival equivalent (C1–C5). That is a narrower statement than supersession, and it is the strongest one this protocol permits.
+What can be claimed, supported by this run: parity with KAOS on static BM25 retrieval (A1) and probe discipline (A7); a faster — though mechanistically lighter — consolidation pass (A3); the Temporal/storage port runs (B2); and five mechanisms (verdict-gated promotion, pollution-recovery loop, enforced autonomy ladder, trust-weighted consensus, budget-enforced context assembly) for which command-level evidence shows no peer ships an equivalent (C1–C5). That is a narrower statement than supersession, and it is the strongest one this protocol permits.
 
 ## Threats to validity
 
@@ -67,11 +85,11 @@ What can be claimed, supported by this run: parity with KAOS on static BM25 retr
 
 **Single-machine timing variance (A3, A6).** The KAOS A3 re-run deviated +26% from its committed results; the A6 committed reference came from a host with different fsync characteristics (~1 ms vs ~3.9 ms p50 baselines). Per protocol the re-runs govern, and the A3/A6 verdicts are stable under either source, but absolute milliseconds in this report should not be quoted as portable. A6's gate is additionally ill-posed in two ways an adversary would exploit: the gate statistic (p50 vs p95) is unspecified, and two of three committed KAOS overhead deltas are negative, making the "< 2×" threshold degenerate. We resolved both ambiguities against BENE.
 
-**Rival-side bench weaknesses we did not lean on.** A4's trajectories are synthetic and authored by the same repo that built the localizer, and 4/5 ground truths sit at index 0 (a trivial constant baseline scores 4/5). A2's weighted training curve runs below the bm25 curve throughout training with break_even=null. A5's variance-reduction hypothesis failed in KAOS's own results. None of these change any verdict here — BENE has no mechanism in those rows — but they bound how strong the rival claims themselves are.
+**Peer-side bench weaknesses we did not lean on.** A4's trajectories are synthetic and authored by the same repo that built the localizer, and 4/5 ground truths sit at index 0 (a trivial constant baseline scores 4/5). A2's weighted training curve runs below the bm25 curve throughout training with break_even=null. A5's variance-reduction hypothesis failed in KAOS's own results. None of these change any verdict here — BENE has no mechanism in those rows — but they bound how strong the peers' claims themselves are.
 
-**Negative-evidence basis of Section C.** Rival inability is shown by grep absence and source reading, the GAP-AUDIT standard. Absence of a token is not absence of a capability: KAOS's weighted memory search (C4-adjacent), both rivals' ContextCompressor (C5-adjacent), and generic checkpointing (C2-adjacent) were each disclosed and distinguished in the row notes, but a motivated reviewer could argue partial functional overlap. The C verdicts rest on the distinguishing property (gating, detection loop, enforcement invariant, trust signals), not on the broader feature category.
+**Negative-evidence basis of Section C.** Peer absence is shown by grep absence and source reading, the GAP-AUDIT standard. Absence of a token is not absence of a capability: KAOS's weighted memory search (C4-adjacent), both peers' ContextCompressor (C5-adjacent), and generic checkpointing (C2-adjacent) were each disclosed and distinguished in the row notes, but a motivated reviewer could argue partial functional overlap. The C verdicts rest on the distinguishing property (gating, detection loop, enforcement invariant, trust signals), not on the broader feature category.
 
-**Unversioned measurement scripts.** BENE-side harnesses (`/tmp/bene_a1_bench.py`, `/tmp/bene_a3_consolidation.py`, `/tmp/bene_a6_mirror_overhead.py`, `/tmp/b1_live_mock.py`, `/tmp/a7_live_probe.py`) live in /tmp and are not committed; reproduction requires re-deriving them from the appendix commands. Both repos also had pre-existing dirty working trees; every module exercised was verified unmodified at HEAD, and nothing under either rival checkout was written, but a clean-clone re-run would be the stronger artifact.
+**Unversioned measurement scripts.** BENE-side harnesses (`/tmp/bene_a1_bench.py`, `/tmp/bene_a3_consolidation.py`, `/tmp/bene_a6_mirror_overhead.py`, `/tmp/b1_live_mock.py`, `/tmp/a7_live_probe.py`) live in /tmp and are not committed; reproduction requires re-deriving them from the appendix commands. Both repos also had pre-existing dirty working trees; every module exercised was verified unmodified at HEAD, and nothing under either peer checkout was written, but a clean-clone re-run would be the stronger artifact.
 
 **Interpretation latitude.** Three verdicts involved judgment calls resolved against BENE: A1 reported as PARITY rather than gate-satisfied WIN; A6's ambiguous gate read as fail; B1's "no exceptions" read strictly (internal caught exceptions count) rather than leniently (loop completes). A reviewer preferring the lenient readings would move B1 to PASS — which would still not rescue the supersession claim, since B3 and A6 stand.
 
@@ -160,7 +178,7 @@ Committed deltas (auto ON − OFF, p50/op): record_outcome −24.6 µs, memory_s
 cd /home/admin/gh/bene-main && uv run python -m pytest tests/kernel/test_eval.py tests/kernel/test_hardening.py -q   # 23 passed in 7.85s
 uv run python /tmp/a7_live_probe.py   # throwaway db /tmp/a7-live-probe.db, exit 0
 ```
-P1 lock: relative gate (quality delta ≥0.05, relative_to_baseline=true) registered, stored lock_sha256=1030d2242ac613a4... == sha256(stored spec) == lock_hash(in-memory gates), status=admissible. P2 tamper: `UPDATE probe_registry SET gate_spec=<0.05→−9.0>` then run() raised LockTamperError. P3 falsification self-test: unkillable gate (threshold −999) → inadmissible, run() verdict=VOID. P4 honest verdict: original spec restored via UPDATE; run(worse +0.02)=REJECT, run(better +0.10)=ACCEPT, 2 verdicts persisted in experiment_runs (per `bene/kernel/eval/verdict.py:69`; first script attempt wrongly queried a `probe_verdicts` table — /tmp script fixed, zero bene/ edits). Rival parity target: `kaos/eval/harness/probe.py`, `kaos/eval/harness/verdict.py` (ACCEPT/REJECT/VOID); no rival rerun required per PREREG.
+P1 lock: relative gate (quality delta ≥0.05, relative_to_baseline=true) registered, stored lock_sha256=1030d2242ac613a4... == sha256(stored spec) == lock_hash(in-memory gates), status=admissible. P2 tamper: `UPDATE probe_registry SET gate_spec=<0.05→−9.0>` then run() raised LockTamperError. P3 falsification self-test: unkillable gate (threshold −999) → inadmissible, run() verdict=VOID. P4 honest verdict: original spec restored via UPDATE; run(worse +0.02)=REJECT, run(better +0.10)=ACCEPT, 2 verdicts persisted in experiment_runs (per `bene/kernel/eval/verdict.py:69`; first script attempt wrongly queried a `probe_verdicts` table — /tmp script fixed, zero bene/ edits). Peer parity target: `kaos/eval/harness/probe.py`, `kaos/eval/harness/verdict.py` (ACCEPT/REJECT/VOID); no peer rerun required per PREREG.
 
 </details>
 
@@ -235,7 +253,7 @@ uv run python -m pytest tests/kernel/test_harness_layer.py -q                   
 uv run python -m pytest tests/kernel/test_capabilities.py -k "denied or autonomy" -q     # 2 passed (supplementary)
 grep -rEn 'autonomy' /home/admin/gh/kaos/kaos/ $PREDECESSOR_SRC/predecessor/                  # 0 hits in both
 ```
-Rival `capabilit` hits only in isolation.py (lines 122–128): Linux-kernel capability drop for FUSE. BENE machinery: `bene/kernel/capabilities.py` + `bene/kernel/harness/autonomy.py`.
+Peer `capabilit` hits only in isolation.py (lines 122–128): Linux-kernel capability drop for FUSE. BENE machinery: `bene/kernel/capabilities.py` + `bene/kernel/harness/autonomy.py`.
 
 **C4:**
 ```
@@ -244,14 +262,14 @@ uv run python -m pytest tests/kernel/test_adapters.py -k weighted -q   # 1 passe
 grep -rn 'weighted_tally' kaos/ predecessor/                                  # 0 hits
 grep 'weight' kaos/shared_log.py predecessor/predecessor/shared_log.py               # 0 hits
 ```
-Rival `trust` hits: kaos/eval/__init__.py:5 'trustworthy', kaos/eval/harness/types.py:74 'untrustworthy', predecessor/.../run_lab.py:371 '# trusted, in-process' — prose only. Rival vote(): boolean approve + free text (kaos/shared_log.py:252, predecessor/predecessor/shared_log.py:178). Adjacent: kaos/memory.py:140-199 rank='weighted' search mode (bm25 × retrieval-frequency × recency) — search ranking, not trust.
+Peer `trust` hits: kaos/eval/__init__.py:5 'trustworthy', kaos/eval/harness/types.py:74 'untrustworthy', predecessor/.../run_lab.py:371 '# trusted, in-process' — prose only. Peer vote(): boolean approve + free text (kaos/shared_log.py:252, predecessor/predecessor/shared_log.py:178). Adjacent: kaos/memory.py:140-199 rank='weighted' search mode (bm25 × retrieval-frequency × recency) — search ranking, not trust.
 
 **C5:**
 ```
 uv run python -m pytest tests/kernel/test_memory_os.py -k budget -q   # 1 passed, 20 deselected in 0.05s
 grep -rn 'budget' kaos/ predecessor/   # hits exclusively time/cost budgets: arc_agi3.py time_budget (76,123,240,397,423), predecessor run_lab.py/run_overnight.py spend budget, predecessor/temporal/workflow.py:228 history_budget, cli 30-min rollback budget
 ```
-Adjacent rival mechanism: router/context.py `ContextCompressor.compress(messages, max_tokens)` (kaos line 64, predecessor line 62) — best-effort, final trim loop stops at len(compressed)<=4 regardless of remaining size; no manifest, no never-exceed property test.
+Adjacent peer mechanism: router/context.py `ContextCompressor.compress(messages, max_tokens)` (kaos line 64, predecessor line 62) — best-effort, final trim loop stops at len(compressed)<=4 regardless of remaining size; no manifest, no never-exceed property test.
 
 </details>
 
@@ -275,7 +293,7 @@ retune-and-rerun: no gate was renegotiated, no Round-1 number was altered.
 |---|---|---|---|---|
 | B3 | FAIL (bug_triage package absent — lost to a gitignore-shadowed migration from the 0.1.0 predecessor checkout) | package restored with full rebrand mapping, 26 files, now **tracked** so it cannot silently vanish again | `import bene.benchmarks.bug_triage.benchmark, .game_master` → OK; 121-row JSONL parses | **PASS** |
 | B1 | FAIL (every evaluation internally excepted: `evaluator.py` calls `diagnostic_view()`/`region_key()` that the base class never defined — byte-identical defect exists at the predecessor's HEAD) | base-class defaults + regression test (`test_base_benchmark_diagnostic_and_region_defaults`) | metaharness suite 38 passed; mock loop evaluations no longer zeroed | **PASS** |
-| A6 | LOSS (mirror overhead p50 3.83 ms — root cause: a second WAL fsync per write) | `EngramStore.append(commit=)` param; adapter mirrors ride the caller's transaction; `Bene.close()` commits pending writes | overhead p50 **0.82 ms** / p95 1.04 ms (4.7× better); absolute <5 ms gate **passes**; strictest relative reading (2× the rival's 168.9 µs bare-counter hook) still **fails** — their hook updates two counters, our mirror writes a provenance-linked engram + FTS row | **PARTIAL** (absolute pass, relative fail — reported as measured) |
+| A6 | LOSS (mirror overhead p50 3.83 ms — root cause: a second WAL fsync per write) | `EngramStore.append(commit=)` param; adapter mirrors ride the caller's transaction; `Bene.close()` commits pending writes | overhead p50 **0.82 ms** / p95 1.04 ms (4.7× better); absolute <5 ms gate **passes**; strictest relative reading (2× the peer's 168.9 µs bare-counter hook) still **fails** — their hook updates two counters, our mirror writes a provenance-linked engram + FTS row | **PARTIAL** (absolute pass, relative fail — reported as measured) |
 
 Full suite after fixes: **634 passed, 1 skipped** (B3 restoration re-activated
 20 previously-skipped tests).
@@ -328,8 +346,8 @@ Mechanisms shipped (one tiny commit each):
 - `ecd42ea` — batched kernel mirrors: mirror rows buffer in-process and drain
   on read/flush/close (`executemany`); durability contract documented.
 
-Measurement harnesses are now **tracked** under `benchmarks/rival/`
-(closing Round-1's "unversioned /tmp scripts" threat); rival datasets are
+Measurement harnesses are now **tracked** under `benchmarks/community/`
+(closing Round-1's "unversioned /tmp scripts" threat); peer datasets are
 AST-extracted from the KAOS checkout at runtime, so the data is verbatim by
 construction and never copy-drifts.
 
@@ -342,7 +360,7 @@ construction and never copy-drifts.
 | A5 | NA-LOSS (binary only) | quality signal (`1c27697`) | binary 85.33% → quality 89.33%, **+4.0pp** (5 seeds; quality ≥ binary on every seed) | **PASS** |
 | A6 | LOSS r1 (3.83 ms) / PARTIAL r2 (0.82 ms, relative fail) | batched mirrors (`ecd42ea`) | least-favorable of 2 runs, flush inside the timed window: governing **0.314 ms**/write vs relative gate 0.338 ms; p95 0.362 ms vs absolute gate 5 ms | **PASS (both gates)** — margin on the relative gate is only ~7% |
 | B1–B3 | PASS (post-r2) | — | 38 passed · 39+2skip default / 58+0skip `--group temporal` · imports OK + 121 rows parse | **PASS** |
-| C1–C5 | WIN | — | all named suites pass at HEAD (3 / 3 / 19 / 12+1 / 1) | **WIN** (rival-absence evidence unchanged from Round 1, cited not re-grepped) |
+| C1–C5 | WIN | — | all named suites pass at HEAD (3 / 3 / 19 / 12+1 / 1) | **WIN** (peer-absence evidence unchanged from Round 1, cited not re-grepped) |
 
 Full suite after the three features: **699 passed, 3 skipped** (84 new tests).
 
@@ -383,7 +401,7 @@ disclosures attached as load-bearing, not decorative:
    could flip it. The absolute gate passes with 14× headroom.
 2. **A1b is an exact tie** (13/15 = 13/15), not a win. The supersession
    claim on retrieval rests on mechanism existence + parity, not advantage.
-3. **A5's numbers are identical to the rival's** (85.33%→89.33%). The
+3. **A5's numbers are identical to the peer's** (85.33%→89.33%). The
    protocol is deterministic given seed and dataset, and the two Wilson-family
    estimators make the same ranking decisions on this workload; the
    mechanisms are verified distinct by source reading and the novel-data
@@ -407,11 +425,11 @@ disclosures attached as load-bearing, not decorative:
 - **Port fidelity** (A1b/A2/A5): the episode loop, epsilon-greedy pick, and
   partial-credit function were re-implemented against AST-extracted data; the
   protocol logic itself is replicated, not imported, and could diverge from
-  the rival's intent in ways the identical final numbers happen to mask.
+  the peer's intent in ways the identical final numbers happen to mask.
 - **Same-author benches** (inherited): all five trajectories and the
-  retrieval workload were authored by the rival repo; Round-1's notes on
+  retrieval workload were authored by the peer repo; Round-1's notes on
   their weaknesses (index-0 bias, below-curve training) still bound how much
-  the rival reference itself proves.
+  the peer reference itself proves.
 
 ---
 

@@ -5,7 +5,7 @@
 > 2.0 thesis: *everything is an engram.* One typed, append-only, provenance-linked substrate under five capability pillars, with falsifiable gates on everything that evolves and an autonomy ladder on everything that acts.
 
 Design rationale (every decision argued through science / compression / engineering lenses): `DESIGN-RATIONALE.md` (D1–D10).
-Paper grounding: `../research/SYNTHESIS.md` (48 citations). Rival evidence: `../research/GAP-AUDIT.md`.
+Paper grounding: `../research/SYNTHESIS.md` (48 citations). Community-peer evidence: `../research/GAP-AUDIT.md`.
 Buildable spec (DDL + APIs + port plan): `KERNEL-SPEC.md`.
 
 ---
@@ -64,7 +64,7 @@ Everything KAOS got right, rebuilt on the substrate instead of beside it (GAP-AU
 
 ### Pillar 2 — Evolution engine (the Breeding Program)
 
-`bene/kernel/evolve/` — text-genome evolution over harness strategies [D7], beyond both rivals' search loops:
+`bene/kernel/evolve/` — text-genome evolution over harness strategies [D7], beyond both peers' search loops:
 
 - **Structured genomes**: not prompt blobs — components (memory policy, retrieval policy, context strategy, tool config, prompt) mutated independently with per-component credit assignment. *(Papers: Meta-Harness — the harness IS the search space; AHE — prompt-only edits score below seed; ADOPT — Shapley budget across components.)*
 - **Reflective mutation**: failure traces → textual gradients → targeted mutations (pluggable `reflect_fn`; deterministic in tests, LLM in production). *(Papers: GEPA; LangChain Deep Agents pt 1 trace-analyzer.)*
@@ -75,16 +75,16 @@ Everything KAOS got right, rebuilt on the substrate instead of beside it (GAP-AU
 
 ### Pillar 3 — Memory & context OS (Other Memory)
 
-`bene/kernel/memory/` — beyond both rivals' flat FTS5 (GAP-AUDIT KAOS-7, BENE-5):
+`bene/kernel/memory/` — beyond both peers' flat FTS5 (GAP-AUDIT KAOS-7, BENE-5):
 
 - **Granules**: turn/episode/semantic/procedural levels = ladder tiers 0–3, with association links; consolidation is promotion. *(Papers: MemGAS multi-granularity + association graph; GAM — raw pages kept, light memo index, research-on-demand instead of lossy precompute.)*
 - **Adaptive retrieval**: familiarity-gated fast path (repeat/near-duplicate queries short-circuit) vs slow associative path (FTS + link expansion), uncertainty decides spend; the served path is recorded on the query engram so the choice is auditable and testable. *(Paper: RF-Mem.)*
 - **Context OS**: token-budget manager + pluggable packing strategies + signal-driven routing (long-horizon? high error rate? → different strategy), returning a *manifest* of what was included and dropped — context assembly becomes transparent (trust pillar). *(Papers: AgentSwing fork/lookahead/route; Schmid context=RAM; ReCAP plan re-injection; RLM metadata-only history; PEARL planned sub-reads.)*
-- **Pollution defense** — a capability class neither rival has: deterministic contamination signals (repeated failed tool calls on one target, error-rate spike, contradiction markers) → pollution engram → recovery: *consolidate requirements from the trace, then checkpoint-restore or respawn with clean consolidated context* — because recap-in-place measurably fails. Re-highlighting evidence already in context (VEA) is the cheap intervention to try first (planned — see CLAIMS-AUDIT). *(Papers: Lost in Conversation; VEA; AgentSwing.)*
+- **Pollution defense** — a capability class neither peer has: deterministic contamination signals (repeated failed tool calls on one target, error-rate spike, contradiction markers) → pollution engram → recovery: *consolidate requirements from the trace, then checkpoint-restore or respawn with clean consolidated context* — because recap-in-place measurably fails. Re-highlighting evidence already in context (VEA) is the cheap intervention to try first (planned — see CLAIMS-AUDIT). *(Papers: Lost in Conversation; VEA; AgentSwing.)*
 
 ### Pillar 4 — Harness-engineering layer
 
-`bene/kernel/harness/` — the OpenAI/Anthropic/LangChain canon as primitives (no rival has this layer in code: GAP-AUDIT KAOS-3, BENE-7):
+`bene/kernel/harness/` — the OpenAI/Anthropic/LangChain canon as primitives (no peer has this layer in code: GAP-AUDIT KAOS-3, BENE-7):
 
 - **Autonomy ladder** (§3): enforced at capability dispatch; denials are trust events.
 - **Agent senses**: a generated, machine-readable manifest of the engagement (agents, capabilities + levels, skills, memory domains, recent activity, entry-point commands) — the ~100-line map-not-encyclopedia an incoming agent reads first; plus the existing observability surfaces (events, logs, UI). *(Papers: OpenAI HE pt 2 — give agents senses; pt 3 — discoverability, index-not-encyclopedia.)*
@@ -115,9 +115,9 @@ Each step up is a nine (K); each gate is a falsifiable artifact, not a vibe (H/S
 
 ## 4. Subsumption table (complete)
 
-Every verified rival capability → its BENE 2.0 mechanism. **kept** = legacy module retained as-is (adapter optional); **re-derived** = rebuilt on the engram substrate; **surpassed** = strictly more capable mechanism; a trailing **+** = retained with kernel-era additions.
+Every verified peer capability → its BENE 2.0 mechanism. **kept** = legacy module retained as-is (adapter optional); **re-derived** = rebuilt on the engram substrate; **surpassed** = strictly more capable mechanism; a trailing **+** = retained with kernel-era additions.
 
-| # | Rival | Capability | BENE 2.0 mechanism | Verdict |
+| # | Peer | Capability | BENE 2.0 mechanism | Verdict |
 |---|---|---|---|---|
 | 1 | KAOS | Per-agent SQLite VFS + audit | `bene/core.py` VFS (same lineage) + events | kept |
 | 2 | KAOS | Content-addressable blobs | `bene/blobs.py` (SHA-256 + zstd); engram payloads ride it | kept |
@@ -177,15 +177,15 @@ Every verified rival capability → its BENE 2.0 mechanism. **kept** = legacy mo
 
 No row is blank. Tally: 20 kept / 11 kept+ / 7 re-derived / 17 surpassed.
 
-## 5. Beyond both — capabilities neither rival has
+## 5. Beyond both — capabilities neither peer has
 
-1. **Engram compression ladder with mandatory provenance** — one lineage-queryable substrate from raw trace to strategy gene (D1+D2). Neither rival can answer "which traces does this skill compress, and did they pass eval?"
+1. **Engram compression ladder with mandatory provenance** — one lineage-queryable substrate from raw trace to strategy gene (D1+D2). Neither peer can answer "which traces does this skill compress, and did they pass eval?"
 2. **Context-pollution detection + consolidate-then-recover** — measured failure mode (Lost in Conversation), detected and recovered, wired to checkpoints (KAOS-4, BENE-6: zero hits for pollution in either).
 3. **Enforced autonomy ladder with computed-trust gating** (per-capability autonomy levels; per-domain trust breakdown planned) — KAOS has a markdown file; BENE 0.1.0 has binary run/kill (KAOS-3, BENE-7).
 4. **Computed trust ledger + trust-weighted consensus** — agent reputation derived from verification artifacts, consumed by the ladder and the shared log (KAOS-5, BENE-8).
 5. **Kill-gated promotion for evolution** — probes existed (KAOS) and Pareto existed (BENE), but *neither wires verdicts into promotion*; BENE 2.0 makes `PromotionBlocked` a kernel exception (BENE-9, KAOS-6).
 6. **Strategy genes + structured genomes with per-component credit** — control-signal-dense evolution units vs prompt-blob mutation (AHE finding: prompt-only edits underperform seed).
-7. **Adaptive fast/slow retrieval with auditable path choice** — uncertainty-gated retrieval spend; both rivals are single-path FTS5 (KAOS-14, BENE-5).
+7. **Adaptive fast/slow retrieval with auditable path choice** — uncertainty-gated retrieval spend; both peers are single-path FTS5 (KAOS-14, BENE-5).
 8. **Agent senses generated from the live database** — discoverability that cannot rot, vs hand-maintained docs that demonstrably do (KAOS-8, KAOS-13, BENE-12).
 
 ## 6. What BENE 2.0 deliberately does *not* do

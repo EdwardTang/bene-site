@@ -18,7 +18,6 @@ a:hover { color:var(--accent); }
 .top a.nav { color:var(--mute); text-decoration:none; font-size:14px; }
 .top a.nav:hover { color:var(--accent); }
 .wrap { max-width:1200px; margin:0 auto; padding:24px; display:grid; grid-template-columns:260px minmax(0,1fr); gap:40px; }
-@media (max-width: 860px) { .wrap { grid-template-columns:1fr; } aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-bottom:16px; } }
 aside.sb { position:sticky; top:80px; align-self:start; max-height:calc(100vh - 100px); overflow-y:auto; font-size:13.5px; border-left:1px solid var(--border); padding-left:16px; }
 .sb h4 { margin:18px 0 6px; font:600 11px/1 "JetBrains Mono",monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--accent); }
 .sb a { display:block; padding:3px 0; color:var(--mute); text-decoration:none; }
@@ -51,6 +50,20 @@ footer.ft .in { max-width:1200px; margin:0 auto; padding:24px; font:13px "JetBra
 .idx-group ul { list-style:none; padding:0; margin:.4em 0; }
 .idx-group li { padding:6px 0; border-bottom:1px dashed var(--border); }
 .idx-group .path { font:11.5px "JetBrains Mono",monospace; color:var(--mute); margin-left:8px; }
+/* Mobile overrides — kept at the end so source order beats base rules.
+   Earlier this rule sat between base rules and got overridden by a later
+   `aside.sb { position:sticky }`, leaving the sidebar stuck on top of
+   main content on phones. */
+@media (max-width: 860px) {
+  .wrap { grid-template-columns:1fr; gap:24px; padding:16px; }
+  aside.sb { position:static; max-height:none; border-left:none; border-bottom:1px solid var(--border); padding-left:0; padding-bottom:16px; font-size:13px; }
+  .sb h4 { margin:12px 0 4px; }
+  main { max-width:none; }
+  main h1 { font-size:1.6rem; }
+  main h2 { font-size:1.2rem; }
+  main h3 { font-size:1.05rem; }
+  .top-in { padding:0 16px; gap:14px; }
+}
 
 pre { line-height: 125%; }
 td.linenos .normal { color: inherit; background-color: transparent; padding-left: 5px; padding-right: 5px; }
@@ -174,9 +187,10 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <h4>Evidence and research</h4>
 <a href="../research/GAP-AUDIT.html">GAP-AUDIT</a>
 <a href="../research/SYNTHESIS.html">SYNTHESIS</a>
+<a href="../research/tech-doc-writing-2026.html">tech-doc-writing-2026</a>
 <h4>Benchmarks and gates</h4>
+<a href="../benchmarks/COMMUNITY-BENCH-REPORT.html">COMMUNITY-BENCH-REPORT</a>
 <a href="../benchmarks/PREREG.html">PREREG</a>
-<a href="../benchmarks/RIVAL-BENCH-REPORT.html">RIVAL-BENCH-REPORT</a>
 <h4>Tutorial playbooks</h4>
 <a href="../tutorials/t00-bene-e2e-walkthrough.html">t00-bene-e2e-walkthrough</a>
 <a class="cur" href="../tutorials/t01-bene-meta-harness.html">t01-bene-meta-harness</a>
@@ -226,7 +240,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <li><code>PRAISE</code> — positive feedback</li>
 </ul>
 <p><strong>Dataset:</strong> 200 labeled PR review comments. Baseline zero-shot accuracy: <strong>48%</strong>.</p>
-<p><img alt="Full Meta-Harness demo — code review 48%→83%" src="../demos/bene_mh_full_demo.gif" /></p>
+<p><img alt="Full Meta-Harness demo — code review 48%→83%" src="../demos/bene_mh_full_demo.gif" onerror="this.style.display='none'" /></p>
 <hr />
 <h2 id="step-1-define-the-benchmark">Step 1: Define the Benchmark</h2>
 <div class="codehilite"><pre><span></span><code><span class="c1"># benchmarks/code_review.py</span>
@@ -363,7 +377,7 @@ Key insight            two-step decomposition breaks BLOCKER/IMPORTANT confusion
 Skills saved           2 reusable patterns → next search starts from here
 </code></pre></div>
 
-<p><img alt="Knowledge compounding — each search seeds the next; skills and traces accumulate across runs" src="knowledge-compound.png" /></p>
+<p><img alt="Knowledge compounding — each search seeds the next; skills and traces accumulate across runs" src="knowledge-compound.png" onerror="this.style.display='none'" /></p>
 <p>The audit trail is fully queryable:</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">iteration</span><span class="p">,</span><span class="w"> </span><span class="n">harness_id</span><span class="p">,</span><span class="w"> </span><span class="n">scores</span><span class="o">-&gt;&gt;</span><span class="s1">&#39;accuracy&#39;</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">acc</span><span class="p">,</span><span class="w"> </span><span class="n">status</span>
 <span class="k">FROM</span><span class="w"> </span><span class="n">mh_attempts</span>
@@ -420,7 +434,6 @@ uv<span class="w"> </span>run<span class="w"> </span>bene<span class="w"> </span
 <li><a href="../use-cases.html">Use Cases</a> — more real-world patterns</li>
 <li><a href="../meta-harness.html">Component guide: Meta-Harness</a> — full search-loop reference + CORAL tier breakdown</li>
 <li><a href="t00-bene-e2e-walkthrough.html">Tutorial: t00 — End-to-End Walkthrough</a> — start here if Meta-Harness is your first step into BENE</li>
-<li><a href="../case-studies/cs01-bene-triage-rag-harness.html">Case study: cs01 — L1 Recall 98.4%</a> — same loop, different domain (Oppie triage)</li>
 </ul>
 <hr />
 <p><em>BENE can runs entirely locally. No data leaves your machine.</em></p>

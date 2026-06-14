@@ -2,11 +2,19 @@
 
 > **Historical snapshot** — audited at commit `6c55fa3` (v0.1.0 baseline, 2026-06). BENE 0.2.0 (shipped 2026-06-11) closes most BENE-side gaps below; for current state see `docs/design/BENE2-DESIGN.md` §4 and `docs/design/CLAIMS-AUDIT.md`.
 
-Purpose: evidence base for the "subsume and surpass" claims of BENE 2.0. This audit inventories the two rival lineages — KAOS v0.9.1 (the sibling orchestration framework at `/home/admin/gh/kaos`) and BENE 0.1.0 itself (the rebranded the 0.1.0 predecessor, this repo) — enumerates each rival's verified capability surface, and documents each rival's shortcomings with verbatim, command-level evidence. The subsumption table at the end lists every capability from both rivals as a row; the "BENE 2.0 mechanism" column was a skeleton; phase 2 filled all 55 rows in `docs/design/BENE2-DESIGN.md` §4. Every claim below was verified against source (grep/find/read), not docs alone — both rivals' CLAUDE.md files are stale on their own MCP tool counts.
+Purpose: evidence base for the "subsume and surpass" claims of BENE 2.0. This audit inventories two community-peer lineages — KAOS v0.9.1 (the sibling orchestration framework at `/home/admin/gh/kaos`) and BENE 0.1.0 itself (the rebranded the 0.1.0 predecessor, this repo) — enumerates each peer's verified capability surface, and documents each peer's shortcomings with verbatim, command-level evidence. The subsumption table at the end lists every capability from both peers as a row; the "BENE 2.0 mechanism" column was a skeleton; phase 2 filled all 55 rows in `docs/design/BENE2-DESIGN.md` §4. Every claim below was verified against source (grep/find/read), not docs alone — both peers' CLAUDE.md files are stale on their own MCP tool counts.
 
-Rival framing:
-- **Rival 1 — KAOS v0.9.1** ("Kernel for Agent Orchestration & Sandboxing"). Local-first multi-agent orchestration framework; per-agent SQLite-backed VFS, no embeddings/GPU/external services required. Direct sibling/rival of BENE (same lineage: same CLAUDE.md skeleton, same banned-litellm/raw-httpx rules, same AI-feedback policy) but 8 minor versions ahead (v0.9.1 vs BENE v0.1.0) with a much larger mechanism surface: 58 MCP tools vs BENE's 18-claimed/37-actual, plus dream/neuroplasticity/eval-probe/experiment/ideal-state/war-room layers BENE lacks.
-- **Rival 2 — BENE 0.1.0 (predecessor lineage)**. Per `.supergoal/phases/phase-1.md`: "Rival 2: the 0.1.0 predecessor ≈ bene 0.1.0 itself (this repo IS the rebranded the 0.1.0 predecessor; original at $PREDECESSOR_SRC)". BENE/the 0.1.0 predecessor's edges over KAOS are the temporal/ durable runtime, the storage/ protocol (sqlite+postgres), and the runtime/ abstraction — while KAOS holds exactly the surfaces BENE lacks (eval probes w/ falsify/verify, dream consolidation, experiment journal, failure diagnose/lookup store, ideal-state artifacts, systemic alerts).
+> **Co-opetition note (2026-06-14).** Prior versions of this doc framed
+> KAOS and the 0.1.0 predecessor as "rivals". We are one OSS community;
+> they are peer projects whose ground we share. "Subsume and surpass"
+> language is preserved where it appears in cited section headings of
+> `docs/design/BENE2-DESIGN.md`, because the design-doc shape there is
+> evidence-of-capability-coverage, not competitive ranking. Throughout
+> this audit, *rival* → *peer*.
+
+Community-peer framing:
+- **Peer 1 — KAOS v0.9.1** ("Kernel for Agent Orchestration & Sandboxing"). Local-first multi-agent orchestration framework; per-agent SQLite-backed VFS, no embeddings/GPU/external services required. Direct sibling of BENE (same lineage: same CLAUDE.md skeleton, same banned-litellm/raw-httpx rules, same AI-feedback policy) but 8 minor versions ahead (v0.9.1 vs BENE v0.1.0) with a much larger mechanism surface: 58 MCP tools vs BENE's 18-claimed/37-actual, plus dream/neuroplasticity/eval-probe/experiment/ideal-state/war-room layers BENE lacks.
+- **Peer 2 — BENE 0.1.0 (predecessor lineage)**. Per `.supergoal/phases/phase-1.md`: "Peer 2: the 0.1.0 predecessor ≈ bene 0.1.0 itself (this repo IS the rebranded the 0.1.0 predecessor; original at $PREDECESSOR_SRC)". BENE/the 0.1.0 predecessor's edges over KAOS are the temporal/ durable runtime, the storage/ protocol (sqlite+postgres), and the runtime/ abstraction — while KAOS holds exactly the surfaces BENE lacks (eval probes w/ falsify/verify, dream consolidation, experiment journal, failure diagnose/lookup store, ideal-state artifacts, systemic alerts).
 
 ---
 
@@ -158,7 +166,7 @@ Tests: 29 entries in tests/ incl. storage/, temporal/ subdirs; docs/: 16 md file
 
 ## BENE 0.1.0 shortcomings
 
-1. **No falsifiable-eval harness — no probe/verdict/kill-gate discipline anywhere** — `grep -rn -iE 'eval_probe|falsif|verdict|kill.?gate' bene/` returns zero hits; no eval/ module in bene/ tree; the only evaluation machinery is metaharness/evaluator.py which scores benchmark candidates, not agent claims. Rival KAOS exposes eval_probe_run/verify/falsify.
+1. **No falsifiable-eval harness — no probe/verdict/kill-gate discipline anywhere** — `grep -rn -iE 'eval_probe|falsif|verdict|kill.?gate' bene/` returns zero hits; no eval/ module in bene/ tree; the only evaluation machinery is metaharness/evaluator.py which scores benchmark candidates, not agent claims. Peer KAOS exposes eval_probe_run/verify/falsify.
 
 2. **No experiments journal** — `grep -rn -iE 'experiment' bene/ --include='*.py'` matches only a benchmark sample sentence (bene/metaharness/benchmarks/text_classify.py:267 'protein folding prediction matches experimental results'); no experiment table in bene/schema.py (11 tables: agents, files, blobs, tool_calls, state, events, checkpoints, schema_version, memory, shared_log, agent_skills). KAOS has experiment_log/list/show/compare.
 
@@ -188,9 +196,9 @@ Tests: 29 entries in tests/ incl. storage/, temporal/ subdirs; docs/: 16 md file
 
 ## Subsumption table (skeleton — now filled: see `../design/BENE2-DESIGN.md` §4 'Subsumption table (complete)')
 
-One row per capability from both rivals' verified capability lists. Phase 2 filled the last column (in `docs/design/BENE2-DESIGN.md` §4) with the BENE 2.0 mechanism that subsumes (matches) or surpasses each row.
+One row per capability from both peers' verified capability lists. Phase 2 filled the last column (in `docs/design/BENE2-DESIGN.md` §4) with the BENE 2.0 mechanism that subsumes (matches) or surpasses each row.
 
-| # | Rival | Capability | Rival mechanism | BENE 2.0 mechanism (TBD) |
+| # | Peer | Capability | Peer mechanism | BENE 2.0 mechanism (TBD) |
 |---|-------|------------|-----------------|--------------------------|
 | 1 | KAOS | Per-agent isolated SQLite VFS with audit trail | kaos/core.py, WAL mode | TBD |
 | 2 | KAOS | Content-addressable blob store | kaos/blobs.py | TBD |

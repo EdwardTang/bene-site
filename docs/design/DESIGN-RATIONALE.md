@@ -36,10 +36,12 @@ questions they ask, not for anyone who asks them:
   Build to understand; keep boring, specific things specific; resist the urge
   to be a hero.
 
-A disclosure that doubles as a method: both "rivals" audited throughout this
-document are our own prior frameworks. The audit reads harsher than most
+A disclosure that doubles as a method: both community peers audited throughout
+this document are our own prior frameworks. The audit reads harsher than most
 competitive analyses because we had commit access to the evidence — every
 shortcoming cited here (GAP-AUDIT) is something we did to ourselves first.
+(Earlier drafts called these "rivals"; per the 2026-06-14 reframe they are
+peer projects in the same OSS community — same lineage, different generation.)
 
 Paper citations refer to `docs/research/SYNTHESIS.md`; shortcoming numbers
 refer to `docs/research/GAP-AUDIT.md`.
@@ -48,7 +50,7 @@ refer to `docs/research/GAP-AUDIT.md`.
 
 ## D1 — One engram substrate, not five stores
 
-**Decision:** Traces, memories, skills, eval verdicts, experiments, and strategies become *kinds of engram* in a single typed, append-only, provenance-linked substrate (`bene/kernel/engrams.py`), instead of the five separate stores both rivals use (memory.py + skills.py + experiments.py + eval/ + dream/ in KAOS; memory.py + skills.py + metaharness archive in BENE 0.1.0).
+**Decision:** Traces, memories, skills, eval verdicts, experiments, and strategies become *kinds of engram* in a single typed, append-only, provenance-linked substrate (`bene/kernel/engrams.py`), instead of the five separate stores both peers use (memory.py + skills.py + experiments.py + eval/ + dream/ in KAOS; memory.py + skills.py + metaharness archive in BENE 0.1.0).
 
 - **Science:** the interesting signals appear at the *joins* (a skill's eval history, a memory's source trace). Separate stores make the joins expensive, so nobody computes them — measurably: in our own KAOS, probe verdicts never wrote back into MemoryStore/SkillStore (GAP-AUDIT KAOS-6). We built the instrument and then never looked through it.
 - **Compression:** five stores with five schemas and five search paths is five answers to one question. One substrate with kinds is the compressed representation of what these all are — *records of experience at different compression levels*.
