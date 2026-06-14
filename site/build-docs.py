@@ -199,13 +199,64 @@ def demo_block(rel_no_ext: str, depth: int) -> str:
     )
 
 
-def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool = False) -> str:
+def page(
+    rel: Path,
+    body: str,
+    title: str,
+    needs_mermaid: bool,
+    is_index: bool = False,
+    lang: str = "en",
+) -> str:
     depth = len(rel.parts) - 1
     pre = "../" * depth
-    landing = pre + "../index.html"
-    idx = pre + "index.html"
-    skill = pre + "../SKILL.md"
-    llms = pre + "../llms.txt"
+    sibling_rel = rel.with_suffix(".html").as_posix() if not is_index else "index.html"
+    if lang == "zh":
+        # /bene/zh/docs/... — landing is one extra level up
+        landing = pre + "../../index.html"
+        idx = pre + "index.html"
+        skill = pre + "../../SKILL.md"
+        llms = pre + "../../llms.txt"
+        # toggle goes back to the EN sibling path
+        toggle_href = pre + "../../docs/" + sibling_rel
+        toggle_label = "EN"
+        toggle_title = "Switch to English"
+        html_lang = "zh-CN"
+        title_suffix = "BENE 文档"
+        meta_desc = f"BENE 0.2.0 文档 — {html.escape(title)}"
+        nav_landing = "Landing"
+        nav_idx = "文档索引"
+        nav_skill_title = "把 BENE 交给你的 agent，一个 URL"
+        nav_copy_title = "把 llms.txt 索引拷到剪贴板 — 粘贴进你 agent 的 context"
+        nav_copy_label = "复制 llms.txt"
+        nav_copied = "✓ 已复制"
+        nav_opened = "↗ 已打开"
+        banner = (
+            '<div class="zh-banner" style="background:rgba(255,92,36,.07);border-bottom:1px solid rgba(255,92,36,.2);padding:12px 24px;font-size:13px;line-height:1.5;color:rgb(var(--muted))">'
+            "<strong style=\"color:rgb(var(--text))\">本页中文版正在按照 4-book methodology 翻译（Mom Test / Pressfield / Zinsser / Dicks）—— 不放 AI 翻译稿。</strong>"
+            f' 下方是英文原文，点上方 <a href="{toggle_href}" style="color:rgb(var(--accent));text-decoration:underline">EN</a> 直接到英文页面，'
+            ' 或在 <a href="https://github.com/EdwardTang/bene-site/discussions" target="_blank" rel="noopener noreferrer" style="color:rgb(var(--accent));text-decoration:underline">Discussions</a> 里贡献翻译。'
+            "</div>"
+        )
+    else:
+        landing = pre + "../index.html"
+        idx = pre + "index.html"
+        skill = pre + "../SKILL.md"
+        llms = pre + "../llms.txt"
+        # toggle goes to the zh sibling path
+        toggle_href = pre + "../zh/docs/" + sibling_rel
+        toggle_label = "文"
+        toggle_title = "切换到中文"
+        html_lang = "en"
+        title_suffix = "BENE docs"
+        meta_desc = f"BENE 0.2.0 documentation — {html.escape(title)}"
+        nav_landing = "Landing"
+        nav_idx = "Docs index"
+        nav_skill_title = "Hand BENE to your agent in one URL"
+        nav_copy_title = "Copy the llms.txt site map (an LLM-friendly index pointing at SKILL.md + every doc). Paste it into your agent's context."
+        nav_copy_label = "Copy llms.txt"
+        nav_copied = "✓ copied"
+        nav_opened = "↗ opened"
+        banner = ""
     gh = f"{GITHUB_BLOB}/{rel.as_posix()}"
     mermaid = MERMAID_JS if needs_mermaid else ""
     crumbs = (
@@ -222,12 +273,12 @@ def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool =
         )
     )
     return f"""<!DOCTYPE html>
-<html lang="en">
+<html lang="{html_lang}">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>{html.escape(title)} — BENE docs</title>
-<meta name="description" content="BENE 0.2.0 documentation — {html.escape(title)}" />
+<title>{html.escape(title)} — {title_suffix}</title>
+<meta name="description" content="{meta_desc}" />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
 <style>{CSS}</style>
 {mermaid}
@@ -235,12 +286,14 @@ def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool =
 <body>
 <div class="top"><div class="top-in">
   <a class="brand" href="{landing}">BENE</a>
-  <a class="nav" href="{landing}">Landing</a>
-  <a class="nav" href="{idx}">Docs index</a>
-  <a class="nav" href="{skill}" target="_blank" rel="noopener noreferrer" title="Hand BENE to your agent in one URL">SKILL.md ↗</a>
-  <button class="nav copy-llms" data-llms-url="{llms}" title="Copy the llms.txt site map (an LLM-friendly index pointing at SKILL.md + every doc). Paste it into your agent's context.">Copy llms.txt</button>
+  <a class="nav" href="{landing}">{nav_landing}</a>
+  <a class="nav" href="{idx}">{nav_idx}</a>
+  <a class="nav" href="{skill}" target="_blank" rel="noopener noreferrer" title="{nav_skill_title}">SKILL.md ↗</a>
+  <button class="nav copy-llms" data-llms-url="{llms}" data-copied-label="{nav_copied}" data-opened-label="{nav_opened}" title="{nav_copy_title}">{nav_copy_label}</button>
   <a class="nav" href="https://github.com/EdwardTang/bene-site" target="_blank" rel="noopener noreferrer">GitHub</a>
+  <a class="nav" href="{toggle_href}" title="{toggle_title}" style="border:1px solid rgba(136,136,136,.4);padding:2px 8px;border-radius:3px">{toggle_label}</a>
 </div></div>
+{banner}
 <script>
 (function() {{
   document.querySelectorAll('button.copy-llms').forEach(function(btn) {{
@@ -252,17 +305,17 @@ def page(rel: Path, body: str, title: str, needs_mermaid: bool, is_index: bool =
         .then(function(text) {{
           if (navigator.clipboard && navigator.clipboard.writeText) {{
             return navigator.clipboard.writeText(text).then(function() {{
-              btn.textContent = '✓ copied';
+              btn.textContent = btn.getAttribute('data-copied-label') || '✓ copied';
               setTimeout(function() {{ btn.textContent = original; }}, 2200);
             }});
           }}
           window.open(url, '_blank', 'noopener,noreferrer');
-          btn.textContent = '↗ opened';
+          btn.textContent = btn.getAttribute('data-opened-label') || '↗ opened';
           setTimeout(function() {{ btn.textContent = original; }}, 2200);
         }})
         .catch(function() {{
           window.open(url, '_blank', 'noopener,noreferrer');
-          btn.textContent = '↗ opened';
+          btn.textContent = btn.getAttribute('data-opened-label') || '↗ opened';
           setTimeout(function() {{ btn.textContent = original; }}, 2200);
         }});
     }});
@@ -335,6 +388,17 @@ def build() -> None:
         dst.parent.mkdir(parents=True, exist_ok=True)
         dst.write_text(page(rel, body, title, needs_mermaid), encoding="utf-8")
 
+        # zh-tree mirror: same EN body, prefixed with a translation-in-progress
+        # banner; nav toggle routes back to the EN sibling. As per-page zh.md
+        # sources land in docs/zh/, this will be replaced with the translated
+        # markdown body.
+        zh_out = OUT.parent / "zh" / "docs"
+        zh_dst = zh_out / rel.with_suffix(".html")
+        zh_dst.parent.mkdir(parents=True, exist_ok=True)
+        zh_dst.write_text(
+            page(rel, body, title, needs_mermaid, lang="zh"), encoding="utf-8"
+        )
+
     # index page
     groups_html = []
     for label, sub in GROUPS:
@@ -366,7 +430,29 @@ def build() -> None:
         page(Path("index.md"), index_body, "BENE documentation", False, is_index=True),
         encoding="utf-8",
     )
-    print(f"built {len(entries)} pages + index -> {OUT}")
+
+    zh_index_body = (
+        "<h1>BENE 文档</h1>"
+        f"<p><strong>翻译进行中。</strong>共 {len(entries)} 个文档，源在 <code>docs/</code>。"
+        "本站采用 4-book methodology（Mom Test / Pressfield / Zinsser / Dicks）逐页翻译——不放 AI 翻译稿。"
+        "下方每个条目点开是英文原文，顶部 nav 的 <code>EN</code> 按钮直接回到对应的英文页面。"
+        f' 想贡献翻译，请在 <a href="https://github.com/EdwardTang/bene-site/discussions" target="_blank" rel="noopener noreferrer">Discussions</a> 留言。</p>'
+        + "".join(groups_html)
+    )
+    zh_out_dir = OUT.parent / "zh" / "docs"
+    zh_out_dir.mkdir(parents=True, exist_ok=True)
+    (zh_out_dir / "index.html").write_text(
+        page(
+            Path("index.md"),
+            zh_index_body,
+            "BENE 文档",
+            False,
+            is_index=True,
+            lang="zh",
+        ),
+        encoding="utf-8",
+    )
+    print(f"built {len(entries)} pages + index -> {OUT} (and zh mirror at {zh_out_dir})")
 
 
 if __name__ == "__main__":
