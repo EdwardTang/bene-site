@@ -232,7 +232,7 @@ def page(
         nav_copied = "✓ 已复制"
         nav_opened = "↗ 已打开"
         banner = (
-            '<div class="zh-banner" style="background:rgba(255,92,36,.07);border-bottom:1px solid rgba(255,92,36,.2);padding:12px 24px;font-size:13px;line-height:1.5;color:rgb(var(--muted))">'
+            '<div class="zh-banner" style="background:rgba(238,96,24,.07);border-bottom:1px solid rgba(238,96,24,.2);padding:12px 24px;font-size:13px;line-height:1.5;color:rgb(var(--muted))">'
             "<strong style=\"color:rgb(var(--text))\">本页中文版正在按照 4-book methodology 翻译（Mom Test / Pressfield / Zinsser / Dicks）—— 不放 AI 翻译稿。</strong>"
             f' 下方是英文原文，点上方 <a href="{toggle_href}" style="color:rgb(var(--accent));text-decoration:underline">EN</a> 直接到英文页面，'
             ' 或在 <a href="https://github.com/EdwardTang/bene-site/discussions" target="_blank" rel="noopener noreferrer" style="color:rgb(var(--accent));text-decoration:underline">Discussions</a> 里贡献翻译。'
