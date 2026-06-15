@@ -280,7 +280,9 @@ def page(
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>{html.escape(title)} — {title_suffix}</title>
 <meta name="description" content="{meta_desc}" />
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>{CSS}</style>
 {mermaid}
 </head>
