@@ -2,7 +2,7 @@
 
 **Status:** Methodology document. Describes how to validate a new BENE runtime primitive before locking it into the boundary plan.
 
-**Companion to:** `philosophy.md` (why BENE is structured around evolving harnesses), `codegen.md` (the IR-as-codegen-target vision), `.cursor/plans/bene-runtime-boundary-2f9c0ff7.plan.md` (the active boundary plan).
+**Companion to:** `philosophy.md` (why BENE is structured around evolving harnesses), `codegen.md` (the IR-as-codegen-target vision), and the runtime boundary itself in `bene/runtime/handle.py` (protocol) + `bene/runtime/core.py` (DTOs).
 
 ---
 
@@ -130,5 +130,5 @@ These are all suitable topics for a future iteration that adds primitives to BEN
 
 - `philosophy.md` — Why BENE is structured around evolving harnesses; the foundation that makes primitive review possible at all
 - `codegen.md` — The codegen-into-IR vision that motivates getting primitive design honest before code locks in
-- `.cursor/plans/bene-runtime-boundary-2f9c0ff7.plan.md` — The active plan whose Cycle 1-3 history is the worked example above
-- `~/gh/triage-rag-codeleash-a/.worktrees/l3-burst/services/temporal_worker/activities/burst_aggregator.py` — The reference implementation produced during Cycle 2 of the worked example
+- `bene/runtime/handle.py` (protocol) + `bene/runtime/core.py` (DTOs) — the boundary the Cycle 1-3 worked example above converged on
+- The Cycle-2 reference implementation was produced internally against a private downstream consumer (not public); the boundary primitive it drove — `submit_side_effect` — is in `bene/runtime/local.py` + `bene/temporal/runtime_impl.py`

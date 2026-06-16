@@ -155,7 +155,7 @@ A first experiment to test whether codegen-into-IR is viable.
 
 **Run 1 (2026-05-04):** Consumer was the burst aggregator from triage-rag's L3 pipeline.
 
-- **Generated artifacts:** `~/gh/triage-rag-codeleash-a/.worktrees/l3-burst/services/temporal_worker/{activities/burst_aggregator.py, tests/test_burst_aggregator.py}` — 339 + 419 LOC, branch `feat/l3-burst-aggregator-spike`
+- **Generated artifacts:** produced internally, run against a private downstream consumer — the burst-aggregator activity + tests (~339 + 419 LOC). Those artifacts are not public; the conclusion they drove (the `submit_side_effect` gap) is verifiable in-repo at `bene/runtime/local.py` + `bene/temporal/runtime_impl.py`.
 - **Pass criteria results:**
   - ✓ Activities (`should_advise`, `post_advisory`) readable in <5 min by non-Temporal engineer
   - ⚠ Workflow class still leaks `@workflow.*` decorators (motivates `EntityActor` base — see "Future L2 capabilities" above)
@@ -186,4 +186,4 @@ Future runs should target a second entity-actor consumer (request coalescer, con
 - [skills.md](skills.md) — How reusable patterns are stored and retrieved
 - [meta-harness.md](meta-harness.md) — How BENE evolves harness strategies
 - [use-cases.md](use-cases.md) — The current BENE use-case landscape (mostly parallel-agent shapes; entity-actor is the new direction codegen would serve)
-- `.cursor/plans/bene-runtime-boundary-2f9c0ff7.plan.md` — The IR codegen will target
+- [`bene/runtime/handle.py`](../bene/runtime/handle.py) (runtime protocol) + [`bene/runtime/core.py`](../bene/runtime/core.py) (boundary DTOs) — what the IR codegen targets

@@ -156,7 +156,7 @@ Brief catalogue of patterns. Each entry is a one-glance preview — what the pro
 
 **BENE.** N agents share a Pareto frontier; stagnation triggers cross-pollination.
 
-![CORAL co-evolution — N agents share frontiers and skills, 3-10× higher improvement rate](demos/bene_uc08_coevolution_coral.gif)
+![CORAL co-evolution — N agents share frontiers and skills; 3-10× higher improvement rate (CORAL paper)](demos/bene_uc08_coevolution_coral.gif)
 
 → Component: [Meta-Harness — CORAL](meta-harness.md#coral-stagnation-detection--multi-agent-co-evolution-v060)
 
