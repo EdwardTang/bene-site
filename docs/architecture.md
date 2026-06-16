@@ -162,7 +162,7 @@ Thread 1 (Agent A)         Thread 2 (Agent B)        Thread 3 (Agent C)
   Write (serialized)        Read (concurrent)        Read (concurrent)
 ```
 
-SQLite WAL mode permits many readers while writes serialize. BENE pairs that with one SQLite connection per thread through `threading.local()`, and the CCR semaphore caps active agent loops so parallel work does not become resource exhaustion. `busy_timeout` gives write contention up to 5000ms before surfacing an error.
+SQLite WAL mode permits many readers while writes serialize. BENE pairs that with one SQLite connection per thread through `threading.local()`, and the CCR semaphore caps active agent loops so parallel work does not become resource exhaustion. `busy_timeout` gives write contention up to 30000ms (30s) before surfacing an error.
 
 ---
 
@@ -239,10 +239,11 @@ Use the VFS engine when you need to know what an agent wrote, what version of a 
 ```python
 conn.execute("PRAGMA journal_mode=WAL")    # Write-Ahead Logging
 conn.execute("PRAGMA foreign_keys=ON")      # Referential integrity
-conn.execute("PRAGMA busy_timeout=5000")    # 5s retry on lock contention
+conn.execute("PRAGMA busy_timeout=30000")   # 30s retry on lock contention
+conn.execute("PRAGMA wal_autocheckpoint=100")
 ```
 
-Those pragmas are the database contract: WAL for concurrent readers, foreign keys for referential integrity, and a 5s retry window for lock contention.
+Those pragmas are the database contract: WAL for concurrent readers, foreign keys for referential integrity, and a 30s retry window for lock contention.
 
 ### Thread Safety
 
@@ -540,7 +541,7 @@ The discrete-tier dispatch (rather than learning a continuous score) most closel
 
 ### Context Compression
 
-`ContextCompressor` in `bene/router/context.py` estimates tokens at roughly 4 characters per token, truncates long tool outputs above 2000 characters to the first 1000 plus last 500 characters with a `[truncated]` marker, drops middle messages while preserving the system message, first user message, and last 8 messages, then trims more aggressively if the context still does not fit. It targets 85% of the selected model's `max_context`.
+`ContextCompressor` in `bene/router/context.py` estimates tokens at roughly 4 characters per token, truncates long tool outputs above 2000 characters to the first 1000 plus last 500 characters with a `[truncated]` marker, drops middle messages while preserving the system message and the last 8 messages (PRESERVE_RECENT), summarizing everything in between, then trims more aggressively if the context still does not fit. It targets 85% of the selected model's `max_context`.
 
 The "summarize the middle into a synthetic system message, preserve recent messages verbatim" pattern descends from MemGPT ([Packer et al. 2023](https://arxiv.org/abs/2310.08560)) and *Recursively Summarizing Enables Long-Term Dialogue Memory in LLMs* ([Wang et al. 2023](https://arxiv.org/abs/2308.15022)). The implementation is faithful to Anthropic's productized `/compact` mechanism (Claude API beta `compact-2026-01-12`).
 
@@ -550,7 +551,7 @@ The "summarize the middle into a synthetic system message, preserve recent messa
 
 ### Retry and Fallback
 
-The router retries failed model calls up to `max_retries`; the default is 3. If a non-fallback model keeps failing, later attempts switch to the configured fallback model.
+The router retries failed model calls up to `max_retries`; the default is 1 (a single attempt, no retry). If a non-fallback model keeps failing, later attempts switch to the configured fallback model.
 
 ### Research Lineage
 

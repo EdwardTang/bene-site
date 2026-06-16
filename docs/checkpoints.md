@@ -140,11 +140,14 @@ bene --json checkpoints <agent-id>
 Labels name a capture; metadata explains it — test results, triggers, notes:
 
 ```python
-cp = db.checkpoint(agent_id, label="v2-attempt", metadata={
-    "notes": "Switched to JWT — session-based auth removed",
-    "test_results": {"passed": 14, "failed": 0},
-    "triggered_by": "CI pipeline run #428",
-})
+cp = db.checkpoint(agent_id, label="v2-attempt")
+
+# The Bene facade takes just a label. For rich metadata, call the manager directly:
+# db.checkpoints.create(agent_id, label="v2-attempt", metadata={
+#     "notes": "Switched to JWT — session-based auth removed",
+#     "test_results": {"passed": 14, "failed": 0},
+#     "triggered_by": "CI pipeline run #428",
+# })
 ```
 
 It shows up in `bene checkpoints <agent-id>` and the dashboard's Checkpoints tab.
@@ -158,7 +161,7 @@ Almost nothing. File bodies live once in the blob store (SHA-256 keys, zstd comp
 Reclaim blobs nothing references anymore:
 
 ```python
-db.gc()  # removes blobs not referenced by any file or checkpoint
+db.blobs.gc()  # removes blobs whose ref_count has dropped to 0
 ```
 
 ---

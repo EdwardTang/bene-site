@@ -21,9 +21,12 @@ from bene.memory import MemoryStore
 bene = Bene("project.db")
 mem  = MemoryStore(bene.conn)
 
+# Spawn the agent first — memory rows FK to agents; spawn returns the id string
+agent_id = bene.spawn("proposer-iter-3")
+
 # Any agent writes a result
 mid = mem.write(
-    agent_id="proposer-iter-3",
+    agent_id=agent_id,
     content="Ensemble voting with 3 Sonnet calls achieved accuracy=0.847.",
     type="result",
     key="iter3-best",

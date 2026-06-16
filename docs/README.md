@@ -13,15 +13,15 @@ BENE (Breeding-program Evolutionary Nexus for Engrams) gives each agent a privat
 ```bash
 git clone https://github.com/good-night-oppie/bene.git && cd bene
 uv sync
-bene setup       # configure models, init database, install MCP server
-bene demo        # see it in action — no API keys needed
+uv run bene setup       # configure models, init database, install MCP server
+uv run bene demo        # see it in action — no API keys needed
 ```
 
 ---
 
 ## Drive it from your editor
 
-After `bene setup`, Claude Code, Cursor, and other MCP clients can drive BENE in plain language:
+After `uv run bene setup`, Claude Code, Cursor, and other MCP clients can drive BENE in plain language:
 
 ```text
 with bene, review my payments module — security agent and test-writing agent in parallel

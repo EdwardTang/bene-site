@@ -146,7 +146,7 @@ Brief catalogue of patterns. Each entry is a one-glance preview — what the pro
 
 ![Fraud Detection — Meta-Harness raises recall while preserving precision](demos/bene_uc06_fraud_detection.gif)
 
-→ Component: [Meta-Harness — Examples](meta-harness.md#examples) · CLI: `bene mh search -b fraud_detection`
+→ Component: [Meta-Harness — Examples](meta-harness.md#examples) · Script: `examples/meta_harness_fraud_detection.py` (`fraud_detection` is not a built-in `-b` value; `-b` takes `text_classify` / `math_rag` / `agentic_coding`)
 
 ---
 
@@ -209,7 +209,7 @@ The self-healing CI scripts use a small set of return codes that reviewers see i
 | `fail` | regression-gate, classifier | Measured signals regressed beyond threshold OR junit failures+errors > 0 | Block merge |
 | `flaky` | classifier | Failure pattern matches a known flake fingerprint and the same suite passes on retry | Mark advisory; do not block |
 | `base-not-green` | classifier, regression-gate | The PR's parent commit on the base branch was not green | Default rc=5 (advisory ::warning); rc=4 hard-fail when `BENE_STRICT_BASE=1` |
-| `cov-drop` | classifier | Measured coverage is below `.coverage-floor` by more than `COV_DROP_LIMIT` (default 0.1%) | Block merge |
+| `cov-drop` | classifier | Measured coverage is below `.coverage-floor` by more than `BENE_COV_DROP_LIMIT` (default 0.1%) | Block merge |
 | `ratchet: noop` | push-main, ratchet_coverage | Floor unchanged; coverage did not exceed `floor + 1%` margin | Continue, no commit |
 | `ratchet: 42 -> 47` | push-main, ratchet_coverage | Floor bumped (capped at +5/PR, ceiling 98) | Auto-commit `[skip ci]` to main |
 | `canary: clean` | release-tag, canary_watcher | 4h soak elapsed with no `release-blocker` issues mentioning the tag | Mark release-ready |

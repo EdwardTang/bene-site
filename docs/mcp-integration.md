@@ -17,7 +17,7 @@ On this page:
 - [The cheaper path: the `--json` CLI](#the-cheaper-path-the---json-cli)
 - [Tool reference](#tool-reference)
 - [Conversations that work today](#conversations-that-work-today)
-- [What v0.5.2 changed](#what-v052-changed)
+- [What the CLI-first path adds](#what-the-cli-first-path-adds)
 
 Original anchor map: [Overview](#overview), [CLI Alternative](#cli-alternative), [Starting the MCP Server](#starting-the-mcp-server), [Claude Code Integration](#claude-code-integration), [Available Tools](#available-tools), [Example Conversation Flows](#example-conversation-flows).
 
@@ -87,7 +87,7 @@ Restart Claude Code after editing settings, then ask:
 
 > "What BENE tools are available?"
 
-All 18 should come back in the answer.
+All 37 should come back in the answer.
 
 ---
 
@@ -153,7 +153,7 @@ When no `bene.yaml` is present, the server falls back to one default model endpo
 
 ## The cheaper path: the `--json` CLI
 
-Since v0.5.2, every BENE command accepts `--json`. That means any agent that can run a shell command can drive BENE with structured output — no MCP client, no schema injection:
+Every BENE command accepts `--json`. That means any agent that can run a shell command can drive BENE with structured output — no MCP client, no schema injection:
 
 ```bash
 # Structured JSON output — any agent can parse this
@@ -631,7 +631,7 @@ Kick off a Meta-Harness search: seed harnesses get scored on a benchmark, then e
 
 | Name | Type | Required | Description |
 |---|---|---|---|
-| `benchmark` | string | yes | Benchmark name: `text_classify`, `math_rag`, `agentic_coding`, `lawbench`, `symptom2disease`, `uspto_50k`, or a custom registered benchmark. |
+| `benchmark` | string | yes | Benchmark name: `text_classify`, `math_rag`, `agentic_coding`, or a custom registered benchmark. |
 | `max_iterations` | integer | no | Number of search iterations. Default: 10. |
 | `candidates_per_iteration` | integer | no | Candidates proposed per iteration. Default: 2. |
 | `config` | object | no | Additional SearchConfig overrides. |
@@ -903,9 +903,9 @@ Nine end-to-end exchanges, ordered the way work usually unfolds: build, fan out,
 
 ---
 
-## What v0.5.2 changed
+## What the CLI-first path adds
 
-- **CLI first.** Every command takes `--json`, so an agent can shell out to `bene --json ls` rather than carry MCP schemas in context — 10-32x cheaper on tokens.
+- **CLI first.** Every command takes `--json`, so an agent can shell out to `bene --json ls` rather than carry MCP schemas in context — which saves the per-call schema overhead.
 - **Big results don't flood the wire.** When an agent's output runs past 4KB, the full text lands in its VFS at `/result.txt`; over MCP you get a preview plus a pointer to fetch the rest with `agent_read`.
 - **The JSON-RPC stream stays clean.** On stdio startup, the server points `sys.stdout` at `sys.stderr`, so stray library logging can never corrupt the protocol.
 - **Searches outlive the connection.** `mh_search` and `mh_resume` hand work to detached worker processes; an MCP disconnect doesn't kill a running search. Workers log to `bene-worker-*.log`.

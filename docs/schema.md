@@ -391,7 +391,7 @@ SELECT
     label,
     created_at,
     json_array_length(file_manifest) as file_count,
-    json_object_length(state_snapshot) as state_keys
+    (SELECT count(*) FROM json_each(state_snapshot)) as state_keys
 FROM checkpoints
 WHERE agent_id = '01HXYZ...';
 
