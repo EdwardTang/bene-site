@@ -85,26 +85,26 @@ Each diff reports:
 - **State changed** — KV keys gained, dropped, or given new values
 - **Tool calls between** — calls made between the two captures
 
-A typical report:
+A typical report — a table keyed by path and status (no file sizes), then the state and tool-call sections:
 
 ```text
-Files added (2):
-  /src/auth_v2.py        4.2 KB
-  /tests/test_auth.py    1.8 KB
-
-Files modified (1):
-  /src/auth.py           (1.1 KB → 2.4 KB)
-
-Files removed (1):
-  /src/auth_legacy.py
+           File Changes
+┏━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┓
+┃ Status     ┃ Path               ┃
+┡━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━┩
+│ ADDED      │ /tests/test_auth.py│
+│ MODIFIED   │ /src/auth.py       │
+│ REMOVED    │ /src/auth_legacy.py│
+└────────────┴────────────────────┘
 
 State changes:
   progress:  75 → 100
   status:    "in-progress" → "complete"
 
 Tool calls between checkpoints: 12
-  8 success, 3 error, 1 running
 ```
+
+With `--json`, the same diff comes back as `{"files": {"added": [...], "removed": [...], "modified": [...]}, "state": {"added": {...}, "removed": {...}, "modified": {...}}, "tool_calls": [...]}`. (When nothing changed in a section the CLI prints `No state changes` / `No tool calls between checkpoints`.)
 
 ### Compare two attempts
 
