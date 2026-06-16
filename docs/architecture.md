@@ -348,7 +348,7 @@ Tier 2 Isolation Stack:
 **Requirements:**
 
 - Linux only (`platform.system() == "Linux"`).
-- `fusepy` package (`uv pip install bene[fuse]`).
+- `fusepy` package — `uv sync --extra fuse` from a clone (bene is not on PyPI yet).
 - Root or appropriate capabilities for namespace/cgroup operations.
 
 ### Isolation Factory

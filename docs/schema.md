@@ -1,10 +1,10 @@
 # Inside bene.db
 
-Open `bene.db` with any SQLite client and you can answer, in plain SQL, every question your agents can raise: what they did, what they wrote, what they remember, and where you can roll them back to. This page maps each of the 8 tables to the question it answers, documents every column, and hands you queries ready to paste.
+Open `bene.db` with any SQLite client and you can answer, in plain SQL, every question your agents can raise: what they did, what they wrote, what they remember, and where you can roll them back to. This page maps each of the 11 tables to the question it answers, documents every column, and hands you queries ready to paste.
 
 > **The entire state of your agent fleet is one SQLite file — query it, `cp` it, back it up; nothing leaves your machine.**
 
-The schema is at version **1**, defined in `bene/schema.py`.
+The schema is at version **4**, defined in `bene/schema.py`.
 
 Original anchor map: [Overview](#overview), [agents](#agents), [files](#files), [blobs](#blobs), [tool_calls](#tool_calls), [state](#state), [events](#events), [checkpoints](#checkpoints), [schema_version](#schema_version), [Relationships](#relationships), [Index Reference](#index-reference).
 
@@ -12,9 +12,9 @@ Original anchor map: [Overview](#overview), [agents](#agents), [files](#files), 
 
 <a id="overview"></a>
 
-## One file, eight tables
+## One file, eleven tables
 
-bene keeps everything in a single SQLite database opened in WAL (Write-Ahead Logging) mode. Five tables hang off `agents`; `blobs` holds the bytes that `files` points at:
+bene keeps everything in a single SQLite database opened in WAL (Write-Ahead Logging) mode. Several tables hang off `agents` (`files`, `events`, `tool_calls`, `state`, `checkpoints`, `memory`, `agent_skills`, `shared_log`); `blobs` holds the bytes that `files` points at:
 
 ```text
 agents  ----<  files         (1:N - each agent has many files)
@@ -562,12 +562,12 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
-| `version` | INTEGER | PRIMARY KEY | The migration number. Current: 1. |
+| `version` | INTEGER | PRIMARY KEY | The migration number. Current: 4. |
 | `applied_at` | TEXT | NOT NULL, auto-generated | When that migration ran. |
 
 ### Migration mechanics
 
-- First initialization inserts version 1.
+- First initialization inserts version 4.
 - On later opens, a database that trails the code's `SCHEMA_VERSION` is brought forward by incremental migrations through `_apply_migrations()`.
 - Future steps land as `if from_version < N:` blocks in `bene/schema.py`.
 
