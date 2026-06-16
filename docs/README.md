@@ -35,7 +35,7 @@ with bene, refactor auth.py — implement, test, and document in parallel
 with bene, show me all agents that failed in the last run and what errors they hit
 ```
 
-Client setup and the full 25 MCP tools: [MCP Integration](mcp-integration.md).
+Client setup and the full 37 MCP tools: [MCP Integration](mcp-integration.md).
 
 ---
 
@@ -95,7 +95,6 @@ Client setup and the full 25 MCP tools: [MCP Integration](mcp-integration.md).
 
 | Case study | Result |
 |---|---|
-| [cs01 — L1 Recall 98.4% with Opus](case-studies/cs01-bene-triage-rag-harness.md) | Meta-Harness search on Oppie triage retrieval; held-out generalization |
 | [cs02 — Self-Healing CI](case-studies/cs02-ci-self-healing-refactor-swarm.md) | Multi-agent CI design, insights, supply-chain practices, cross-team influence |
 
 ---

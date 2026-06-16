@@ -294,7 +294,6 @@ No API key. No extra cost. Oppie CC subscription is the inference engine.
 - [Use Cases](../use-cases.md) — more real-world patterns
 - [Component guide: Meta-Harness](../meta-harness.md) — full search-loop reference + CORAL tier breakdown
 - [Tutorial: t00 — End-to-End Walkthrough](t00-bene-e2e-walkthrough.md) — start here if Meta-Harness is your first step into BENE
-- [Case study: cs01 — L1 Recall 98.4%](../case-studies/cs01-bene-triage-rag-harness.md) — same loop, different domain (Oppie triage)
 
 ---
 

@@ -143,6 +143,18 @@ bene read <agent-id> /path/to/file
 bene read <agent-id> /src/auth.py
 ```
 
+### `bene failure localize`
+
+Blame the earliest decisive step in a failed run. It reads the agent's trace engrams — every `run_agent` turn lands one, plus one per tool call (`tool_name`, `status`, `error_message`) by default — builds a timeline, and points at the first error everything downstream followed from.
+
+```bash
+bene failure localize <agent-id>
+bene failure localize <agent-id> --persist    # record the verdict as a tier-1 episodic engram
+bene --json failure localize <agent-id> | jq '.localized, .step'
+```
+
+This works on a **real run by default** (no opt-in, no hand-seeding) because the runner emits the per-tool trace engrams `localize` keys on. If a run was executed with `emit_engrams=False` / `kernel.emit_engrams: false`, there are no trace engrams to read and it returns `localized: false`.
+
 ---
 
 ## Find anything
@@ -159,7 +171,7 @@ bene --json search "keyword" | jq '.results'
 
 ### `bene query`
 
-Run any SQL you want against the database.
+Run read-only SQL against the database — safe to hand to an agent. Reads are enforced at the SQLite engine level (`PRAGMA query_only`), so any write — `INSERT`/`UPDATE`/`DELETE`, a `WITH … DELETE` CTE, or a comment-prefixed statement — is rejected by the engine, not by a keyword check that can be worded around. A blocked write raises `PermissionError`.
 
 ```bash
 bene query "SELECT name, status FROM agents"
