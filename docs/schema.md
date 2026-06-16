@@ -38,7 +38,8 @@ Two conventions hold everywhere:
 | What did this agent actually do? | [events](#events) |
 | Which tools ran, with what input and timing? | [tool_calls](#tool_calls-every-tool-invocation) |
 | Which agents exist, and are they alive? | [agents](#agents-the-roster) |
-| What does an agent remember right now? | [state](#state-per-agent-key-value-memory) |
+| What is an agent's current working state (short-term scratch)? | [state](#state-per-agent-key-value-memory) |
+| What does an agent durably remember / recall across sessions? | `memory` + `memory_fts` — full-text searchable (`SELECT … FROM memory_fts WHERE memory_fts MATCH '…'`); see [memory.md](memory.md) |
 | Where can I roll back to? | [checkpoints](#checkpoints-snapshots-you-can-return-to) |
 | What has an agent written? | [files](#files-the-virtual-filesystem) |
 | How are the bytes actually stored? | [blobs](#blobs-deduplicated-content) |
@@ -58,8 +59,13 @@ CREATE TABLE IF NOT EXISTS events (
     agent_id        TEXT NOT NULL REFERENCES agents(agent_id),
     event_type      TEXT NOT NULL,
     payload         TEXT NOT NULL DEFAULT '{}',
-    timestamp       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now'))
+    timestamp       TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%f', 'now')),
+    idempotency_key TEXT
 );
+-- schema v4 also adds a partial unique index for safe (Temporal) retries:
+-- CREATE UNIQUE INDEX idx_events_idem ON events(agent_id, idempotency_key)
+--   WHERE idempotency_key IS NOT NULL;
+-- The same `idempotency_key TEXT` column + partial unique index exist on `tool_calls` and `files`.
 ```
 
 ### Column guide
@@ -71,6 +77,7 @@ CREATE TABLE IF NOT EXISTS events (
 | `event_type` | TEXT | NOT NULL | One of the strings catalogued below. |
 | `payload` | TEXT | NOT NULL, default `'{}'` | Event-specific detail as a JSON object. |
 | `timestamp` | TEXT | NOT NULL, auto-generated | ISO 8601, millisecond precision, written automatically. |
+| `idempotency_key` | TEXT | nullable, unique per agent when set (v4) | A replayed write with the same key is a no-op instead of a duplicate — enables safe Temporal activity retries. Also on `tool_calls` and `files`. |
 
 ### Event types
 
