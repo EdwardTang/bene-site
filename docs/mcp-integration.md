@@ -665,6 +665,7 @@ Pick an interrupted search back up at its last finished iteration. Nothing is lo
 | Name | Type | Required | Description |
 |---|---|---|---|
 | `search_agent_id` | string | yes | Search agent ID of the interrupted search. |
+| `benchmark` | string | yes | Benchmark the search was started on (`text_classify`, `math_rag`, or `agentic_coding`) — the worker needs it to resume scoring. |
 
 **Returns:** JSON carrying `search_agent_id`, `summary`, `frontier`, `total_harnesses`, `resumed_from_iteration`, and `duration_seconds`.
 
@@ -672,7 +673,8 @@ Pick an interrupted search back up at its last finished iteration. Nothing is lo
 
 ```json
 {
-  "search_agent_id": "01HXY..."
+  "search_agent_id": "01HXY...",
+  "benchmark": "text_classify"
 }
 ```
 
@@ -896,7 +898,7 @@ Nine end-to-end exchanges, ordered the way work usually unfolds: build, fan out,
 **Claude Code calls:** `mh_resume`
 
 ```json
-{"search_agent_id": "01HXY..."}
+{"search_agent_id": "01HXY...", "benchmark": "text_classify"}
 ```
 
 **Claude Code reports:** resumed at iteration 4, ran through 10 iterations total, 23 harnesses evaluated, best accuracy 87% (harness 01HXY1F...), and 4 harnesses sit on the Pareto frontier.

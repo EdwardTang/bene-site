@@ -519,7 +519,7 @@ This pattern — prompting a small LLM at temperature 0 to act as a classifier h
 - `MODERATE_PATTERNS`: implement, create function, write test, fix bug, etc. (+1.5 each)
 - `TRIVIAL_PATTERNS`: format, rename, comment, typo, import, etc. (-1.0 each)
 
-It also adds +2.0 for context above 50K chars, +1.0 for context above 20K chars, +1.0 for 10+ tools, and +1.0 for task descriptions longer than 500 chars. Scores map to >= 5.0 critical, >= 3.0 complex, >= 1.0 moderate, otherwise trivial. Confidence is `min(0.9, 0.5 + |score| * 0.1)`.
+It also adds +2.0 for context above 50K chars, +1.0 for context above 20K chars, +1.0 for more than 10 tools (11+), and +1.0 for task descriptions longer than 500 chars. Scores map to >= 5.0 critical, >= 3.0 complex, >= 1.0 moderate, otherwise trivial. Confidence is `min(0.9, 0.5 + |score| * 0.1)`.
 
 ### Routing Table
 

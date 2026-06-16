@@ -102,7 +102,7 @@ This is consistent with the philosophy of "harnesses should evolve, models shoul
 
 1. **Temporal code is OOD for current LLMs.** Determinism, replay safety, signal vs query semantics — these run counter to how most async code is written. First-pass generation needs test feedback loops to converge.
 2. **Generated code requires marker-based ownership.** Once a user modifies generated code, regenerating risks overwriting. The generator must emit `BUSINESS_LOGIC_BEGIN` / `BUSINESS_LOGIC_END` markers and preserve their contents on regenerate.
-3. **Abstractions must land before codegen has a target.** The boundary plan primitives must be implemented before generated code can be executed. Until then, generation is design-validation only — does the generated shape look right?
+3. **Abstractions must land before codegen has a target.** This prerequisite is now met: the runtime boundary primitives (`start_or_signal`, `submit_side_effect`, `SideEffectLabel`, `BusinessIdempotencyKey`, `CostEstimate`) plus `LocalRuntime` and `TemporalRuntime` are implemented in `bene/runtime/` and `bene/temporal/runtime_impl.py`, so the IR has a real execution target. The remaining gap is the L2 codegen pass itself (e.g. the `EntityActor` base class), not its dependencies.
 4. **Codegen is not a substitute for understanding.** If a user never reads the generated code, they cannot debug it when production breaks. The L2 hide is "you didn't have to write it," not "you don't have to know it."
 
 ---
@@ -163,7 +163,7 @@ A first experiment to test whether codegen-into-IR is viable.
   - ✓ Tests cover cold-start race, replay safety, tumbling-window boundary, business idempotency
   - ✓ Two business-logic sections per activity, marker-delimited
 
-- **What the experiment caught (most valuable output):** the IR as originally specified included `business_idempotency_key` and `SideEffectLabel` as concepts but **no atomic verb for the check-then-write pattern**. The consumer had to invent `runtime.check_side_effect` + `runtime.record_side_effect` on the spot — a guaranteed TOCTOU race on activity retry. This surfaced the BLOCKING `submit_side_effect` todo in the boundary plan. Without writing real generated code, the gap would have shipped to production.
+- **What the experiment caught (most valuable output):** the IR as originally specified included `business_idempotency_key` and `SideEffectLabel` as concepts but **no atomic verb for the check-then-write pattern**. The consumer had to invent `runtime.check_side_effect` + `runtime.record_side_effect` on the spot — a guaranteed TOCTOU race on activity retry. This surfaced the `submit_side_effect` gap, now implemented (`bene/runtime/local.py`, `bene/runtime/handle.py`, `bene/temporal/runtime_impl.py`). Without writing real generated code, the gap would have shipped to production.
 
 - **Insight on what IR forces vs what it allows:** the consumer reported that `business_idempotency_key` as a *named concept* forced confrontation of "what is business identity here?" — producing a two-shape result (non-burst uses `(post_advisory, testrun_id, jira_ticket_key)`, burst uses `(post_advisory, bucket_id, seed_ticket_key)`) that a hand-writer using Temporal's `workflow_id` would likely have missed. This is the canonical example of capability-unlock convenience: the abstraction makes a class of bug structurally unrepresentable, not just easier to avoid.
 

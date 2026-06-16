@@ -2,10 +2,12 @@
 
 Launch, watch, rewind, and query a fleet of agents from your terminal — every command works against the same local `bene.db` file.
 
+> **Running from a clone:** `bene` isn't on your `PATH` after `uv sync` — prefix every command below with `uv run` (e.g. `uv run bene init`), or `source .venv/bin/activate` once so the bare `bene` commands shown here resolve. (bene is not on PyPI yet.)
+
 > **Every command takes `--json`, so any output can feed `jq`, scripts, or another agent framework.**
 
 ```bash
-bene --json <command>
+uv run bene --json <command>
 ```
 
 ---
