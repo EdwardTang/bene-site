@@ -6,8 +6,6 @@ Open `bene.db` with any SQLite client and you can answer, in plain SQL, every qu
 
 The schema is at version **4**, defined in `bene/schema.py`.
 
-Original anchor map: [Overview](#overview), [agents](#agents), [files](#files), [blobs](#blobs), [tool_calls](#tool_calls), [state](#state), [events](#events), [checkpoints](#checkpoints), [schema_version](#schema_version), [Relationships](#relationships), [Index Reference](#index-reference).
-
 ---
 
 <a id="overview"></a>
@@ -76,7 +74,7 @@ CREATE TABLE IF NOT EXISTS events (
 
 ### Event types
 
-Every `event_type` bene emits, with the payload shape each carries:
+The standard `event_type`s bene emits, with the payload shape each carries (the Temporal runtime emits a few additional types):
 
 | Event Type | Payload Example | Trigger |
 |---|---|---|
@@ -92,6 +90,7 @@ Every `event_type` bene emits, with the payload shape each carries:
 | `file_delete` | `{"path": "/tmp/scratch.txt"}` | File deleted from VFS |
 | `tool_call_start` | `{"call_id": "...", "tool_name": "fs_read"}` | Tool execution started |
 | `tool_call_end` | `{"call_id": "...", "status": "success"}` | Tool execution completed |
+| `llm_call` | `{"model": "...", "prompt_len": 1234, "input_tokens": 800, "output_tokens": 120, "cache_read_tokens": 0, "cache_creation_tokens": 0}` | Model call completed |
 | `checkpoint_create` | `{"checkpoint_id": "...", "label": "pre-refactor"}` | Checkpoint created |
 | `checkpoint_restore` | `{"checkpoint_id": "..."}` | Checkpoint restored |
 | `error` | `{"message": "..."}` | Runtime error |

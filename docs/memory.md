@@ -187,7 +187,8 @@ Nothing leaves your machine: memory is one SQLite table inside the same `.db` fi
 CREATE TABLE memory (
     memory_id   INTEGER PRIMARY KEY AUTOINCREMENT,
     agent_id    TEXT NOT NULL REFERENCES agents(agent_id),
-    type        TEXT NOT NULL DEFAULT 'observation',
+    type        TEXT NOT NULL DEFAULT 'observation'
+                CHECK (type IN ('observation','result','skill','insight','error')),
     key         TEXT,
     content     TEXT NOT NULL,
     metadata    TEXT NOT NULL DEFAULT '{}',

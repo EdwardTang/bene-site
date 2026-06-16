@@ -433,7 +433,7 @@ The loop stops on normal completion, `timeout_seconds`, `max_iterations`, a `kil
 
 ### Tool Registry
 
-`bene/ccr/tools.py` owns built-in and custom tool definitions. Built-in `fs_` and `state_` tools receive the active `agent_id` automatically so their operations stay inside the caller's namespace.
+`bene/ccr/tools.py` owns built-in and custom tool definitions. Built-in `fs_` and `state_` tools receive the active `agent_id` automatically so their operations stay inside the caller's namespace. The table below lists the core `fs_`/`state_`/`shell` tools; `tools.py` also registers a `squirrel_localpath` helper (translates internal/Jira URLs to NFS paths) that an internal deployment may keep or de-register.
 
 | Tool | Description |
 |---|---|

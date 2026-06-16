@@ -69,8 +69,9 @@ In-process, `SkillStore` exposes the same operations:
 from bene import Bene
 from bene.skills import SkillStore
 
-bene = Bene("project.db")
-sk   = SkillStore(bene.conn)
+bene  = Bene("project.db")
+sk    = SkillStore(bene.conn)
+agent = bene.spawn("classifier-dev")   # source_agent_id is a FK → must be a real spawned agent
 
 # Save a skill after discovering a reliable pattern
 sid = sk.save(
@@ -81,7 +82,7 @@ sid = sk.save(
         "Use {voting} voting. Tune the decision threshold to {threshold}."
     ),
     tags=["classification", "ensemble", "accuracy"],
-    source_agent_id="agent-01",
+    source_agent_id=agent,
 )
 
 # Search before starting a similar task
@@ -194,4 +195,4 @@ That review names four externalization axes, and BENE ships a component on each 
 | Memory | `MemoryStore` — FTS5 cross-agent episodic memory |
 | **Skills** | **`SkillStore` — FTS5 cross-agent procedural templates** |
 | Protocols | `SharedLog` — LogAct intent/vote/decide |
-| Harness | `MetaHarness` — evolutionary strategy optimization |
+| Harness | `MetaHarnessSearch` — evolutionary strategy optimization |
